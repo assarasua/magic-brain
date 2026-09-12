@@ -1,4 +1,4 @@
-import { Pool, QueryResultRow } from "pg";
+import { Client, Pool, QueryResultRow } from "pg";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 declare global {
@@ -50,12 +50,37 @@ function getPool() {
 }
 
 export const db = {
-  connect: () => getPool().connect(),
+  async connect() {
+    const connection = databaseConnection();
+    if (connection.hyperdrive && connection.connectionString) {
+      const client = new Client({
+        connectionString: connection.connectionString,
+      });
+      await client.connect();
+      return Object.assign(client, {
+        release: () => client.end(),
+      });
+    }
+    return getPool().connect();
+  },
 };
 
 export async function query<T extends QueryResultRow>(
   text: string,
   values: unknown[] = [],
 ) {
+  const connection = databaseConnection();
+  if (connection.hyperdrive && connection.connectionString) {
+    const client = new Client({
+      connectionString: connection.connectionString,
+    });
+    try {
+      await client.connect();
+      return await client.query<T>(text, values);
+    } finally {
+      await client.end();
+    }
+  }
+
   return getPool().query<T>(text, values);
 }
