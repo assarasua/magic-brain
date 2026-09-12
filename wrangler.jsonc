@@ -1,23 +1,29 @@
 {
-  "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "magic-brain",
-  "main": ".open-next/worker.js",
-  "compatibility_date": "2026-09-12",
-  "compatibility_flags": [
-    "nodejs_compat",
-    "global_fetch_strictly_public"
-  ],
-  "assets": {
-    "directory": ".open-next/assets",
-    "binding": "ASSETS"
-  },
-  "routes": [
-    {
-      "pattern": "magicbrain.es",
-      "custom_domain": true
-    }
-  ],
-  "observability": {
-    "enabled": true
-  }
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "magic-brain",
+	"main": ".open-next/worker.js",
+	"compatibility_date": "2026-09-12",
+	"compatibility_flags": [
+		"nodejs_compat",
+		"global_fetch_strictly_public"
+	],
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	"routes": [
+		{
+			"pattern": "magicbrain.es",
+			"custom_domain": true
+		}
+	],
+	"observability": {
+		"enabled": true
+	},
+	"hyperdrive": [
+		{
+			"binding": "HYPERDRIVE",
+			"id": "4e073b9c05f94a81ad18bba6ac32ad5e"
+		}
+	]
 }

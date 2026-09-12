@@ -1,32 +1,61 @@
 import { Pool, QueryResultRow } from "pg";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 declare global {
   var magicBrainPool: Pool | undefined;
+  interface CloudflareEnv {
+    HYPERDRIVE?: {
+      connectionString: string;
+    };
+  }
 }
 
-const connectionString = process.env.DATABASE_URL;
+function databaseConnection() {
+  const isCloudflare =
+    typeof navigator !== "undefined" &&
+    navigator.userAgent === "Cloudflare-Workers";
 
-export const db =
-  global.magicBrainPool ??
-  new Pool({
-    connectionString,
-    ssl: connectionString ? { rejectUnauthorized: false } : undefined,
-    max: 8,
+  if (isCloudflare) {
+    const hyperdrive = getCloudflareContext().env.HYPERDRIVE;
+    if (hyperdrive?.connectionString) {
+      return { connectionString: hyperdrive.connectionString, hyperdrive: true };
+    }
+  }
+
+  return {
+    connectionString: process.env.DATABASE_URL,
+    hyperdrive: false,
+  };
+}
+
+function getPool() {
+  if (global.magicBrainPool) return global.magicBrainPool;
+
+  const connection = databaseConnection();
+  if (!connection.connectionString) {
+    throw new Error("DATABASE_URL is not configured");
+  }
+
+  const pool = new Pool({
+    connectionString: connection.connectionString,
+    ssl: connection.hyperdrive ? undefined : { rejectUnauthorized: false },
+    max: connection.hyperdrive ? 1 : 8,
+    allowExitOnIdle: true,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 10_000,
   });
 
-if (process.env.NODE_ENV !== "production") {
-  global.magicBrainPool = db;
+  global.magicBrainPool = pool;
+  return pool;
 }
+
+export const db = {
+  connect: () => getPool().connect(),
+};
 
 export async function query<T extends QueryResultRow>(
   text: string,
   values: unknown[] = [],
 ) {
-  if (!connectionString) {
-    throw new Error("DATABASE_URL is not configured");
-  }
-
-  return db.query<T>(text, values);
+  return getPool().query<T>(text, values);
 }
