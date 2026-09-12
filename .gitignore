@@ -4,11 +4,14 @@
 # Next.js
 /.next/
 /out/
+/.open-next/
+/.wrangler/
 
 # local secrets
 .env
 .env.local
 .env.*.local
+.dev.vars
 
 # logs and operating system files
 *.log
