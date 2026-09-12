@@ -1,0 +1,22 @@
+# dependencies
+/node_modules
+
+# Next.js
+/.next/
+/out/
+
+# local secrets
+.env
+.env.local
+.env.*.local
+
+# logs and operating system files
+*.log
+.DS_Store
+
+# TypeScript
+*.tsbuildinfo
+
+# Local agent tooling
+/.agents/
+/skills-lock.json

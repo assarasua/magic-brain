@@ -1,0 +1,402 @@
+"use client";
+
+/* eslint-disable @next/next/no-img-element */
+
+import {
+  ArrowLeft,
+  BrainCircuit,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Filter,
+  Plus,
+  Search,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { LanguageToggle, useLanguage } from "@/components/language-provider";
+import { AuthControl } from "@/components/auth-control";
+import { MagicBrainLogo } from "@/components/brand-logo";
+import type { CatalogCard } from "@/lib/catalog";
+import { formatCurrency } from "@/lib/data";
+
+type CatalogResponse = {
+  cards: CatalogCard[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+const initialData: CatalogResponse = {
+  cards: [],
+  total: 0,
+  page: 1,
+  pageSize: 48,
+  totalPages: 0,
+};
+
+const rarityOptions = ["", "common", "uncommon", "rare", "mythic"];
+
+type PricePoint = { date: string; eur: number | null; eurFoil: number | null };
+
+function PriceHistoryChart({ history }: { history: PricePoint[] }) {
+  const values = history.filter((point) => point.eur !== null) as Array<
+    PricePoint & { eur: number }
+  >;
+  if (values.length < 2) {
+    return <div className="history-empty">No historical prices available.</div>;
+  }
+
+  const width = 520;
+  const height = 150;
+  const min = Math.min(...values.map((point) => point.eur));
+  const max = Math.max(...values.map((point) => point.eur));
+  const points = values
+    .map((point, index) => {
+      const x = (index / (values.length - 1)) * width;
+      const y =
+        height -
+        ((point.eur - min) / Math.max(max - min, 0.01)) * (height - 12) -
+        6;
+      return `${x},${y}`;
+    })
+    .join(" ");
+
+  return (
+    <div className="history-chart">
+      <div className="history-scale">
+        <span>{formatCurrency(max)}</span><span>{formatCurrency(min)}</span>
+      </div>
+      <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="historyFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#48b9ff" stopOpacity=".3" />
+            <stop offset="1" stopColor="#48b9ff" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <polygon points={`0,${height} ${points} ${width},${height}`} fill="url(#historyFill)" />
+        <polyline points={points} fill="none" stroke="#48b9ff" strokeWidth="3" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <div className="history-dates"><span>{values[0].date}</span><span>{values.at(-1)?.date}</span></div>
+    </div>
+  );
+}
+
+export default function InventoryPage({
+  defaultReserved = false,
+}: {
+  defaultReserved?: boolean;
+}) {
+  const { locale, t } = useLanguage();
+  const [data, setData] = useState(initialData);
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [rarity, setRarity] = useState("");
+  const [color, setColor] = useState("");
+  const [language, setLanguage] = useState("");
+  const [cardType, setCardType] = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [foilOnly, setFoilOnly] = useState(false);
+  const [reservedOnly, setReservedOnly] = useState(defaultReserved);
+  const [sort, setSort] = useState("price_desc");
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selected, setSelected] = useState<CatalogCard | null>(null);
+  const [history, setHistory] = useState<PricePoint[]>([]);
+  const [historyDays, setHistoryDays] = useState(90);
+  const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setQuery(new URLSearchParams(window.location.search).get("q") ?? "");
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setLoading(true);
+      setDebouncedQuery(query);
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: "48",
+      sort,
+    });
+    if (debouncedQuery) params.set("q", debouncedQuery);
+    if (rarity) params.set("rarity", rarity);
+    if (color) params.set("color", color);
+    if (language) params.set("language", language);
+    if (cardType) params.set("type", cardType);
+    if (minPrice) params.set("minPrice", minPrice);
+    if (maxPrice) params.set("maxPrice", maxPrice);
+    if (foilOnly) params.set("foil", "true");
+    if (reservedOnly) params.set("reserved", "true");
+
+    fetch(`/api/cards?${params}`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Could not load the catalogue");
+        return (await response.json()) as CatalogResponse;
+      })
+      .then((result) => {
+        setData(result);
+        setError("");
+      })
+      .catch((fetchError: Error) => {
+        if (fetchError.name !== "AbortError") setError(fetchError.message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [
+    debouncedQuery,
+    rarity,
+    color,
+    language,
+    cardType,
+    minPrice,
+    maxPrice,
+    foilOnly,
+    reservedOnly,
+    sort,
+    page,
+  ]);
+
+  useEffect(() => {
+    if (!selected) return;
+    const controller = new AbortController();
+    fetch(`/api/cards/${selected.id}/history?days=${historyDays}`, {
+      signal: controller.signal,
+    })
+      .then((response) => response.json())
+      .then((result: { history?: PricePoint[] }) =>
+        setHistory(result.history ?? []),
+      )
+      .catch(() => setHistory([]));
+    return () => controller.abort();
+  }, [selected, historyDays]);
+
+  const pageRange = useMemo(() => {
+    const start = Math.max(1, page - 2);
+    const end = Math.min(data.totalPages, start + 4);
+    return Array.from({ length: Math.max(0, end - start + 1) }, (_, index) => start + index);
+  }, [page, data.totalPages]);
+
+  const cardmarketUrl = (card: CatalogCard) => {
+    const url = new URL("https://www.cardmarket.com/en/Magic/Products/Search");
+    url.searchParams.set("searchString", card.name);
+    const referrer = process.env.NEXT_PUBLIC_CARDMARKET_REFERRER;
+    if (referrer) url.searchParams.set("referrer", referrer);
+    return url.toString();
+  };
+
+  const addToWatchlist = async (card: CatalogCard) => {
+    const response = await fetch("/api/watchlist", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cardId: card.id }),
+    });
+    if (response.ok) {
+      setNotice(locale === "es" ? "Añadida a seguimiento" : "Added to watchlist");
+      window.setTimeout(() => setNotice(""), 2200);
+    }
+  };
+
+  return (
+    <main className="inventory-page">
+      <header className="inventory-topbar">
+        <Link href="/" className="inventory-brand">
+          <MagicBrainLogo />
+        </Link>
+        <div className="inventory-search">
+          <Search size={17} />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={t("Search all 117,000+ cards, sets, or set codes...")}
+            autoFocus
+          />
+          {query && <button onClick={() => setQuery("")} aria-label="Clear search"><X size={15} /></button>}
+        </div>
+        <div className="inventory-actions">
+          <LanguageToggle />
+          <AuthControl compact />
+          <Link href="/" className="back-dashboard"><ArrowLeft size={15} /> {t("Dashboard")}</Link>
+        </div>
+      </header>
+
+      <div className="inventory-content">
+        <div className="inventory-heading">
+          <div>
+            <span className="eyebrow">{reservedOnly ? t("Reserved List") : t("Complete market catalogue")}</span>
+            <h1>{reservedOnly ? t("Reserved List market") : t("Card inventory")}</h1>
+            <p>
+              {loading && !data.total
+                ? locale === "es" ? "Conectando con tu base de datos…" : "Connecting to your market database…"
+                : `${data.total.toLocaleString(locale === "es" ? "es-ES" : "en-GB")} ${locale === "es" ? "impresiones encontradas" : "printings found"}`}
+            </p>
+          </div>
+          <div className="inventory-freshness"><span /> Live from Railway PostgreSQL</div>
+        </div>
+
+        <div className="inventory-toolbar">
+          <div className="filter-label"><Filter size={15} /> {t("Filters")}</div>
+          <label>
+            {t("Rarity")}
+            <select value={rarity} onChange={(event) => { setLoading(true); setRarity(event.target.value); setPage(1); }}>
+              {rarityOptions.map((option) => (
+                <option value={option} key={option}>{option ? `${option[0].toUpperCase()}${option.slice(1)}` : t("All rarities")}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {locale === "es" ? "Color" : "Colour"}
+            <select value={color} onChange={(event) => { setLoading(true); setColor(event.target.value); setPage(1); }}>
+              <option value="">{locale === "es" ? "Todos" : "All colours"}</option>
+              <option value="W">{locale === "es" ? "Blanco" : "White"}</option>
+              <option value="U">{locale === "es" ? "Azul" : "Blue"}</option>
+              <option value="B">{locale === "es" ? "Negro" : "Black"}</option>
+              <option value="R">{locale === "es" ? "Rojo" : "Red"}</option>
+              <option value="G">{locale === "es" ? "Verde" : "Green"}</option>
+            </select>
+          </label>
+          <label>
+            {locale === "es" ? "Idioma" : "Language"}
+            <select value={language} onChange={(event) => { setLoading(true); setLanguage(event.target.value); setPage(1); }}>
+              <option value="">{locale === "es" ? "Todos" : "All languages"}</option>
+              <option value="en">English</option><option value="es">Español</option>
+              <option value="de">Deutsch</option><option value="fr">Français</option>
+              <option value="it">Italiano</option><option value="ja">日本語</option>
+            </select>
+          </label>
+          <label className="compact-filter">
+            {locale === "es" ? "Tipo" : "Type"}
+            <input value={cardType} onChange={(event) => { setLoading(true); setCardType(event.target.value); setPage(1); }} placeholder="Creature…" />
+          </label>
+          <label className="compact-filter">
+            Min €
+            <input value={minPrice} onChange={(event) => { setLoading(true); setMinPrice(event.target.value); setPage(1); }} inputMode="decimal" placeholder="0" />
+          </label>
+          <label className="compact-filter">
+            Max €
+            <input value={maxPrice} onChange={(event) => { setLoading(true); setMaxPrice(event.target.value); setPage(1); }} inputMode="decimal" placeholder="∞" />
+          </label>
+          <button className={foilOnly ? "filter-chip active" : "filter-chip"} onClick={() => { setLoading(true); setFoilOnly(!foilOnly); setPage(1); }}>Foil</button>
+          <button className={reservedOnly ? "filter-chip reserved active" : "filter-chip reserved"} onClick={() => { setLoading(true); setReservedOnly(!reservedOnly); setPage(1); }}>{t("Reserved List")}</button>
+          <label>
+            {t("Sort by")}
+            <select value={sort} onChange={(event) => { setLoading(true); setSort(event.target.value); setPage(1); }}>
+              <option value="price_desc">{t("Highest price")}</option>
+              <option value="price_asc">{t("Lowest price")}</option>
+              <option value="change_desc">{t("Biggest 7-day gain")}</option>
+              <option value="name_asc">{t("Card name")}</option>
+              <option value="release_desc">{t("Newest release")}</option>
+            </select>
+          </label>
+          <span className="results-count"><SlidersHorizontal size={13} /> Page {page.toLocaleString()} of {data.totalPages.toLocaleString()}</span>
+        </div>
+
+        {error ? (
+          <div className="inventory-error">
+            <strong>Catalogue unavailable</strong>
+            <p>{error}. Check the Railway database connection and try again.</p>
+            <button onClick={() => window.location.reload()}>Retry</button>
+          </div>
+        ) : (
+          <div className={`card-grid ${loading ? "loading" : ""}`}>
+            {loading && !data.cards.length
+              ? Array.from({ length: 16 }, (_, index) => <div className="card-skeleton" key={index} />)
+              : data.cards.map((card) => (
+                  <button type="button" className="inventory-card" key={card.id} onClick={() => { setHistory([]); setHistoryDays(90); setSelected(card); }}>
+                    <div className="inventory-image">
+                      {card.imageUrl ? <img src={card.imageUrl} alt={card.name} loading="lazy" /> : <div className="image-missing"><BrainCircuit size={28} />No image</div>}
+                      <span className={`rarity rarity-${card.rarity}`}>{card.rarity}</span>
+                    </div>
+                    <div className="inventory-card-copy">
+                      <strong title={card.name}>{card.name}</strong>
+                      <span>{card.setCode.toUpperCase()} · #{card.collectorNumber}</span>
+                      <div>
+                        <b>{card.price === null ? "No price" : formatCurrency(card.price)}</b>
+                        {card.change7d !== null && (
+                          <em className={card.change7d >= 0 ? "up" : "down"}>
+                            {card.change7d >= 0 ? "+" : ""}{card.change7d.toFixed(1)}%
+                          </em>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+          </div>
+        )}
+
+        {!error && data.totalPages > 1 && (
+          <nav className="pagination" aria-label="Inventory pages">
+            <button disabled={page === 1 || loading} onClick={() => { setLoading(true); setPage((current) => Math.max(1, current - 1)); }}>
+              <ChevronLeft size={15} /> {t("Previous")}
+            </button>
+            <div>
+              {pageRange.map((number) => (
+                <button key={number} className={number === page ? "active" : ""} onClick={() => { setLoading(true); setPage(number); }}>{number}</button>
+              ))}
+            </div>
+            <button disabled={page === data.totalPages || loading} onClick={() => { setLoading(true); setPage((current) => Math.min(data.totalPages, current + 1)); }}>
+              {t("Next")} <ChevronRight size={15} />
+            </button>
+          </nav>
+        )}
+      </div>
+
+      {selected && (
+        <div className="card-detail-backdrop" onMouseDown={() => setSelected(null)}>
+          <article className="card-detail" onMouseDown={(event) => event.stopPropagation()}>
+            <button className="detail-close" onClick={() => setSelected(null)} aria-label="Close"><X size={18} /></button>
+            {selected.imageUrl && <img src={selected.imageUrl} alt={selected.name} />}
+            <div>
+              <span className="eyebrow">{selected.setName}</span>
+              <h2>{selected.name}</h2>
+              <p>{selected.typeLine}</p>
+              <dl>
+                <div><dt>{t("Market price")}</dt><dd>{selected.price === null ? "Unavailable" : formatCurrency(selected.price)}</dd></div>
+                <div><dt>{t("Foil price")}</dt><dd>{selected.foilPrice === null ? "Unavailable" : formatCurrency(selected.foilPrice)}</dd></div>
+                <div><dt>{t("7-day movement")}</dt><dd className={selected.change7d !== null && selected.change7d >= 0 ? "up" : "down"}>{selected.change7d === null ? "Unavailable" : `${selected.change7d >= 0 ? "+" : ""}${selected.change7d.toFixed(2)}%`}</dd></div>
+                <div><dt>{t("Printing")}</dt><dd>{selected.setCode.toUpperCase()} #{selected.collectorNumber}</dd></div>
+              </dl>
+              <div className="history-head">
+                <strong>{t("Daily price history")}</strong>
+                <div>
+                  {[30, 90, 180, 365].map((days) => (
+                    <button key={days} className={historyDays === days ? "active" : ""} onClick={() => setHistoryDays(days)}>
+                      {days === 365 ? "1Y" : `${days}D`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <PriceHistoryChart history={history} />
+              <div className="detail-actions">
+                <Link href={`/portfolio?cardId=${selected.id}`}><Plus size={14} /> {t("Add holding")}</Link>
+                <button onClick={() => addToWatchlist(selected)}>{t("Watchlist")}</button>
+                <a href={cardmarketUrl(selected)} target="_blank" rel="noopener noreferrer sponsored">
+                  {t("View on Cardmarket")} <ExternalLink size={14} />
+                </a>
+              </div>
+            </div>
+          </article>
+        </div>
+      )}
+      {notice && <div className="toast">{notice}</div>}
+    </main>
+  );
+}
