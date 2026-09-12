@@ -1586,6 +1586,18 @@ footer {
 }
 
 /* Auth-only onboarding */
+.session-loading {
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 22px;
+  color: #9670ec;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(124, 58, 237, 0.12), transparent 24rem),
+    #080a0f;
+}
+
 .login-page {
   background:
     radial-gradient(circle at 24% 28%, rgba(124, 58, 237, 0.17), transparent 31rem),

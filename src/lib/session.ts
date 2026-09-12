@@ -1,4 +1,3 @@
-import { createHash, randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { query } from "@/lib/db";
@@ -32,9 +31,6 @@ type UserRow = {
   preferences: unknown;
 };
 
-const hashToken = (token: string) =>
-  createHash("sha256").update(token).digest("hex");
-
 const mapUser = (row: UserRow): AppUser => ({
   id: row.id,
   locale: row.locale,
@@ -54,20 +50,8 @@ const userFields = `
   product_tour_completed, preferences
 `;
 
-export async function getOrCreateUser(request: NextRequest) {
-  const existingToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;
-
-  if (existingToken) {
-    const result = await query<UserRow>(
-      `select ${userFields}
-       from app_users where session_token_hash = $1`,
-      [hashToken(existingToken)],
-    );
-    if (result.rows[0]) {
-      return { user: mapUser(result.rows[0]), newToken: null };
-    }
-  }
-
+export async function getOrCreateUser(_request: NextRequest) {
+  void _request;
   const authSession = await auth();
   if (authSession?.user?.id) {
     const result = await query<UserRow>(
@@ -79,15 +63,7 @@ export async function getOrCreateUser(request: NextRequest) {
     }
   }
 
-  const token = randomBytes(32).toString("base64url");
-  const result = await query<UserRow>(
-    `insert into app_users (session_token_hash)
-     values ($1)
-     returning ${userFields}`,
-    [hashToken(token)],
-  );
-
-  return { user: mapUser(result.rows[0]), newToken: token };
+  throw new Error("Authentication required");
 }
 
 export function attachSessionCookie(

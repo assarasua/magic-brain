@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Manrope } from "next/font/google";
+import { AppShell } from "@/components/app-shell";
 import { LanguageProvider } from "@/components/language-provider";
-import { MobileTabBar } from "@/components/mobile-tab-bar";
-import { ProductTour } from "@/components/product-tour";
 import "./globals.css";
 
 const inter = Inter({
@@ -29,9 +28,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.variable} ${manrope.variable}`}>
         <LanguageProvider>
-          {children}
-          <ProductTour />
-          <MobileTabBar />
+          <AppShell>{children}</AppShell>
         </LanguageProvider>
       </body>
     </html>
