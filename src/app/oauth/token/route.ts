@@ -3,6 +3,7 @@ import {
   exchangeAuthorizationCode,
   oauthConfiguration,
   parseScopes,
+  requireOAuthTokenClient,
   rotateRefreshToken,
 } from "@/lib/oauth";
 import { ApiError } from "@/lib/public-api/core";
@@ -29,11 +30,12 @@ export async function POST(request: Request) {
     const clientId = value(form, "client_id");
     const resource = value(form, "resource");
     const resources = oauthConfiguration();
-    if (
-      !clientId ||
-      ![resources.mcpResource, resources.apiResource].includes(resource)
-    ) {
-      throw new ApiError(400, "invalid_grant", "Invalid client or resource");
+    if (!clientId) {
+      throw new ApiError(401, "invalid_client", "client_id is required");
+    }
+    await requireOAuthTokenClient(clientId);
+    if (![resources.mcpResource, resources.apiResource].includes(resource)) {
+      throw new ApiError(400, "invalid_target", "Invalid resource");
     }
     const tokens =
       grantType === "authorization_code"

@@ -172,6 +172,10 @@ export async function validateAuthorizationRequest(params: URLSearchParams) {
   };
 }
 
+export async function requireOAuthTokenClient(clientId: string) {
+  return getClient(clientId, 401);
+}
+
 export async function createAuthorizationCode(input: {
   ownerId: string;
   clientId: string;
@@ -440,14 +444,16 @@ function tokenResponse(
   };
 }
 
-async function getClient(clientId: string) {
+async function getClient(clientId: string, invalidStatus = 400) {
   const result = await query<OAuthClientRow>(
     `select client_id, client_name, redirect_uris
      from app_oauth_clients
      where client_id = $1 and revoked_at is null and expires_at > now()`,
     [clientId],
   );
-  if (!result.rows[0]) throw new ApiError(400, "invalid_client", "Unknown OAuth client");
+  if (!result.rows[0]) {
+    throw new ApiError(invalidStatus, "invalid_client", "Unknown OAuth client");
+  }
   return result.rows[0];
 }
 

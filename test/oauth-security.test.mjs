@@ -57,6 +57,20 @@ test("OAuth lifetimes are bounded and rotation/replay protections are atomic", a
   assert.doesNotMatch(source, /console\.(?:log|error).*token/i);
 });
 
+test("token endpoint returns invalid_client for stale DCR registrations", async () => {
+  const [oauthSource, tokenRoute] = await Promise.all([
+    readFile(new URL("../src/lib/oauth.ts", import.meta.url), "utf8"),
+    readFile(
+      new URL("../src/app/oauth/token/route.ts", import.meta.url),
+      "utf8",
+    ),
+  ]);
+  assert.match(oauthSource, /requireOAuthTokenClient/);
+  assert.match(oauthSource, /getClient\(clientId, 401\)/);
+  assert.match(tokenRoute, /await requireOAuthTokenClient\(clientId\)/);
+  assert.match(tokenRoute, /401, "invalid_client"/);
+});
+
 test("personal data ownership comes only from authenticated server context", async () => {
   const [accountSource, portfolioSource] = await Promise.all([
     readFile(
