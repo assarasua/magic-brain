@@ -18,12 +18,18 @@ export type MarketPulseSet = {
 };
 
 export type MarketPulseSort =
-  | "release"
-  | "name"
-  | "median"
-  | "breadth"
-  | "coverage"
-  | "tracked";
+  | "release-desc"
+  | "release-asc"
+  | "name-asc"
+  | "name-desc"
+  | "median-desc"
+  | "median-asc"
+  | "breadth-desc"
+  | "breadth-asc"
+  | "coverage-desc"
+  | "coverage-asc"
+  | "tracked-desc"
+  | "tracked-asc";
 
 export type MarketPulseRow = {
   code: string;
@@ -77,29 +83,35 @@ export function sortMarketPulseSets(
   sets: MarketPulseSet[],
   sort: MarketPulseSort,
 ): MarketPulseSet[] {
-  const descendingValue = (set: MarketPulseSet) => {
-    if (sort === "median") return set.medianReturn;
-    if (sort === "breadth") return set.breadth;
-    if (sort === "coverage") return set.coveragePercent;
-    if (sort === "tracked") return set.trackedCards;
+  const compareNames = (left: MarketPulseSet, right: MarketPulseSet) =>
+    left.name.localeCompare(right.name, "en", { sensitivity: "base" }) ||
+    left.code.localeCompare(right.code, "en", { sensitivity: "base" });
+  const direction = sort.endsWith("-asc") ? 1 : -1;
+  const metricValue = (set: MarketPulseSet) => {
+    if (sort.startsWith("median-")) return set.available ? set.medianReturn : null;
+    if (sort.startsWith("breadth-")) return set.available ? set.breadth : null;
+    if (sort.startsWith("coverage-")) return set.available ? set.coveragePercent : null;
+    if (sort.startsWith("tracked-")) return set.available ? set.trackedCards : null;
     return null;
   };
 
   return [...sets].sort((left, right) => {
-    if (sort === "name") return left.name.localeCompare(right.name);
-    if (sort === "release") {
-      return (
-        (right.releasedAt ?? "").localeCompare(left.releasedAt ?? "") ||
-        left.name.localeCompare(right.name)
-      );
+    if (sort.startsWith("name-")) {
+      return direction * compareNames(left, right);
     }
-    const leftValue = descendingValue(left);
-    const rightValue = descendingValue(right);
+    if (sort.startsWith("release-")) {
+      if (left.releasedAt === null && right.releasedAt === null) return compareNames(left, right);
+      if (left.releasedAt === null) return 1;
+      if (right.releasedAt === null) return -1;
+      return direction * left.releasedAt.localeCompare(right.releasedAt) || compareNames(left, right);
+    }
+    const leftValue = metricValue(left);
+    const rightValue = metricValue(right);
     if (leftValue === null && rightValue === null) {
-      return left.name.localeCompare(right.name);
+      return compareNames(left, right);
     }
     if (leftValue === null) return 1;
     if (rightValue === null) return -1;
-    return rightValue - leftValue || left.name.localeCompare(right.name);
+    return direction * (leftValue - rightValue) || compareNames(left, right);
   });
 }
