@@ -4,10 +4,11 @@ import {
   Heart,
   MessageCircleQuestion,
   Sparkles,
+  Target,
   TrendingUp,
 } from "lucide-react";
 
-export type ProFeature = "brain" | "analyst" | "signals" | "discover";
+export type ProFeature = "brain" | "analyst" | "signals" | "discover" | "predict";
 
 export function ProFeaturePreview({
   feature,
@@ -90,6 +91,24 @@ export function ProFeaturePreview({
             </div>
           </div>
           <div className="pro-preview-decisions"><span>× <small>{es ? "Pasar" : "Pass"}</small></span><span><Heart size={15} /> <small>{es ? "Guardar" : "Save"}</small></span></div>
+        </div>
+      )}
+
+      {feature === "predict" && (
+        <div className="pro-preview-signals">
+          <div className="pro-preview-kpis">
+            <span><small>{es ? "OBJETIVO" : "TARGET"}</small><strong>S&amp;P 500</strong><b>8% / yr</b></span>
+            <span><small>{es ? "PUNTUACIÓN" : "SCORE"}</small><strong>72/100</strong><b className="up">{es ? "Vigilar" : "Watch"}</b></span>
+            <span><small>{es ? "CONFIANZA" : "CONFIDENCE"}</small><strong>61%</strong><b>24M</b></span>
+          </div>
+          <div className="pro-preview-chart">
+            <header><span><Target size={11} /> {es ? "RANGO DE ESCENARIO" : "SCENARIO RANGE"}</span><b>-12% → +34%</b></header>
+            <svg viewBox="0 0 500 112" preserveAspectRatio="none" role="img" aria-label={es ? "Rango de predicción de ejemplo" : "Sample prediction range"}>
+              <path d="M0 82 C100 76 160 65 240 58 C320 49 398 30 500 18 L500 84 C410 86 332 76 240 74 C150 75 72 88 0 95 Z" fill="rgba(242,198,109,.18)" />
+              <polyline points="0,88 120,78 240,66 360,48 500,28" />
+            </svg>
+            <footer><span>{es ? "Bajista" : "Bear"} <b>-12%</b></span><span>{es ? "Alcista" : "Bull"} <b>+34%</b></span></footer>
+          </div>
         </div>
       )}
     </div>
