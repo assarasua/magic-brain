@@ -1,8 +1,9 @@
 # Magic Brain MCP server
 
 An isolated, read-only remote MCP server for Magic Brain's versioned public
-Cards/Prices/Sets API. It exposes no resources, prompts, write tools, user
-accounts, portfolios, watchlists, authentication records, or Stripe data.
+Cards/Prices/Sets API, pinned Comprehensive Rules, and canonical public product
+knowledge. It exposes no resources, prompts, write tools, user accounts,
+portfolios, watchlists, authentication records, or Stripe data.
 
 ## Install the live connector
 
@@ -30,13 +31,27 @@ below run your own server and do not install the live connector.
 - `get_latest_set_opportunities` — at most 25 latest-set research signals
 - `search_rules` — bounded local search of the pinned Comprehensive Rules index
 - `ask_rules` — cited rules retrieval with non-authoritative synthesis separated
+- `search_product_knowledge` — deterministic lexical search over canonical,
+  status-labelled product and business facts
+- `get_product_context` — bounded evidence bundle for selected diligence topics
+- `ask_product_question` — cited evidence and answer constraints for host-model
+  synthesis; it does not call another LLM
 
 Every tool has a title, strict input and output schemas, `readOnlyHint: true`,
 `destructiveHint: false`, and `idempotentHint: true`. Public API tools use
-`openWorldHint: true`; local rules-index tools use `openWorldHint: false`.
+`openWorldHint: true`; local rules and product-knowledge tools use
+`openWorldHint: false`.
 Results include Magic Brain attribution, the queried public URL, fetch time,
 and any upstream request ID. Price output retains the source, as-of time,
 currency, and finish fields returned by the public API.
+
+Product tools return at most 12 canonical statements. Every statement is tagged
+as `shipped_fact`, `operating_principle`, `hypothesis`, `roadmap_option`, or
+`unknown_not_measured` and includes direct citations. The knowledge base
+explicitly forbids invented AUM-equivalent, conversion, retention,
+willingness-to-pay, market-size, user-behavior, incident/SLA, and competitive
+superiority claims. See the canonical
+[product strategy and FAQ](../../docs/product-strategy-faq.md).
 
 ## Expected public API contract
 
