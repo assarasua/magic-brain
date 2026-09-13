@@ -117,6 +117,7 @@ const buyerTipsFor = (
 export async function generateBrainPortfolio(
   userId: string,
   preferences: BrainPreferences,
+  options: { savePreferences?: boolean } = {},
 ) {
   const conditions = [
     "priced.price >= $2",
@@ -394,10 +395,12 @@ export async function generateBrainPortfolio(
     ),
   );
 
-  await query(
-    `update app_users set preferences = $1::jsonb, updated_at = now() where id = $2`,
-    [JSON.stringify(preferences), userId],
-  );
+  if (options.savePreferences !== false) {
+    await query(
+      `update app_users set preferences = $1::jsonb, updated_at = now() where id = $2`,
+      [JSON.stringify(preferences), userId],
+    );
+  }
 
   return {
     id: portfolioId,

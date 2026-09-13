@@ -5,13 +5,16 @@
 import {
   ArrowLeft,
   ArrowRight,
+  Bell,
   BrainCircuit,
   CalendarDays,
+  Check,
   CheckCircle2,
   CircleAlert,
   Gauge,
   LineChart,
   LoaderCircle,
+  Plus,
   ShieldAlert,
   Sparkles,
   Target,
@@ -24,8 +27,13 @@ import { MagicBrainLogo } from "@/components/brand-logo";
 import { useCardDetail } from "@/components/card-detail-provider";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { SetSelector } from "@/components/set-selector";
+import type { BrainRecommendation } from "@/lib/brain";
 import type { GrowthTarget } from "@/lib/predict-model";
 import type { SetPrediction } from "@/lib/predict";
+import {
+  defaultUserPreferences,
+  type UserPreferences,
+} from "@/lib/user-preferences";
 import styles from "./predict.module.css";
 
 const targets: Array<{
@@ -37,6 +45,17 @@ const targets: Array<{
   { id: "inflation", label: { en: "Match inflation", es: "Igualar inflación" }, rate: "3% / year", risk: { en: "Lower bar", es: "Objetivo bajo" } },
   { id: "sp500", label: { en: "Match S&P 500", es: "Igualar S&P 500" }, rate: "8% / year", risk: { en: "Growth", es: "Crecimiento" } },
   { id: "extreme", label: { en: "Extreme risk & reward", es: "Riesgo y retorno extremos" }, rate: "20%+ / year", risk: { en: "Speculative", es: "Especulativo" } },
+];
+
+const riskProfiles: Array<{
+  id: UserPreferences["risk"];
+  label: { en: string; es: string };
+}> = [
+  { id: "preservation", label: { en: "Preservation", es: "Preservación" } },
+  { id: "conservative", label: { en: "Conservative", es: "Conservador" } },
+  { id: "balanced", label: { en: "Balanced", es: "Equilibrado" } },
+  { id: "growth", label: { en: "Growth", es: "Crecimiento" } },
+  { id: "aggressive", label: { en: "Aggressive", es: "Agresivo" } },
 ];
 
 const signed = (value: number | null) =>
@@ -60,6 +79,15 @@ const spanishReasons: Record<string, string> = {
   "Card markets remain illiquid and can move abruptly": "El mercado de cartas sigue siendo ilíquido y puede moverse bruscamente",
 };
 
+type AutomaticPortfolio = {
+  id: string;
+  name: string;
+  budget: number;
+  invested: number;
+  expectedValue: number;
+  recommendations: BrainRecommendation[];
+};
+
 export default function PredictPage() {
   const { locale, t } = useLanguage();
   const { cardSurfaceProps } = useCardDetail();
@@ -73,6 +101,40 @@ export default function PredictPage() {
   const [result, setResult] = useState<SetPrediction | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [savingTo, setSavingTo] = useState<"portfolio" | "watchlist" | null>(
+    null,
+  );
+  const [actionNotice, setActionNotice] = useState("");
+  const [buildMode, setBuildMode] = useState<"manual" | "automatic">("manual");
+  const [buyerProfile, setBuyerProfile] = useState<UserPreferences>(
+    defaultUserPreferences,
+  );
+  const [autoBudget, setAutoBudget] = useState(
+    defaultUserPreferences.defaultBudget,
+  );
+  const [autoRisk, setAutoRisk] = useState<UserPreferences["risk"]>(
+    defaultUserPreferences.risk,
+  );
+  const [autoPortfolio, setAutoPortfolio] =
+    useState<AutomaticPortfolio | null>(null);
+  const [generatingPortfolio, setGeneratingPortfolio] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/account", { signal: controller.signal })
+      .then((response) => response.json())
+      .then((account: { preferences?: UserPreferences }) => {
+        if (!account.preferences) return;
+        setBuyerProfile(account.preferences);
+        setAutoBudget(account.preferences.defaultBudget);
+        setAutoRisk(account.preferences.risk);
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, []);
 
   const requestUrl = useMemo(() => {
     const params = new URLSearchParams({
@@ -97,7 +159,12 @@ export default function PredictPage() {
           if (!response.ok) throw new Error(payload.error ?? "Prediction unavailable");
           return payload;
         })
-        .then(setResult)
+        .then((nextResult) => {
+          setResult(nextResult);
+          setSelectedCardIds(new Set());
+          setAutoPortfolio(null);
+          setActionNotice("");
+        })
         .catch((requestError: Error) => {
           if (requestError.name !== "AbortError") setError(requestError.message);
         })
@@ -128,6 +195,185 @@ export default function PredictPage() {
         extreme: es ? "Riesgo y retorno extremos" : "Extreme risk & reward",
       }[prediction.growthGrade]
     : "";
+  const selectedPicks = useMemo(
+    () =>
+      result?.cardPredictions.filter((pick) =>
+        selectedCardIds.has(pick.card.id),
+      ) ?? [],
+    [result, selectedCardIds],
+  );
+  const allCardsSelected =
+    Boolean(result?.cardPredictions.length) &&
+    selectedCardIds.size === result?.cardPredictions.length;
+
+  const toggleCard = (cardId: string) => {
+    setSelectedCardIds((current) => {
+      const next = new Set(current);
+      if (next.has(cardId)) next.delete(cardId);
+      else next.add(cardId);
+      return next;
+    });
+    setActionNotice("");
+  };
+
+  const toggleAllCards = () => {
+    setSelectedCardIds(
+      allCardsSelected
+        ? new Set()
+        : new Set(result?.cardPredictions.map((pick) => pick.card.id) ?? []),
+    );
+    setActionNotice("");
+  };
+
+  const addSelectedCards = async (destination: "portfolio" | "watchlist") => {
+    if (selectedPicks.length === 0 || savingTo) return;
+    setSavingTo(destination);
+    setActionNotice("");
+
+    const results = await Promise.all(
+      selectedPicks.map(async (pick) => {
+        if (destination === "portfolio" && pick.card.price === null) {
+          return { id: pick.card.id, added: false };
+        }
+        try {
+          const response = await fetch(
+            destination === "portfolio" ? "/api/portfolio" : "/api/watchlist",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(
+                destination === "portfolio"
+                  ? {
+                      cardId: pick.card.id,
+                      quantity: 1,
+                      purchasePrice: pick.card.price,
+                      condition: "near_mint",
+                      language: "en",
+                    }
+                  : { cardId: pick.card.id },
+              ),
+            },
+          );
+          return { id: pick.card.id, added: response.ok };
+        } catch {
+          return { id: pick.card.id, added: false };
+        }
+      }),
+    );
+
+    const addedIds = new Set(
+      results.filter((item) => item.added).map((item) => item.id),
+    );
+    setSelectedCardIds((current) => {
+      const next = new Set(current);
+      addedIds.forEach((id) => next.delete(id));
+      return next;
+    });
+    setActionNotice(
+      addedIds.size === selectedPicks.length
+        ? destination === "portfolio"
+          ? es
+            ? `${addedIds.size} cartas añadidas a tu cartera.`
+            : `${addedIds.size} cards added to your portfolio.`
+          : es
+            ? `${addedIds.size} cartas añadidas a tu watchlist.`
+            : `${addedIds.size} cards added to your watchlist.`
+        : es
+          ? `Se añadieron ${addedIds.size} de ${selectedPicks.length} cartas. Revisa las cartas sin precio e inténtalo de nuevo.`
+          : `${addedIds.size} of ${selectedPicks.length} cards were added. Review cards without prices and try again.`,
+    );
+    setSavingTo(null);
+  };
+
+  const generateAutomaticPortfolio = async () => {
+    if (!result || generatingPortfolio) return;
+    setGeneratingPortfolio(true);
+    setActionNotice("");
+    try {
+      const response = await fetch("/api/predict/portfolio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          setCode: result.set.code,
+          budget: autoBudget,
+          risk: autoRisk,
+          locale,
+        }),
+      });
+      const payload = (await response.json()) as AutomaticPortfolio & {
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Unable to generate portfolio");
+      }
+      setAutoPortfolio(payload);
+      setActionNotice(
+        es
+          ? `Cartera automática generada con ${payload.recommendations.length} posiciones.`
+          : `Automatic portfolio generated with ${payload.recommendations.length} positions.`,
+      );
+    } catch (generationError) {
+      setAutoPortfolio(null);
+      setActionNotice(
+        generationError instanceof Error
+          ? generationError.message
+          : es
+            ? "No se pudo generar la cartera."
+            : "Unable to generate the portfolio.",
+      );
+    } finally {
+      setGeneratingPortfolio(false);
+    }
+  };
+
+  const saveAutomaticPortfolio = async (
+    destination: "portfolio" | "watchlist",
+  ) => {
+    if (!autoPortfolio?.recommendations.length || savingTo) return;
+    setSavingTo(destination);
+    setActionNotice("");
+    const requests = autoPortfolio.recommendations.map(async (item) => {
+      try {
+        const response = await fetch(
+          destination === "portfolio" ? "/api/portfolio" : "/api/watchlist",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(
+              destination === "portfolio"
+                ? {
+                    cardId: item.cardId,
+                    quantity: item.quantity,
+                    purchasePrice: item.price,
+                    condition: "near_mint",
+                    language: "en",
+                  }
+                : { cardId: item.cardId },
+            ),
+          },
+        );
+        return response.ok;
+      } catch {
+        return false;
+      }
+    });
+    const saved = (await Promise.all(requests)).filter(Boolean).length;
+    const total = autoPortfolio.recommendations.length;
+    setActionNotice(
+      saved === total
+        ? destination === "portfolio"
+          ? es
+            ? "La cartera automática se ha añadido a tus posiciones."
+            : "The automatic portfolio was added to your holdings."
+          : es
+            ? "La lista automática se ha añadido a tu watchlist."
+            : "The automatic list was added to your watchlist."
+        : es
+          ? `Se añadieron ${saved} de ${total} posiciones.`
+          : `${saved} of ${total} positions were added.`,
+    );
+    setSavingTo(null);
+  };
 
   return (
     <main className={`account-page ${styles.page}`}>
@@ -285,7 +531,7 @@ export default function PredictPage() {
           <div className={styles.cardSectionHead}>
             <div>
               <span className="eyebrow">{es ? "PREDICCIONES POR CARTA" : "CARD PREDICTIONS"}</span>
-              <h2>{es ? "Cartas de la edición seleccionada" : "Cards in the selected set"}</h2>
+              <h2>{es ? "Lista generada para esta edición" : "Generated list for this set"}</h2>
             </div>
             {result && !result.marketEvidence.isUpcoming && (
               <Link href={`/market/latest-set-watch?set=${result.set.code}`}>
@@ -293,6 +539,173 @@ export default function PredictPage() {
               </Link>
             )}
           </div>
+
+          <div className={styles.buildMode}>
+            <button
+              type="button"
+              className={buildMode === "manual" ? styles.active : ""}
+              onClick={() => setBuildMode("manual")}
+            >
+              <Check size={14} />
+              {es ? "Selección manual" : "Manual selection"}
+            </button>
+            <button
+              type="button"
+              className={buildMode === "automatic" ? styles.active : ""}
+              onClick={() => setBuildMode("automatic")}
+            >
+              <Sparkles size={14} />
+              {es ? "Cartera automática con AI" : "Automatic AI portfolio"}
+            </button>
+          </div>
+
+          {buildMode === "manual" && Boolean(result?.cardPredictions.length) && (
+            <div className={styles.selectionBar}>
+              <div>
+                <button type="button" onClick={toggleAllCards}>
+                  {allCardsSelected ? <Check size={14} /> : <Plus size={14} />}
+                  {allCardsSelected
+                    ? (es ? "Deseleccionar todo" : "Clear selection")
+                    : (es ? "Seleccionar todo" : "Select all")}
+                </button>
+                <span>
+                  <strong>{selectedCardIds.size}</strong>{" "}
+                  {es ? "cartas seleccionadas" : "cards selected"}
+                </span>
+              </div>
+              <div>
+                <button
+                  type="button"
+                  disabled={selectedPicks.length === 0 || savingTo !== null}
+                  onClick={() => void addSelectedCards("portfolio")}
+                >
+                  {savingTo === "portfolio" ? <LoaderCircle className="spin" size={14} /> : <Plus size={14} />}
+                  {es ? "Añadir a cartera" : "Add to portfolio"}
+                </button>
+                <button
+                  type="button"
+                  disabled={selectedPicks.length === 0 || savingTo !== null}
+                  onClick={() => void addSelectedCards("watchlist")}
+                >
+                  {savingTo === "watchlist" ? <LoaderCircle className="spin" size={14} /> : <Bell size={14} />}
+                  {es ? "Añadir a watchlist" : "Add to watchlist"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {buildMode === "automatic" && result && !result.marketEvidence.isUpcoming && (
+            <div className={styles.autoBuilder}>
+              <div className={styles.autoControls}>
+                <div>
+                  <span className="eyebrow">{es ? "PERFIL DEL COMPRADOR" : "BUYER PROFILE"}</span>
+                  <h3>{es ? "Brain construye la asignación" : "Brain builds the allocation"}</h3>
+                  <p>
+                    {es
+                      ? `Parte de tus preferencias guardadas: máximo ${buyerProfile.maxCardPrice.toFixed(0)} € por carta y hasta ${buyerProfile.positions} posiciones.`
+                      : `Starts from your saved preferences: up to €${buyerProfile.maxCardPrice.toFixed(0)} per card and ${buyerProfile.positions} positions.`}
+                  </p>
+                </div>
+                <label>
+                  {es ? "Riesgo" : "Risk"}
+                  <select
+                    value={autoRisk}
+                    onChange={(event) => {
+                      setAutoRisk(event.target.value as UserPreferences["risk"]);
+                      setAutoPortfolio(null);
+                    }}
+                  >
+                    {riskProfiles.map((profile) => (
+                      <option key={profile.id} value={profile.id}>
+                        {profile.label[locale]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  {es ? "Presupuesto" : "Budget"}
+                  <span className={styles.moneyInput}>
+                    €{" "}
+                    <input
+                      type="number"
+                      min="25"
+                      max="1000000"
+                      value={autoBudget}
+                      onChange={(event) => {
+                        setAutoBudget(Number(event.target.value));
+                        setAutoPortfolio(null);
+                      }}
+                    />
+                  </span>
+                </label>
+                <button
+                  type="button"
+                  disabled={generatingPortfolio || autoBudget < 25}
+                  onClick={() => void generateAutomaticPortfolio()}
+                >
+                  {generatingPortfolio ? <LoaderCircle className="spin" size={15} /> : <Sparkles size={15} />}
+                  {es ? "Generar cartera" : "Generate portfolio"}
+                </button>
+              </div>
+
+              {autoPortfolio && (
+                <div className={styles.autoResult}>
+                  <header>
+                    <div>
+                      <span>{es ? "LISTA AI GUARDADA" : "SAVED AI LIST"}</span>
+                      <h3>{autoPortfolio.name} · {result.set.name}</h3>
+                    </div>
+                    <div>
+                      <strong>€{autoPortfolio.invested.toFixed(2)}</strong>
+                      <small>{es ? `de €${autoPortfolio.budget.toFixed(2)}` : `of €${autoPortfolio.budget.toFixed(2)}`}</small>
+                    </div>
+                  </header>
+                  {autoPortfolio.recommendations.length === 0 ? (
+                    <div className={styles.autoEmpty}>
+                      {es
+                        ? "No hay cartas que cumplan este perfil. Amplía el presupuesto o cambia el riesgo."
+                        : "No cards match this profile. Increase the budget or change the risk."}
+                    </div>
+                  ) : (
+                    <>
+                      <div className={styles.autoList}>
+                        {autoPortfolio.recommendations.map((item, index) => (
+                          <article key={item.cardId} className="card-surface" {...cardSurfaceProps(item.cardId)}>
+                            <span>{String(index + 1).padStart(2, "0")}</span>
+                            {item.imageUrl && <img src={item.imageUrl} alt="" />}
+                            <div>
+                              <strong>{item.name}</strong>
+                              <small>{item.quantity}× · €{item.price.toFixed(2)} · score {item.score}</small>
+                            </div>
+                            <b>€{item.allocation.toFixed(2)}</b>
+                          </article>
+                        ))}
+                      </div>
+                      <div className={styles.autoActions}>
+                        <button
+                          type="button"
+                          disabled={savingTo !== null}
+                          onClick={() => void saveAutomaticPortfolio("portfolio")}
+                        >
+                          {savingTo === "portfolio" ? <LoaderCircle className="spin" size={14} /> : <Plus size={14} />}
+                          {es ? "Añadir cartera completa" : "Add complete portfolio"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={savingTo !== null}
+                          onClick={() => void saveAutomaticPortfolio("watchlist")}
+                        >
+                          {savingTo === "watchlist" ? <LoaderCircle className="spin" size={14} /> : <Bell size={14} />}
+                          {es ? "Añadir lista a watchlist" : "Add list to watchlist"}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          {actionNotice && <div className={styles.actionNotice}><CheckCircle2 size={15} /> {actionNotice}</div>}
 
           {!loading && result?.cardPredictions.length === 0 && (
             <div className={styles.noCards}>
@@ -312,12 +725,28 @@ export default function PredictPage() {
             </div>
           )}
 
-          <div className={styles.cardGrid}>
+          {buildMode === "manual" && <div className={styles.cardGrid}>
             {result?.cardPredictions.map((pick, index) => (
-              <article className="card-surface" key={pick.card.id} {...cardSurfaceProps(pick.card)}>
+              <article
+                className={`card-surface ${selectedCardIds.has(pick.card.id) ? styles.selectedCard : ""}`}
+                key={pick.card.id}
+                {...cardSurfaceProps(pick.card)}
+              >
                 <div className={styles.cardImage}>
                   {pick.card.imageUrl ? <img src={pick.card.imageUrl} alt="" /> : <span>No image</span>}
                   <b>#{index + 1}</b>
+                  <button
+                    type="button"
+                    className={styles.cardSelector}
+                    aria-label={`${selectedCardIds.has(pick.card.id) ? (es ? "Deseleccionar" : "Deselect") : (es ? "Seleccionar" : "Select")} ${pick.card.name}`}
+                    aria-pressed={selectedCardIds.has(pick.card.id)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleCard(pick.card.id);
+                    }}
+                  >
+                    {selectedCardIds.has(pick.card.id) ? <Check size={15} /> : <Plus size={15} />}
+                  </button>
                 </div>
                 <div className={styles.cardCopy}>
                   <span>{pick.card.rarity} · {pick.card.setCode.toUpperCase()}</span>
@@ -331,7 +760,7 @@ export default function PredictPage() {
                 </div>
               </article>
             ))}
-          </div>
+          </div>}
         </section>
 
         <section className={styles.methodology}>
