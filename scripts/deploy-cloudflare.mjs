@@ -1,4 +1,8 @@
 import { spawnSync } from "node:child_process";
+import {
+  getDeploymentSteps,
+  resolveDeploymentTarget,
+} from "./deployment-pipeline.mjs";
 
 const env = {
   ...process.env,
@@ -7,11 +11,8 @@ const env = {
     process.env.DATABASE_URL,
 };
 
-const steps = [
-  ["npx", ["--no-install", "opennextjs-cloudflare", "build"]],
-  [process.execPath, ["scripts/migrate.mjs"]],
-  ["npx", ["--no-install", "opennextjs-cloudflare", "deploy"]],
-];
+const target = resolveDeploymentTarget(process.argv[2]);
+const steps = getDeploymentSteps(target);
 
 for (const [command, args] of steps) {
   const result = spawnSync(command, args, { env, stdio: "inherit" });

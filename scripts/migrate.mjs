@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import pg from "pg";
+import { connectWithRetry } from "./deployment-pipeline.mjs";
 
 const { Client } = pg;
 const connectionString = process.env.DATABASE_URL;
@@ -9,13 +10,15 @@ if (!connectionString) {
   throw new Error("DATABASE_URL is not configured");
 }
 
-const client = new Client({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
-});
+const client = await connectWithRetry(
+  () =>
+    new Client({
+      connectionString,
+      ssl: { rejectUnauthorized: false },
+    }),
+);
 
 try {
-  await client.connect();
   await client.query("select pg_advisory_lock(hashtext('magic-brain:migrations'))");
   await client.query(`
     create table if not exists app_schema_migrations (
