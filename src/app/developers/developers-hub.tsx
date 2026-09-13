@@ -9,6 +9,7 @@ import {
   Code2,
   ExternalLink,
   Gauge,
+  HeartHandshake,
   KeyRound,
   LifeBuoy,
   LoaderCircle,
@@ -86,6 +87,7 @@ const navItems = [
   ["reference", "API reference"],
   ["examples", "Examples"],
   ["keys", "API keys"],
+  ["support", "Support"],
   ["policies", "Policies"],
 ] as const;
 
@@ -497,7 +499,7 @@ export function DevelopersHub({
       <header className={styles.header}>
         <Link href="/" aria-label="Magic Brain home"><MagicBrainLogo /></Link>
         <nav aria-label="Developer navigation">
-          {navItems.slice(0, 5).map(([id, label]) => <a href={`#${id}`} key={id}>{label}</a>)}
+          {navItems.slice(0, 6).map(([id, label]) => <a href={`#${id}`} key={id}>{label}</a>)}
         </nav>
         <div className={styles.headerActions}>
           <a href="/api/v1/openapi.json">OpenAPI</a>
@@ -595,6 +597,32 @@ export function DevelopersHub({
           </div>
         </section>
 
+        <section className={`${styles.section} ${styles.donationSection}`} id="support">
+          <div className={styles.donationCard}>
+            <div className={styles.donationIcon}><HeartHandshake size={25} /></div>
+            <div>
+              <span>Support open infrastructure</span>
+              <h2>Help keep Magic data open.</h2>
+              <p>
+                One-time contributions help fund price-history storage, public API
+                capacity, MCP hosting, and continued maintenance of the open-source
+                developer tooling.
+              </p>
+              <div className={styles.donationFacts}>
+                <span><Check size={13} /> One-time contribution</span>
+                <span><Check size={13} /> Secure Stripe Checkout</span>
+                <span><Check size={13} /> No subscription</span>
+              </div>
+            </div>
+            <div className={styles.donationActions}>
+              <Link href="/donate">
+                Support Magic Brain <ArrowRight size={15} />
+              </Link>
+              <small>Contributions are not charitable donations or tax-deductible.</small>
+            </div>
+          </div>
+        </section>
+
         <section className={styles.community}>
           <div>
             <span>Open source · AGPL-3.0</span>
@@ -621,6 +649,7 @@ export function DevelopersHub({
         <nav aria-label="Developer footer">
           <a href="/api/v1/openapi.json">OpenAPI</a>
           <a href="https://github.com/assarasua/magic-brain">GitHub</a>
+          <Link href="/donate">Support</Link>
           <a href="https://github.com/assarasua/magic-brain/blob/main/NOTICE.md">Attribution</a>
           <a href="https://github.com/assarasua/magic-brain/security/advisories/new">Security</a>
         </nav>
