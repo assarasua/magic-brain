@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { AuthControl } from "@/components/auth-control";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
 
@@ -97,7 +98,7 @@ export function MobileMoreSheet({
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div className="mobile-sheet-backdrop" onMouseDown={onClose}>
       <section
         ref={sheetRef}
@@ -141,6 +142,7 @@ export function MobileMoreSheet({
           <AuthControl />
         </footer>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }
