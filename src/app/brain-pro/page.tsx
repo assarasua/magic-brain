@@ -7,13 +7,10 @@ import {
   Check,
   Crown,
   Heart,
-  LockKeyhole,
   MessageCircleQuestion,
-  Sparkles,
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo, MagicBrainMark } from "@/components/brand-logo";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
@@ -97,20 +94,12 @@ const tools = [
 export default function BrainProHubPage() {
   const { locale, t } = useLanguage();
   const es = locale === "es";
-  const [isPro, setIsPro] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    fetch("/api/account", { cache: "no-store" })
-      .then((response) => response.json())
-      .then((account: { isPro: boolean }) => setIsPro(account.isPro))
-      .catch(() => setIsPro(false));
-  }, []);
 
   return (
     <main className="account-page brain-pro-hub">
       <header className="account-topbar">
         <Link href="/" className="inventory-brand"><MagicBrainLogo /></Link>
-        <nav><Link href="/signals">Brain Signals</Link><Link href="/portfolio">{t("Portfolio")}</Link><Link href="/pro">{es ? "Plan Pro" : "Pro plan"}</Link></nav>
+        <nav><Link href="/signals">Brain Signals</Link><Link href="/portfolio">{t("Portfolio")}</Link><Link href="/donate">{es ? "Donar" : "Donate"}</Link></nav>
         <LanguageToggle />
         <AuthControl compact />
         <Link href="/" className="back-dashboard"><ArrowLeft size={15} /> {t("Dashboard")}</Link>
@@ -122,13 +111,9 @@ export default function BrainProHubPage() {
           <span className="pro-badge"><Crown size={14} /> MAGIC BRAIN AI PRO</span>
           <h1>{es ? "Todas tus herramientas de inversión. Un solo cerebro." : "Every investment tool. One intelligent workspace."}</h1>
           <p>{es ? "Investiga el mercado, genera una estrategia, valida oportunidades y descubre nuevas cartas desde un único centro." : "Research the market, build a strategy, validate opportunities, and discover new cards from one command centre."}</p>
-          <span className={`brain-pro-status ${isPro ? "active" : ""}`}>
-            {isPro ? <Check size={13} /> : <LockKeyhole size={13} />}
-            {isPro === null
-              ? es ? "Comprobando acceso…" : "Checking access…"
-              : isPro
-                ? es ? "Brain Pro activo" : "Brain Pro active"
-                : es ? "Plan Basic · Funciones bloqueadas" : "Basic plan · Features locked"}
+          <span className="brain-pro-status active">
+            <Check size={13} />
+            {es ? "Brain Pro gratis por ahora" : "Brain Pro free for now"}
           </span>
         </section>
 
@@ -138,7 +123,6 @@ export default function BrainProHubPage() {
               <header>
                 <span className="brain-pro-tool-number">0{index + 1}</span>
                 <span className="brain-pro-tool-icon"><Icon size={22} /></span>
-                {!isPro && <span className="brain-pro-lock"><LockKeyhole size={11} /> PRO</span>}
               </header>
               <span className="eyebrow">{name}</span>
               <h2>{title[locale]}</h2>
@@ -146,22 +130,15 @@ export default function BrainProHubPage() {
               <ProFeaturePreview feature={feature} locale={locale} compact />
               <ul>{features[locale].map((feature) => <li key={feature}><Check size={13} /> {feature}</li>)}</ul>
               <div className="brain-pro-tool-actions">
-                <Link href={isPro ? href : "/pro"}>
-                  {isPro ? (es ? "Abrir herramienta" : "Open tool") : (es ? "Desbloquear con Pro" : "Unlock with Pro")}
+                <Link href={href}>
+                  {es ? "Abrir herramienta" : "Open tool"}
                   <ArrowRight size={15} />
                 </Link>
-                {!isPro && <Link href={href}>{es ? "Ver página" : "View feature"}</Link>}
               </div>
             </article>
           ))}
         </section>
 
-        {!isPro && (
-          <section className="brain-pro-hub-upgrade">
-            <div><Sparkles size={22} /><span><strong>{es ? "Basic sigue cubriendo tu cartera. Pro añade decisión e inteligencia." : "Basic keeps your portfolio covered. Pro adds decision intelligence."}</strong><small>{es ? "Las 4 herramientas · 14 días gratis · Después 5 €/mes · Cancela cuando quieras" : "All 4 tools · 14 days free · Then €5/month · Cancel anytime"}</small></span></div>
-            <Link href="/pro">{es ? "Ver plan y empezar" : "View plan and start"} <ArrowRight size={16} /></Link>
-          </section>
-        )}
       </div>
     </main>
   );

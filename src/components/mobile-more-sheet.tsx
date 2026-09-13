@@ -25,11 +25,11 @@ const groups = [
   {
     label: "Explore",
     links: [
-      { href: "/inventory", label: "Inventory", icon: LibraryBig, premium: false },
+      { href: "/inventory", label: "Inventory", icon: LibraryBig },
       { href: "/discover", label: "Discover", icon: Compass, premium: true },
-      { href: "/market/latest-set-watch", label: "Latest Set Watch", icon: Radar, premium: false },
-      { href: "/watchlist", label: "Watchlist", icon: Heart, premium: false },
-      { href: "/reserved", label: "Reserved List", icon: ListChecks, premium: false },
+      { href: "/market/latest-set-watch", label: "Latest Set Watch", icon: Radar },
+      { href: "/watchlist", label: "Watchlist", icon: Heart },
+      { href: "/reserved", label: "Reserved List", icon: ListChecks },
     ],
   },
   {
@@ -39,15 +39,14 @@ const groups = [
       { href: "/brain", label: "Portfolio Builder", icon: BrainCircuit, premium: true },
       { href: "/signals", label: "Brain Signals", icon: TrendingUp, premium: true },
       { href: "/analyst", label: "Ask Brain", icon: Sparkles, premium: true },
-      { href: "/pro", label: "Pro plan", icon: Crown, premium: true },
     ],
   },
   {
     label: "Account",
     links: [
-      { href: "/settings", label: "Settings", icon: Settings, premium: false },
-      { href: "/donate", label: "Support", icon: HeartHandshake, premium: false },
-      { href: "/developers", label: "Developers", icon: Code2, premium: false },
+      { href: "/settings", label: "Settings", icon: Settings },
+      { href: "/donate", label: "Support", icon: HeartHandshake },
+      { href: "/developers", label: "Developers", icon: Code2 },
     ],
   },
 ];
@@ -127,13 +126,13 @@ export function MobileMoreSheet({
           {groups.map((group) => (
             <nav key={group.label} aria-label={group.label}>
               <span>{group.label}</span>
-              {group.links.map(({ href, label, icon: Icon, premium }) => {
+              {group.links.map(({ href, label, icon: Icon, premium = false }) => {
                 const active = pathname === href || pathname.startsWith(`${href}/`);
                 return (
                   <Link href={href} className={[active ? "active" : "", premium ? "premium-feature-link" : ""].filter(Boolean).join(" ")} aria-current={active ? "page" : undefined} onNavigate={onClose} key={href}>
                     <Icon size={19} />
                     <span>{t(label)}</span>
-                    {premium && <small className="nav-pro-label"><Crown size={10} /> PRO</small>}
+                    {premium && <small className="nav-pro-label"><Crown size={10} /> {locale === "es" ? "GRATIS" : "FREE"}</small>}
                   </Link>
                 );
               })}

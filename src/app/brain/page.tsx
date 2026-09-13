@@ -21,7 +21,6 @@ import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
 import { useCardDetail } from "@/components/card-detail-provider";
-import { ProGate } from "@/components/pro-gate";
 import { SetSelector } from "@/components/set-selector";
 import type { BrainPreferences, BrainRecommendation } from "@/lib/brain";
 import { CARD_COLORS, CARD_RARITIES, CARD_TYPES } from "@/lib/card-filters";
@@ -157,10 +156,9 @@ export default function BrainPage() {
         <Link href="/" className="back-dashboard"><ArrowLeft size={15} /> {t("Dashboard")}</Link>
       </header>
 
-      <ProGate feature="brain">
       <div className="brain-hero">
         <div className="brain-orb"><BrainCircuit size={42} /><i /><i /></div>
-        <span className="pro-pill"><Crown size={13} /> Brain Pro</span>
+        <span className="pro-pill"><Sparkles size={13} /> Brain Pro · {locale === "es" ? "Gratis" : "Free"}</span>
         <h1>{locale === "es" ? "Tu estratega de inversión en Magic." : "Your Magic investment strategist."}</h1>
         <p>{locale === "es" ? "Define tus objetivos. Brain analiza millones de precios históricos y construye una cartera diversificada para ti." : "Set your goals. Brain analyses millions of historical prices and builds a diversified card portfolio for you."}</p>
       </div>
@@ -316,7 +314,6 @@ export default function BrainPage() {
           )}
         </section>
       </div>
-      </ProGate>
       {portfolioNotice && <div className="toast">{portfolioNotice}</div>}
     </main>
   );

@@ -18,7 +18,6 @@ import { FormEvent, useState } from "react";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
-import { ProGate } from "@/components/pro-gate";
 import { formatCurrency } from "@/lib/data";
 
 type Analysis = {
@@ -132,11 +131,10 @@ export default function AnalystPage() {
         <Link href="/" className="back-dashboard"><ArrowLeft size={15} /> {t("Dashboard")}</Link>
       </header>
 
-      <ProGate feature="analyst">
       <div className="analyst-content">
         <div className="analyst-hero">
           <span className="analyst-icon"><MessageCircleQuestion size={28} /></span>
-          <span className="eyebrow premium-feature-badge"><Sparkles size={12} /> Ask Brain · Premium</span>
+          <span className="eyebrow premium-feature-badge"><Sparkles size={12} /> Ask Brain · Pro {locale === "es" ? "gratis" : "free"}</span>
           <h1>{locale === "es" ? "Pregunta a tus datos." : "Ask your market data."}</h1>
           <p>{locale === "es" ? "Consulta subidas, fechas clave y movimientos diarios usando todo el historial de precios." : "Ask about rises, key dates, and daily movements using the complete price history."}</p>
           <form onSubmit={ask}>
@@ -167,7 +165,6 @@ export default function AnalystPage() {
           </section>
         )}
       </div>
-      </ProGate>
     </main>
   );
 }

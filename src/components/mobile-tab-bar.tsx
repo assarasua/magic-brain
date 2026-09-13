@@ -2,7 +2,7 @@
 
 import {
   ChartNoAxesCombined,
-  Crown,
+  BrainCircuit,
   House,
   Menu,
   WalletCards,
@@ -14,10 +14,10 @@ import { useLanguage } from "@/components/language-provider";
 import { MobileMoreSheet } from "@/components/mobile-more-sheet";
 
 const tabs = [
-  { href: "/", label: "Overview", icon: House, premium: false },
-  { href: "/market", label: "Market", icon: ChartNoAxesCombined, premium: false },
-  { href: "/portfolio", label: "Portfolio", icon: WalletCards, premium: false },
-  { href: "/brain-pro", label: "Brain Pro", icon: Crown, premium: true },
+  { href: "/", label: "Overview", icon: House },
+  { href: "/market", label: "Market", icon: ChartNoAxesCombined },
+  { href: "/portfolio", label: "Portfolio", icon: WalletCards },
+  { href: "/brain-pro", label: "Brain Pro", icon: BrainCircuit, premium: true },
 ];
 
 const moreRoutes = ["/inventory", "/discover", "/watchlist", "/reserved", "/brain", "/signals", "/analyst", "/pro", "/settings", "/donate", "/developers"];
@@ -33,7 +33,7 @@ export function MobileTabBar() {
 
   return (
     <nav className="mobile-tab-bar" aria-label="Primary navigation">
-      {tabs.map(({ href, label, icon: Icon, premium }) => {
+      {tabs.map(({ href, label, icon: Icon, premium = false }) => {
         const active =
           href === "/"
             ? pathname === "/"

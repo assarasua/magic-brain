@@ -660,7 +660,7 @@ export function DevelopersHub({
               </p>
               <div className={styles.donationFacts}>
                 <span><Check size={13} /> One-time contribution</span>
-                <span><Check size={13} /> Secure Stripe Checkout</span>
+                <span><Check size={13} /> PayPal P2P</span>
                 <span><Check size={13} /> No subscription</span>
               </div>
             </div>

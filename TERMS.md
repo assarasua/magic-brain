@@ -29,12 +29,13 @@ third parties with separate terms. The operator does not grant rights it does
 not own. See [NOTICE.md](NOTICE.md). Magic Brain is unofficial and is not
 affiliated with or endorsed by Wizards of the Coast.
 
-## Paid features
+## Optional contributions
 
-If a deployment offers paid features, it must state prices, taxes, renewal,
-cancellation, refund, and consumer withdrawal terms at purchase. Payments may
-be processed by Stripe under Stripe's terms. Repository contributors are not
-the seller merely because they contributed code.
+Magic Brain's product tools are currently free. Optional one-time contributions
+are completed directly through PayPal and are subject to PayPal's terms and
+fees. They do not purchase product access, are not charitable donations, and
+are not represented as tax-deductible. Repository contributors are not the
+recipient merely because they contributed code.
 
 ## Availability, warranty, and liability
 

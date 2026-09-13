@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { BrainPreferences, generateBrainPortfolio } from "@/lib/brain";
 import { normalizeSetCodes } from "@/lib/card-filters";
-import { attachSessionCookie, getOrCreateUser, isPro } from "@/lib/session";
+import { attachSessionCookie, getOrCreateUser } from "@/lib/session";
 
 export const runtime = "nodejs";
 
@@ -21,15 +21,6 @@ const horizons = new Set<BrainPreferences["horizon"]>([
 export async function POST(request: NextRequest) {
   try {
     const { user, newToken } = await getOrCreateUser(request);
-    if (!isPro(user)) {
-      return attachSessionCookie(
-        NextResponse.json(
-          { error: "Portfolio generation requires Brain Pro" },
-          { status: 403 },
-        ),
-        newToken,
-      );
-    }
     const body = (await request.json()) as Partial<BrainPreferences>;
     const budget = Number(body.budget);
     const maxCardPrice = Number(body.maxCardPrice);
@@ -99,7 +90,6 @@ export async function POST(request: NextRequest) {
         reservedOnly: body.reservedOnly === true,
         locale: body.locale === "es" ? "es" : "en",
       },
-      true,
     );
 
     return attachSessionCookie(NextResponse.json(result), newToken);

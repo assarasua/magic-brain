@@ -13,7 +13,6 @@ type Account = {
   name: string | null;
   email: string | null;
   avatarUrl: string | null;
-  isPro: boolean;
 };
 
 function GoogleMark() {
@@ -98,7 +97,7 @@ export function AuthControl({
         {!compact && (
           <span className="auth-identity">
             <strong>{account.name ?? account.email}</strong>
-            <small>{account.isPro ? "Brain Pro" : account.email}</small>
+            <small>{account.email}</small>
           </span>
         )}
       </button>

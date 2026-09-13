@@ -3,7 +3,7 @@
 An isolated, read-only remote MCP server for Magic Brain's versioned public
 Cards/Prices/Sets API, pinned Comprehensive Rules, and canonical public product
 knowledge. It exposes no resources, prompts, write tools, user accounts,
-portfolios, watchlists, authentication records, or Stripe data.
+portfolios, watchlists, authentication records, or payment data.
 
 ## Install the live connector
 
@@ -137,12 +137,12 @@ npm audit
 ```
 
 Tests use mocked public API responses and an in-memory MCP client/server pair;
-they do not require database, account, Stripe, or network access.
+they do not require database, account, payment, or network access.
 
 ## Privacy and support
 
 The connector accepts bounded public-data and rules questions. It does not
-request or expose account, portfolio, watchlist, authentication, Stripe, or
+request or expose account, portfolio, watchlist, authentication, payment, or
 Google data. A deployment may process IP addresses and request metadata for
 security, abuse prevention, and operational logs. See the public
 [privacy notice](https://github.com/assarasua/magic-brain/blob/main/PRIVACY.md),

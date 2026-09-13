@@ -27,7 +27,7 @@ of adoption, outcomes, or competitive superiority.
   EUR price history, market signals, portfolio and cost-basis tracking,
   watchlists, explainable portfolio construction, and a public data API.
   Sources: [README product areas](../README.md#product-areas),
-  [Brain Pro product page](https://magicbrain.es/pro), and
+  [Brain Pro tools hub](https://magicbrain.es/brain-pro), and
   [developer page](https://magicbrain.es/developers).
 - **Status: shipped fact.** Magic Brain is not a marketplace, broker, exchange,
   custodian, order-routing service, or trading/execution venue. Users leave the
@@ -85,9 +85,9 @@ of adoption, outcomes, or competitive superiority.
 
 ## Metrics, portfolio size, and willingness to pay
 
-- **Status: shipped fact.** A Brain Pro strategy can contain up to 20 positions;
-  the free preview is bounded to fewer positions. This is a product limit, not
-  customer assets under management. Sources: [Brain Pro page](https://magicbrain.es/pro)
+- **Status: shipped fact.** A Brain Pro strategy can contain up to 20 positions.
+  This is a product limit, not customer assets under management. Sources:
+  [Brain Pro](https://magicbrain.es/brain-pro)
   and [portfolio-generation implementation](../src/lib/brain.ts).
 - **Status: unknown / not measured.** Magic Brain does not publish
   assets-under-management or AUM-equivalent metrics. User-entered portfolio value
@@ -97,22 +97,23 @@ of adoption, outcomes, or competitive superiority.
   figures for active users, paying users, conversion, retention, churn, ARPU,
   LTV, willingness to pay, market size, GMV, transaction volume, or average
   user portfolio size. Do not fabricate ranges or proxy estimates.
-- **Status: hypothesis.** A low-price subscription may appeal to users who value
-  recurring research and portfolio intelligence, but willingness to pay has not
-  been publicly measured or validated.
+- **Status: operating principle.** Brain Pro product intelligence features are
+  currently available without a paid subscription. The project accepts
+  optional, one-time contributions.
 
 ## Monetization
 
-- **Status: shipped fact.** Brain Pro is presented at **€5/month**, with a
-  14-day trial and cancellation messaging on the current product page.
-  Source: [Brain Pro pricing](https://magicbrain.es/pro).
+- **Status: shipped fact.** Magic Brain does not currently sell a premium
+  subscription; Brain Pro tools are available to authenticated users without a
+  paid plan. Source: [Brain Pro](https://magicbrain.es/brain-pro).
 - **Status: shipped fact.** Cardmarket outbound links can include a configured
   referral parameter and are marked as sponsored links. Whether any given
   deployment currently earns material referral revenue is not disclosed.
   Source: [Cardmarket link implementation](../src/app/page.tsx).
-- **Status: shipped fact.** Magic Brain accepts optional one-time contributions
-  through Stripe; the page states these are not charitable or tax-deductible
-  donations. Source: [support page](https://magicbrain.es/donate).
+- **Status: shipped fact.** Magic Brain accepts optional one-time P2P
+  contributions through [PayPal.Me](https://paypal.me/assarasua); the page
+  states these are not charitable or tax-deductible donations.
+  Source: [support page](https://magicbrain.es/donate).
 - **Status: shipped fact.** A read-only public card/set/price API is available.
   The repository does not document a paid API plan. Source:
   [developer page](https://magicbrain.es/developers).

@@ -1,21 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { answerPriceQuestion } from "@/lib/price-analyst";
-import { attachSessionCookie, getOrCreateUser, isPro } from "@/lib/session";
+import { attachSessionCookie, getOrCreateUser } from "@/lib/session";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   try {
-    const { user, newToken } = await getOrCreateUser(request);
-    if (!isPro(user)) {
-      return attachSessionCookie(
-        NextResponse.json(
-          { error: "Brain Market Analyst requires Brain Pro" },
-          { status: 403 },
-        ),
-        newToken,
-      );
-    }
+    const { newToken } = await getOrCreateUser(request);
 
     const body = (await request.json()) as {
       question?: string;

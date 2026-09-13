@@ -8,8 +8,6 @@ export const SESSION_COOKIE_NAME = "magic_brain_session";
 export type AppUser = {
   id: string;
   locale: "en" | "es";
-  subscriptionStatus: string;
-  stripeCustomerId: string | null;
   email: string | null;
   displayName: string | null;
   avatarUrl: string | null;
@@ -21,8 +19,6 @@ export type AppUser = {
 type UserRow = {
   id: string;
   locale: "en" | "es";
-  subscription_status: string;
-  stripe_customer_id: string | null;
   email: string | null;
   display_name: string | null;
   avatar_url: string | null;
@@ -34,8 +30,6 @@ type UserRow = {
 const mapUser = (row: UserRow): AppUser => ({
   id: row.id,
   locale: row.locale,
-  subscriptionStatus: row.subscription_status,
-  stripeCustomerId: row.stripe_customer_id,
   email: row.email,
   displayName: row.display_name,
   avatarUrl: row.avatar_url,
@@ -45,8 +39,7 @@ const mapUser = (row: UserRow): AppUser => ({
 });
 
 const userFields = `
-  id, locale, subscription_status, stripe_customer_id,
-  email, display_name, avatar_url, authenticated_at,
+  id, locale, email, display_name, avatar_url, authenticated_at,
   product_tour_completed, preferences
 `;
 
@@ -81,6 +74,3 @@ export function attachSessionCookie(
   });
   return response;
 }
-
-export const isPro = (user: AppUser) =>
-  ["active", "trialing"].includes(user.subscriptionStatus);
