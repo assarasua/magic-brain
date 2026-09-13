@@ -1,5 +1,10 @@
 import { createHash, randomBytes } from "node:crypto";
-import { query } from "@/lib/db";
+import { db, query } from "@/lib/db";
+import {
+  finalizeOAuthConsent,
+  OAuthConsentLifecycleError,
+  type OAuthConsentGrant,
+} from "@/lib/oauth-consent-lifecycle";
 import { ApiError } from "@/lib/public-api/core";
 import {
   ACCESS_TOKEN_SECONDS,
@@ -209,84 +214,135 @@ export async function createOAuthConsentRequest(
   return requestToken;
 }
 
-export async function consumeOAuthConsentRequest(
-  ownerId: string,
-  requestToken: string,
-) {
+export async function completeOAuthConsentRequest(input: {
+  ownerId: string;
+  requestToken: string;
+  decision: "allow" | "deny";
+  requestId: string | null;
+}) {
+  const { requestToken } = input;
   if (!/^mbcr_[A-Za-z0-9_-]{43}$/.test(requestToken)) {
     throw new ApiError(400, "invalid_request", "Consent request expired or already used");
   }
-  const result = await query<{
-    client_id: string;
-    redirect_uri: string;
-    resource: string;
-    state: string;
-    scopes: OAuthScope[];
-    code_challenge: string;
-  }>(
-    `update app_oauth_consent_requests consent
-     set consumed_at = now()
-     from app_oauth_clients client
-     where consent.request_hash = $1
-       and consent.owner_id = $2
-       and consent.consumed_at is null
-       and consent.expires_at > now()
-       and client.client_id = consent.client_id
-       and client.revoked_at is null
-       and client.expires_at > now()
-     returning consent.client_id, consent.redirect_uri, consent.resource,
-       consent.state, consent.scopes, consent.code_challenge`,
-    [hash(requestToken), ownerId],
-  );
-  const consent = result.rows[0];
-  if (!consent) {
-    throw new ApiError(400, "invalid_request", "Consent request expired or already used");
+  const client = await db.connect();
+  try {
+    return await finalizeOAuthConsent(
+      {
+        async transaction(operation) {
+          await client.query("begin");
+          try {
+            const value = await operation({
+              async consume(ownerId, token) {
+                const result = await client.query<{
+                  client_id: string;
+                  redirect_uri: string;
+                  resource: string;
+                  state: string;
+                  scopes: OAuthScope[];
+                  code_challenge: string;
+                }>(
+                  `update app_oauth_consent_requests consent
+                   set consumed_at = now()
+                   from app_oauth_clients client
+                   where consent.request_hash = $1
+                     and consent.owner_id = $2
+                     and consent.consumed_at is null
+                     and consent.expires_at > now()
+                     and client.client_id = consent.client_id
+                     and client.revoked_at is null
+                     and client.expires_at > now()
+                   returning consent.client_id, consent.redirect_uri,
+                     consent.resource, consent.state, consent.scopes,
+                     consent.code_challenge`,
+                  [hash(token), ownerId],
+                );
+                const consent = result.rows[0];
+                return consent
+                  ? {
+                      clientId: consent.client_id,
+                      redirectUri: consent.redirect_uri,
+                      resource: consent.resource,
+                      state: consent.state,
+                      scopes: consent.scopes,
+                      challenge: consent.code_challenge,
+                    }
+                  : null;
+              },
+              async issueAuthorizationCode(ownerId, consent, requestId) {
+                const code = `mbc_${randomBytes(32).toString("base64url")}`;
+                await client.query(
+                  `insert into app_oauth_authorization_codes
+                    (code_hash, client_id, owner_id, redirect_uri, resource,
+                     scopes, code_challenge, expires_at)
+                   values ($1, $2, $3, $4, $5, $6::text[], $7,
+                     now() + ($8::text || ' seconds')::interval)`,
+                  [
+                    hash(code),
+                    consent.clientId,
+                    ownerId,
+                    consent.redirectUri,
+                    consent.resource,
+                    consent.scopes,
+                    consent.challenge,
+                    AUTHORIZATION_CODE_SECONDS,
+                  ],
+                );
+                await insertOAuthAudit(
+                  client,
+                  "authorization_granted",
+                  ownerId,
+                  consent,
+                  requestId,
+                );
+                return code;
+              },
+              async recordDenial(ownerId, consent, requestId) {
+                await insertOAuthAudit(
+                  client,
+                  "authorization_denied",
+                  ownerId,
+                  consent,
+                  requestId,
+                );
+              },
+            });
+            await client.query("commit");
+            return value;
+          } catch (error) {
+            await client.query("rollback");
+            throw error;
+          }
+        },
+      },
+      input,
+    );
+  } catch (error) {
+    if (error instanceof OAuthConsentLifecycleError) {
+      throw new ApiError(
+        400,
+        "invalid_request",
+        "Consent request expired or already used",
+      );
+    }
+    throw error;
+  } finally {
+    client.release();
   }
-  return {
-    clientId: consent.client_id,
-    redirectUri: consent.redirect_uri,
-    resource: consent.resource,
-    state: consent.state,
-    scopes: consent.scopes,
-    challenge: consent.code_challenge,
-  };
 }
 
-export async function createAuthorizationCode(input: {
-  ownerId: string;
-  clientId: string;
-  redirectUri: string;
-  resource: string;
-  scopes: OAuthScope[];
-  codeChallenge: string;
-  requestId?: string | null;
-}) {
-  const code = `mbc_${randomBytes(32).toString("base64url")}`;
-  await query(
-    `insert into app_oauth_authorization_codes
-      (code_hash, client_id, owner_id, redirect_uri, resource, scopes,
-       code_challenge, expires_at)
-     values ($1, $2, $3, $4, $5, $6::text[], $7,
-       now() + ($8::text || ' seconds')::interval)`,
-    [
-      hash(code),
-      input.clientId,
-      input.ownerId,
-      input.redirectUri,
-      input.resource,
-      input.scopes,
-      input.codeChallenge,
-      AUTHORIZATION_CODE_SECONDS,
-    ],
+async function insertOAuthAudit(
+  client: Awaited<ReturnType<typeof db.connect>>,
+  eventType: "authorization_granted" | "authorization_denied",
+  ownerId: string,
+  consent: OAuthConsentGrant,
+  requestId: string | null,
+) {
+  await client.query(
+    `insert into app_oauth_audit_events
+      (owner_id, client_id, event_type, scopes, request_id)
+     values ($1, $2, $3, $4::text[], $5)`,
+    [ownerId, consent.clientId, eventType, consent.scopes, requestId],
   );
-  await recordOAuthAudit(
-    "authorization_granted",
-    input.ownerId,
-    input.clientId,
-    input.scopes,
-    input.requestId ?? null,
-  );
-  return code;
 }
 
 export async function exchangeAuthorizationCode(input: {
