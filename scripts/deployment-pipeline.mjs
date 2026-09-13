@@ -11,6 +11,7 @@ export function resolveDeploymentTarget(
   {
     workersCi = process.env.WORKERS_CI,
     branch = process.env.WORKERS_CI_BRANCH,
+    ci = process.env.CI,
   } = {},
 ) {
   if (requestedTarget === "production" || requestedTarget === "preview") {
@@ -21,13 +22,13 @@ export function resolveDeploymentTarget(
       `Unknown deployment target "${requestedTarget ?? ""}". Use "production", "preview", or "auto".`,
     );
   }
-  if (workersCi !== "1") return "production";
-  if (!branch) {
+  if (branch) return branch === "main" ? "production" : "preview";
+  if (workersCi || ci) {
     throw new Error(
       "WORKERS_CI_BRANCH is required for automatic Workers Builds deployment selection",
     );
   }
-  return branch === "main" ? "production" : "preview";
+  return "production";
 }
 
 export function getDeploymentSteps(target) {

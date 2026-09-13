@@ -34,7 +34,11 @@ test("automatic selection fails closed and keeps non-main builds in preview", ()
     "production",
   );
   assert.equal(
-    resolveDeploymentTarget("auto", { workersCi: undefined }),
+    resolveDeploymentTarget("auto", {
+      workersCi: undefined,
+      branch: undefined,
+      ci: undefined,
+    }),
     "production",
   );
   assert.throws(
