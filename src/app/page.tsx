@@ -24,6 +24,7 @@ import {
   Search,
   Settings,
   Sparkles,
+  Target,
   TrendingDown,
   TrendingUp,
   WalletCards,
@@ -58,6 +59,7 @@ const nav = [
 
 const brainNav = [
   { label: "Brain Pro", href: "/brain-pro", icon: Crown },
+  { label: "Predict", href: "/predict", icon: Target },
   { label: "Portfolio Builder", href: "/brain", icon: BrainCircuit },
   { label: "Brain Signals", href: "/signals", icon: TrendingUp },
   { label: "Ask Brain", href: "/analyst", icon: MessageCircleQuestion },

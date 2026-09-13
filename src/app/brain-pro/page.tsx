@@ -8,6 +8,7 @@ import {
   Crown,
   Heart,
   MessageCircleQuestion,
+  Target,
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
@@ -17,6 +18,24 @@ import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { ProFeaturePreview, type ProFeature } from "@/components/pro-feature-preview";
 
 const tools = [
+  {
+    href: "/predict",
+    feature: "predict" as ProFeature,
+    icon: Target,
+    name: "Predict",
+    title: {
+      en: "Stress-test the growth case for any set.",
+      es: "Pon a prueba el potencial de crecimiento de cualquier edición.",
+    },
+    copy: {
+      en: "Compare transparent scenarios against inflation, the S&P 500, or an extreme risk-and-reward target.",
+      es: "Compara escenarios transparentes con inflación, S&P 500 o un objetivo de riesgo y retorno extremos.",
+    },
+    features: {
+      en: ["Growth grade", "Bear/base/bull range", "Confidence and risks"],
+      es: ["Grado de growth", "Rango bajista/base/alcista", "Confianza y riesgos"],
+    },
+  },
   {
     href: "/brain",
     feature: "brain" as ProFeature,
