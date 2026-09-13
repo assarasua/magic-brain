@@ -13,6 +13,7 @@ export type CatalogCard = {
   price: number | null;
   foilPrice: number | null;
   change7d: number | null;
+  change30d?: number | null;
   priceDate: string | null;
 };
 
@@ -29,6 +30,7 @@ type CatalogRow = {
   price: string | null;
   foil_price: string | null;
   change_7d: string | null;
+  change_30d?: string | null;
   price_date: string | null;
 };
 
@@ -61,6 +63,7 @@ const mapCard = (row: CatalogRow): CatalogCard => ({
   price: row.price === null ? null : Number(row.price),
   foilPrice: row.foil_price === null ? null : Number(row.foil_price),
   change7d: row.change_7d === null ? null : Number(row.change_7d),
+  change30d: row.change_30d == null ? null : Number(row.change_30d),
   priceDate: row.price_date,
 });
 
@@ -356,7 +359,15 @@ export async function getMarketMovers(
               and previous.date <= (
                 select max(current.date) from prices current where current.source = 'mtgjson'
               ) - $2::integer
-          ) as previous_date
+          ) as previous_date,
+          (
+            select max(previous.date)
+            from prices previous
+            where previous.source = 'mtgjson'
+              and previous.date <= (
+                select max(current.date) from prices current where current.source = 'mtgjson'
+              ) - 30
+          ) as month_date
         from prices
         where source = 'mtgjson'
       ),
@@ -374,7 +385,10 @@ export async function getMarketMovers(
           current_price.eur as price,
           current_price.eur_foil as foil_price,
           current_price.date::text as price_date,
-          ((current_price.eur - previous_price.eur) / previous_price.eur) * 100 as change_7d
+          ((current_price.eur - previous_price.eur) / previous_price.eur) * 100 as change_7d,
+          case when month_price.eur > 0
+            then ((current_price.eur - month_price.eur) / month_price.eur) * 100
+            else null end as change_30d
         from dates
         join prices current_price
           on current_price.date = dates.latest_date
@@ -383,6 +397,10 @@ export async function getMarketMovers(
           on previous_price.scryfall_id = current_price.scryfall_id
           and previous_price.date = dates.previous_date
           and previous_price.source = 'mtgjson'
+        left join prices month_price
+          on month_price.scryfall_id = current_price.scryfall_id
+          and month_price.date = dates.month_date
+          and month_price.source = 'mtgjson'
         join cards c on c.scryfall_id = current_price.scryfall_id
         where current_price.eur between 2 and 5000
           and previous_price.eur >= 2

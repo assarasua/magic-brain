@@ -28,7 +28,12 @@ import { useCardDetail } from "@/components/card-detail-provider";
 import { PortfolioOnboarding } from "@/components/portfolio-onboarding";
 import { PortfolioImportModal } from "@/components/portfolio-import-modal";
 import { PortfolioForecastChart } from "@/components/portfolio-forecast-chart";
-import { MlInsight, trackMlFeedback } from "@/components/ml-insight";
+import { trackMlFeedback } from "@/components/ml-insight";
+import {
+  PortfolioDecisionSection,
+  type DecisionCandidate,
+  type DecisionHolding,
+} from "@/components/portfolio-decision-section";
 import {
   BulkActionDialog,
   ConfirmationDialog,
@@ -110,17 +115,32 @@ type PortfolioData = {
       id: string;
       name: string;
       setCode: string;
+      setName?: string;
+      collectorNumber?: string;
       imageUrl: string | null;
       price: number;
+      priceDate?: string | null;
       change7d: number | null;
+      change30d?: number | null;
       ml?: MlCardContext | null;
     }>;
     holdingReviews: Array<
       PortfolioHolding & {
         ml?: MlCardContext | null;
-        reviewSignal: "cooling" | "hold";
+        reviewSignal: "cooling";
       }
     >;
+    coverage?: {
+      pricedHoldings: number;
+      totalHoldings: number;
+      momentumHoldings: number;
+    };
+    thresholds?: {
+      minimumCandidatePrice: number;
+      maximumCandidatePrice: number;
+      cooling7dPercent: number;
+      cooling30dPercent: number;
+    };
   };
 };
 
@@ -299,6 +319,7 @@ export default function PortfolioPage() {
   const [editingHolding, setEditingHolding] = useState<number | null>(null);
   const [editQuantity, setEditQuantity] = useState("");
   const [editPurchasePrice, setEditPurchasePrice] = useState("");
+  const [portfolioLoadError, setPortfolioLoadError] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [selectedHoldingIds, setSelectedHoldingIds] = useState<number[]>([]);
@@ -346,6 +367,7 @@ export default function PortfolioPage() {
       })
       .then((result: PortfolioData) => {
         setData(result);
+        setPortfolioLoadError(false);
         if (!options?.preserveSelection) setSelectedHoldingIds([]);
         window.localStorage.setItem("portfolio.activeListId", result.selectedListId);
       })
@@ -353,7 +375,10 @@ export default function PortfolioPage() {
 
   useEffect(() => {
     loadPortfolio(window.localStorage.getItem("portfolio.activeListId") ?? undefined)
-      .catch(() => loadPortfolio().catch(() => setError("Unable to load portfolio")));
+      .catch(() => loadPortfolio().catch(() => {
+        setPortfolioLoadError(true);
+        setError("Unable to load portfolio");
+      }));
   }, []);
 
   useEffect(() => {
@@ -988,11 +1013,16 @@ export default function PortfolioPage() {
   const addCandidate = async (
     candidate: NonNullable<PortfolioData["mlIntelligence"]>["candidateAdditions"][number],
     rankPosition: number,
+    destinationListId = data.selectedListId,
   ) => {
+    const destinationName =
+      data.lists.find((list) => list.id === destinationListId)?.name ??
+      activeList?.name ??
+      "";
     if (!window.confirm(
       locale === "es"
-        ? `¿Añadir 1× ${candidate.name} a ${formatCurrency(candidate.price)} a tu cartera?`
-        : `Add 1× ${candidate.name} at ${formatCurrency(candidate.price)} to your portfolio?`,
+        ? `¿Añadir 1× ${candidate.name} a ${formatCurrency(candidate.price)} en “${destinationName}”?`
+        : `Add 1× ${candidate.name} at ${formatCurrency(candidate.price)} to “${destinationName}”?`,
     )) return;
     const response = await fetch("/api/portfolio", {
       method: "POST",
@@ -1003,7 +1033,7 @@ export default function PortfolioPage() {
         purchasePrice: candidate.price,
         condition: "near_mint",
         language: "en",
-        listId: data.selectedListId,
+        listId: destinationListId,
       }),
     });
     if (response.ok) {
@@ -1014,8 +1044,57 @@ export default function PortfolioPage() {
         context: candidate.ml ?? undefined,
         rankPosition,
       });
+      setNotice(
+        locale === "es"
+          ? `${candidate.name} añadida a “${destinationName}”.`
+          : `${candidate.name} added to “${destinationName}”.`,
+      );
       await loadPortfolio(data.selectedListId);
+    } else {
+      setError(
+        locale === "es"
+          ? "No se pudo añadir la candidata. Inténtalo de nuevo."
+          : "The candidate could not be added. Try again.",
+      );
     }
+  };
+
+  const watchCandidate = async (candidate: DecisionCandidate) => {
+    const response = await fetch("/api/watchlist", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cardId: candidate.id }),
+    });
+    setNotice(
+      response.ok
+        ? locale === "es"
+          ? `${candidate.name} añadida a seguimiento. Configura alertas desde Seguimiento.`
+          : `${candidate.name} added to Watchlist. Configure alerts from Watchlist.`
+        : locale === "es"
+          ? "No se pudo actualizar el seguimiento."
+          : "Unable to update Watchlist.",
+    );
+  };
+
+  const editDecisionHolding = (holding: DecisionHolding) => {
+    startEditingHolding(holding);
+    window.setTimeout(() => {
+      document.getElementById(`holding-${holding.id}`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 0);
+  };
+
+  const manageDecisionHolding = (
+    holding: DecisionHolding,
+    action: "move" | "copy",
+  ) => {
+    setSelectedHoldingIds([holding.id]);
+    setBulkError("");
+    setBulkDestination("");
+    setBulkRequestId(crypto.randomUUID());
+    setBulkAction(action);
   };
 
   return (
@@ -1164,9 +1243,55 @@ export default function PortfolioPage() {
         )}
 
         {loading ? (
-          <div className="portfolio-loading">{locale === "es" ? "Preparando tu espacio…" : "Preparing your workspace…"}</div>
+          <>
+            <div className="portfolio-loading">{locale === "es" ? "Preparando tu espacio…" : "Preparing your workspace…"}</div>
+            <PortfolioDecisionSection
+              locale={locale}
+              data={{
+                ranking: fallbackRanking,
+                mode: "deterministic",
+                state: "no_portfolio",
+                candidateState: "portfolio_unavailable",
+                candidateAdditions: [],
+                holdingReviews: [],
+              }}
+              lists={[]}
+              activeListId=""
+              portfolioValue={0}
+              selectedHoldingIds={[]}
+              loading
+              onAddCandidate={() => undefined}
+              onWatchCandidate={() => undefined}
+              onEditHolding={() => undefined}
+              onManageHolding={() => undefined}
+              onToggleHolding={() => undefined}
+            />
+          </>
         ) : data.holdings.length === 0 ? (
-          <PortfolioOnboarding onAdd={() => setShowAdd(true)} />
+          <>
+            <PortfolioOnboarding onAdd={() => setShowAdd(true)} />
+            <PortfolioDecisionSection
+              locale={locale}
+              data={data.mlIntelligence ?? {
+                ranking: fallbackRanking,
+                mode: "deterministic",
+                state: "no_portfolio",
+                candidateState: "portfolio_unavailable",
+                candidateAdditions: [],
+                holdingReviews: [],
+              }}
+              lists={data.lists}
+              activeListId={data.selectedListId}
+              portfolioValue={data.summary.value}
+              selectedHoldingIds={[]}
+              error={portfolioLoadError}
+              onAddCandidate={(candidate, rank, listId) => void addCandidate(candidate, rank, listId)}
+              onWatchCandidate={(candidate) => void watchCandidate(candidate)}
+              onEditHolding={() => undefined}
+              onManageHolding={() => undefined}
+              onToggleHolding={() => undefined}
+            />
+          </>
         ) : (
           <>
             <section className="account-metrics">
@@ -1207,76 +1332,33 @@ export default function PortfolioPage() {
               <article><span>{locale === "es" ? "Mayor exposición" : "Top concentration"}</span><strong>{analytics.concentration.toFixed(1)}%</strong><small>{allocation[0]?.name ?? "—"}</small></article>
             </section>
 
-            <section className={`fintech-panel ${styles.intelligencePanel}`}>
-              <div className="section-title">
-                <div>
-                  <span className="eyebrow">{locale === "es" ? "INTELIGENCIA DE CARTERA" : "PORTFOLIO INTELLIGENCE"}</span>
-                  <h2>{locale === "es" ? "Siguientes decisiones para revisar" : "Next decisions to review"}</h2>
-                </div>
-                <small>{locale === "es" ? "Sin operaciones automáticas" : "No autonomous trades"}</small>
-              </div>
-              <MlInsight
-                locale={locale}
-                ranking={data.mlIntelligence?.ranking ?? fallbackRanking}
-                surface="portfolio"
-              />
-              {analytics.concentration > 35 && (
-                <p className={styles.constraint}>
-                  {locale === "es"
-                    ? `Restricción: ${allocation[0]?.name} concentra el ${analytics.concentration.toFixed(1)}% de la cartera. Revisa el downside antes de aumentar esa exposición.`
-                    : `Constraint: ${allocation[0]?.name} is ${analytics.concentration.toFixed(1)}% of the portfolio. Review downside before increasing that exposure.`}
-                </p>
-              )}
-              <div className={styles.intelligenceGrid}>
-                <div>
-                  <h3>{data.mlIntelligence?.mode === "ml" ? (locale === "es" ? "Candidatas personalizadas" : "Personalized candidates") : (locale === "es" ? "Candidatas por reglas" : "Rule-based candidates")}</h3>
-                  {data.mlIntelligence?.candidateAdditions.length ? data.mlIntelligence.candidateAdditions.map((candidate, index) => (
-                    <article key={candidate.id} className={styles.intelligenceCard}>
-                      <div>
-                        <strong>{candidate.name}</strong>
-                        <span>{candidate.setCode.toUpperCase()} · {formatCurrency(candidate.price)}</span>
-                      </div>
-                      <button type="button" onClick={() => void addCandidate(candidate, index + 1)}>
-                        <Plus size={14} /> {locale === "es" ? "Revisar y añadir" : "Review and add"}
-                      </button>
-                      {data.mlIntelligence!.mode === "ml" && candidate.ml ? (
-                        <MlInsight
-                          locale={locale}
-                          ranking={data.mlIntelligence!.ranking}
-                          context={candidate.ml}
-                          surface="portfolio"
-                          cardId={candidate.id}
-                          rankPosition={index + 1}
-                        />
-                      ) : (
-                        <small className={styles.deterministicReason}>
-                          {locale === "es"
-                            ? `Regla transparente: precio dentro de tu límite y momentum 7D positivo (${candidate.change7d?.toFixed(1)}%).`
-                            : `Transparent rule: price within your limit and positive 7D momentum (${candidate.change7d?.toFixed(1)}%).`}
-                        </small>
-                      )}
-                    </article>
-                  )) : <p>{data.mlIntelligence?.state === "no_priced_holdings"
-                    ? (locale === "es" ? "Añade o actualiza precios de mercado para activar comparaciones de cartera." : "Add or refresh market prices to enable portfolio comparisons.")
-                    : (locale === "es" ? "Ninguna carta pasa ahora los límites de precio, identidad y momentum. Revisa tu precio máximo o vuelve cuando cambien los datos." : "No cards currently pass the price, identity, and momentum constraints. Review your maximum price or check again when market data changes.")}</p>}
-                </div>
-                <div>
-                  <h3>{locale === "es" ? "Posiciones para revisar" : "Holdings to review"}</h3>
-                  {data.mlIntelligence?.holdingReviews.length ? data.mlIntelligence.holdingReviews.map((holding) => (
-                    <article key={holding.id} className={styles.intelligenceCard}>
-                      <div><strong>{holding.name}</strong><span>7D {holding.change7d === null ? "—" : `${holding.change7d >= 0 ? "+" : ""}${holding.change7d.toFixed(1)}%`} · 30D {holding.change30d === null ? "—" : `${holding.change30d >= 0 ? "+" : ""}${holding.change30d.toFixed(1)}%`}</span></div>
-                      <small className={styles.deterministicReason}>
-                        {holding.reviewSignal === "cooling"
-                          ? (locale === "es" ? "▼ Revisar: caída de al menos 2% en 7D o 5% en 30D. No implica vender." : "▼ Review: down at least 2% over 7D or 5% over 30D. This is not a sell instruction.")
-                          : (locale === "es" ? "● Mantener bajo observación: es tu mayor posición valorada y no cruza el umbral de enfriamiento." : "● Monitor: this is your largest priced position and it does not cross the cooling threshold.")}
-                      </small>
-                    </article>
-                  )) : <p>{data.mlIntelligence?.state === "no_priced_holdings"
-                    ? (locale === "es" ? "No hay posiciones con precio actual; no se puede medir momentum ni contribución." : "There are no holdings with a current price, so momentum and contribution cannot be measured.")
-                    : (locale === "es" ? "No hay posiciones valoradas que revisar todavía." : "There are no priced holdings to review yet.")}</p>}
-                </div>
-              </div>
-            </section>
+            <PortfolioDecisionSection
+              locale={locale}
+              data={data.mlIntelligence ?? {
+                ranking: fallbackRanking,
+                mode: "deterministic",
+                state: data.holdings.length ? "no_priced_holdings" : "no_portfolio",
+                candidateState: "portfolio_unavailable",
+                candidateAdditions: [],
+                holdingReviews: [],
+              }}
+              lists={data.lists}
+              activeListId={data.selectedListId}
+              portfolioValue={data.summary.value}
+              selectedHoldingIds={selectedHoldingIds}
+              error={portfolioLoadError}
+              onAddCandidate={(candidate, rank, listId) => void addCandidate(candidate, rank, listId)}
+              onWatchCandidate={(candidate) => void watchCandidate(candidate)}
+              onEditHolding={editDecisionHolding}
+              onManageHolding={manageDecisionHolding}
+              onToggleHolding={(holdingId) =>
+                setSelectedHoldingIds((current) =>
+                  current.includes(holdingId)
+                    ? current.filter((id) => id !== holdingId)
+                    : [...current, holdingId],
+                )
+              }
+            />
 
             <section className={`fintech-panel ${styles.opportunityPanel}`}>
               <div className="section-title">
@@ -1318,7 +1400,7 @@ export default function PortfolioPage() {
               <strong role="status" aria-live="polite">{selectedHoldingIds.length} {locale === "es" ? "seleccionadas" : "selected"}</strong>
             </div>
             <div className="holdings-list">
-              {data.holdings.map((holding) => <div data-selected={selectedHoldingIds.includes(holding.id)} className={`portfolio-row card-surface ${styles.holdingRow} ${updatingHolding === holding.id ? styles.updating : ""}`} key={holding.id} {...cardSurfaceProps(holding.cardId)}>
+              {data.holdings.map((holding) => <div id={`holding-${holding.id}`} data-selected={selectedHoldingIds.includes(holding.id)} className={`portfolio-row card-surface ${styles.holdingRow} ${updatingHolding === holding.id ? styles.updating : ""}`} key={holding.id} {...cardSurfaceProps(holding.cardId)}>
                 <label className={styles.selectionBox} onClick={(event) => event.stopPropagation()}>
                   <input
                     type="checkbox"

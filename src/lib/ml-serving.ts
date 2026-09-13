@@ -25,6 +25,7 @@ type ScoreRow = {
   price: string;
   foil_price: string | null;
   change_7d: string | null;
+  change_30d: string | null;
   price_date: string;
   score_id: string;
   model_version: string;
@@ -222,7 +223,8 @@ export async function getPersonalizedBatchSignals(
       price_dates as (
         select
           max(date) as latest_date,
-          max(date) filter (where date <= current_date - 7) as previous_date
+          max(date) filter (where date <= current_date - 7) as previous_date,
+          max(date) filter (where date <= current_date - 30) as month_date
         from prices
         where source = 'mtgjson'
       )
@@ -235,6 +237,9 @@ export async function getPersonalizedBatchSignals(
         case when previous_price.eur > 0
           then ((current_price.eur - previous_price.eur) / previous_price.eur) * 100
           else null end as change_7d,
+        case when month_price.eur > 0
+          then ((current_price.eur - month_price.eur) / month_price.eur) * 100
+          else null end as change_30d,
         current_price.date::text as price_date,
         scores.id::text as score_id, scores.model_version,
         scores.rank_score, scores.confidence,
@@ -258,6 +263,10 @@ export async function getPersonalizedBatchSignals(
         on previous_price.scryfall_id = c.scryfall_id
        and previous_price.date = price_dates.previous_date
        and previous_price.source = 'mtgjson'
+      left join prices month_price
+        on month_price.scryfall_id = c.scryfall_id
+       and month_price.date = price_dates.month_date
+       and month_price.source = 'mtgjson'
       where scores.confidence >= $2
         and scores.generated_at >= now() - ($3::text || ' hours')::interval
         and (scores.expires_at is null or scores.expires_at > now())
@@ -293,6 +302,7 @@ export async function getPersonalizedBatchSignals(
       price: Number(row.price),
       foilPrice: row.foil_price === null ? null : Number(row.foil_price),
       change7d: row.change_7d === null ? null : Number(row.change_7d),
+      change30d: row.change_30d === null ? null : Number(row.change_30d),
       priceDate: row.price_date,
       direction: Number(row.change_7d ?? 0) >= 0 ? "up" as const : "down" as const,
       ml: {
