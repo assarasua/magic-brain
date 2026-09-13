@@ -121,6 +121,9 @@ then follow the
 Ranking and evaluation work must follow the
 [ML data contract](docs/ml-data-contract.md), including its point-in-time and
 walk-forward leakage rules.
+Artifact promotion, daily score scheduling, experiment controls, and fallback
+behavior are documented in the
+[ML batch serving runbook](docs/ml-batch-serving.md).
 
 `AUTH_SECRET` is mandatory in production and should also be set locally for
 stable sessions. Generate it with `openssl rand -base64 32`. Google OAuth is
