@@ -20,6 +20,22 @@ redistributing data.
 
 English and Spanish are available from the header language control.
 
+## Magic Brain MCP connector
+
+Connect Claude, Cursor, VS Code with GitHub Copilot, ChatGPT, or the OpenAI
+Responses API to the live read-only Magic Brain MCP endpoint. No Magic Brain
+user API key is currently required.
+
+Follow the [MCP installation guide](docs/mcp-installation.md) for current
+product requirements, exact configuration, and troubleshooting. Local
+self-hosting is documented separately in the
+[MCP package guide](integrations/magic-brain-mcp/PACKAGE.md#run-locally).
+The canonical [MCP tool reference](docs/mcp-tools.md) documents exact inputs,
+outputs, limits, examples, evidence handling, and errors for all 11 tools.
+The connector can also retrieve source-cited, epistemically labelled product
+and business diligence evidence. Its canonical public source is the
+[product strategy and FAQ](docs/product-strategy-faq.md).
+
 ## Run locally
 
 ```bash
@@ -64,28 +80,18 @@ https://magicbrain.es/api/auth/callback/google
 Set `AUTH_URL=https://magicbrain.es` and
 `NEXT_PUBLIC_APP_URL=https://magicbrain.es` in the production environment.
 Use `.env.production.example` as the deployment checklist and never commit real
-OAuth or Stripe secrets.
+OAuth secrets.
 
 Google login links the anonymous account instead of replacing it, preserving
-portfolio holdings, watchlist items, Brain portfolios, and Stripe status.
+portfolio holdings, watchlist items, and Brain portfolios.
 
-## Stripe sandbox setup
+## Optional contributions
 
-1. Create a restricted sandbox key with the minimum Checkout, Customer, Price,
-   and Subscription permissions.
-2. Create a `Brain Pro` product with a recurring EUR 5/month Price.
-3. Add the restricted key and Price ID to `.env.local`.
-4. Forward sandbox events locally:
-
-```bash
-stripe listen --forward-to localhost:3000/api/stripe/webhook
-```
-
-5. Add the generated `whsec_...` value to `.env.local`.
-
-The webhook verifies Stripe signatures and persists subscription state. Checkout
-uses a Stripe-hosted subscription flow and the Customer Portal endpoint supports
-self-service billing.
+Magic Brain's Brain Pro tools are free for now. The support page offers an
+optional one-time contribution through
+[paypal.me/assarasua](https://paypal.me/assarasua); it does not require payment
+credentials, create a subscription, or record the payment in Magic Brain.
+Contributors must confirm the recipient and amount in PayPal before sending.
 
 ## Production data connection
 
@@ -98,7 +104,7 @@ Anonymous accounts use random 256-bit session tokens stored as HttpOnly cookies;
 only token hashes are persisted. A production identity provider can later link
 these records to verified user accounts.
 
-Never commit `.env.local` or put a Stripe secret/restricted key in browser code.
+Never commit `.env.local` or put service credentials in browser code.
 
 ## Contributor data setup
 
@@ -110,15 +116,15 @@ then follow the
 [data import guide](docs/data-import.md).
 
 `AUTH_SECRET` is mandatory in production and should also be set locally for
-stable sessions. Generate it with `openssl rand -base64 32`. Google OAuth and
-Stripe are optional for local development.
+stable sessions. Generate it with `openssl rand -base64 32`. Google OAuth is
+optional for local development.
 
 ## Cloudflare deployment
 
 The checked-in `wrangler.jsonc` preserves the project's `magicbrain.es` route
 and Hyperdrive ID. These are public deployment coordinates, not credentials.
 Forks must replace `name`, `routes`, and `hyperdrive[].id` with their own
-Cloudflare resources. Keep database, Auth.js, OAuth, and Stripe secrets in the
+Cloudflare resources. Keep database, Auth.js, and OAuth secrets in the
 deployment provider's secret manager. Use `.env.production.example` only as a
 variable checklist.
 
@@ -140,3 +146,8 @@ npm run build
 Privacy and service templates are in [PRIVACY.md](PRIVACY.md) and
 [TERMS.md](TERMS.md). Each deployment operator must customize them for its
 identity, jurisdiction, subprocessors, retention, and actual data practices.
+
+## Creator
+
+Magic Brain was created by
+[Asier Sarasua at BizkardoLab](https://bizkardolab.com).

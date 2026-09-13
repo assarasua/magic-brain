@@ -117,7 +117,6 @@ const buyerTipsFor = (
 export async function generateBrainPortfolio(
   userId: string,
   preferences: BrainPreferences,
-  isProUser: boolean,
 ) {
   const conditions = [
     "priced.price >= $2",
@@ -278,9 +277,7 @@ export async function generateBrainPortfolio(
     })
     .sort((a, b) => b.score - a.score);
 
-  const positionLimit = isProUser
-    ? Math.min(preferences.positions, 20)
-    : Math.min(preferences.positions, 5);
+  const positionLimit = Math.min(preferences.positions, 20);
   const uniqueNames = new Set<string>();
   const selected = scored.filter(({ row }) => {
     const key = row.name.toLowerCase();
@@ -405,7 +402,7 @@ export async function generateBrainPortfolio(
   return {
     id: portfolioId,
     name,
-    isPreview: !isProUser,
+    isPreview: false,
     budget: preferences.budget,
     invested: recommendations.reduce((sum, item) => sum + item.allocation, 0),
     expectedValue,

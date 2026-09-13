@@ -2,6 +2,10 @@
   "name": "magic-brain",
   "version": "1.0.0",
   "description": "Magic Brain — intelligence for Magic: The Gathering collectors and investors.",
+  "author": {
+    "name": "Asier Sarasua",
+    "url": "https://bizkardolab.com"
+  },
   "private": true,
   "type": "module",
   "homepage": "https://github.com/assarasua/magic-brain#readme",
@@ -25,7 +29,7 @@
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "node --test test/*.test.mjs src/lib/*.test.mjs",
     "db:migrate": "node --env-file=.env.local scripts/migrate.mjs",
     "db:sync-reserved": "node --env-file=.env.local scripts/sync-reserved-list.mjs",
@@ -46,8 +50,7 @@
     "pg-cloudflare": "^1.4.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "recharts": "^3.10.1",
-    "stripe": "^22.6.2"
+    "recharts": "^3.10.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
