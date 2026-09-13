@@ -1,9 +1,10 @@
 # Magic Brain MCP server
 
 An isolated, read-only remote MCP server for Magic Brain's versioned public
-Cards/Prices/Sets API, pinned Comprehensive Rules, and canonical public product
-knowledge. It exposes no resources, prompts, write tools, user accounts,
-portfolios, watchlists, authentication records, or payment data.
+Cards/Prices/Sets, prediction-scenario, and market-brief APIs, pinned
+Comprehensive Rules, and canonical public product knowledge. It exposes no
+resources, prompts, write tools, user accounts, saved portfolios, watchlists,
+authentication records, or payment data.
 
 ## Install the live connector
 
@@ -28,7 +29,7 @@ below run your own server and do not install the live connector.
 ## Tools
 
 The list below is a summary. The
-[canonical MCP tool reference](../../docs/mcp-tools.md) documents all 11 tools
+[canonical MCP tool reference](../../docs/mcp-tools.md) documents all 15 tools
 without duplicating their schemas here.
 
 - `search_cards` — bounded catalogue search with set/card filters
@@ -37,6 +38,10 @@ without duplicating their schemas here.
 - `get_price_history` — at most 366 days for one card
 - `list_sets` — bounded, cursor-paginated set metadata
 - `get_latest_set_opportunities` — at most 25 latest-set research signals
+- `predict_set_growth` — transparent set forecast scenario from bounded inputs
+- `build_portfolio_scenario` — unsaved public-data allocation scenario
+- `get_latest_market_brief` — latest immutable stored-price market summary
+- `list_market_briefs` — bounded archive of immutable market summaries
 - `search_rules` — bounded local search of the pinned Comprehensive Rules index
 - `ask_rules` — cited rules retrieval with non-authoritative synthesis separated
 - `search_product_knowledge` — deterministic lexical search over canonical,
@@ -74,6 +79,10 @@ superiority claims. See the canonical
 | `get_price_history` | `GET cards/{card_id}/prices` |
 | `list_sets` | `GET sets` |
 | `get_latest_set_opportunities` | `GET latest-set/opportunities` |
+| `predict_set_growth` | `GET predict/set` |
+| `build_portfolio_scenario` | `POST predict/portfolio` (read-only calculation) |
+| `get_latest_market_brief` | `GET news/latest` |
+| `list_market_briefs` | `GET news` |
 
 These paths are contract-tested against the versioned public surface. The
 connector never falls back to private application routes.
@@ -123,8 +132,12 @@ Safeguards include:
 - 1 MiB MCP request-body cap and conservative HTTP timeouts
 - Host and Origin allowlists
 
-This server provides market observations and research indicators, not
-financial advice.
+Prediction ranges, model allocations, and market briefs are derived research
+outputs, not guarantees, recommendations, external journalism, or executable
+quotes. The scenario tool never saves a portfolio and no tool reads or writes
+user portfolio or watchlist data. Liquidity, seller inventory, fees, taxes,
+shipping, condition, language, and data freshness can materially affect real
+outcomes. This server does not provide financial advice.
 
 ## Test
 

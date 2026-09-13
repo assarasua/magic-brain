@@ -45,7 +45,7 @@ has not been performed.
 - [ ] Name (maximum 100 characters): `Magic Brain`
 - [ ] Tagline (maximum 55 characters):
       `MTG cards, prices, sets, and market signals`
-- [ ] Description: explain the six public-data tools, two rules tools, and three
+- [ ] Description: explain the ten public-data tools, two rules tools, and three
   deterministic product-knowledge tools,
       price-source attribution, bounded output, and no financial guarantees.
 - [ ] Select one to five relevant categories in the portal.
