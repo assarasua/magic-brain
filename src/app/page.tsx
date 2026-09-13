@@ -8,27 +8,15 @@ import {
   ArrowUpRight,
   Bell,
   Bookmark,
-  BrainCircuit,
-  ChevronDown,
   CircleDollarSign,
-  Code2,
-  Crown,
   ExternalLink,
   Eye,
-  Heart,
-  LayoutDashboard,
-  LibraryBig,
-  Menu,
-  MessageCircleQuestion,
   Plus,
   Search,
-  Settings,
   Sparkles,
-  Target,
   TrendingDown,
   TrendingUp,
   WalletCards,
-  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -45,30 +33,6 @@ import {
 } from "@/lib/data";
 import type { CatalogCard } from "@/lib/catalog";
 import type { PortfolioHolding } from "@/lib/portfolio";
-
-const nav = [
-  { label: "Overview", icon: LayoutDashboard },
-  { label: "Market", icon: TrendingUp },
-  { label: "Inventory", icon: LibraryBig },
-  { label: "Reserved List", icon: Crown },
-  { label: "Portfolio", icon: WalletCards },
-  { label: "Watchlist", icon: Eye },
-  { label: "Support", icon: CircleDollarSign },
-  { label: "Developers", icon: Code2 },
-];
-
-const brainNav = [
-  { label: "Brain Pro", href: "/brain-pro", icon: Crown },
-  { label: "Predict", href: "/predict", icon: Target },
-  { label: "Portfolio Builder", href: "/brain", icon: BrainCircuit },
-  { label: "Brain Signals", href: "/signals", icon: TrendingUp },
-  { label: "Ask Brain", href: "/analyst", icon: MessageCircleQuestion },
-  { label: "Discover", href: "/discover", icon: Heart },
-];
-
-function Brand({ compact = false }: { compact?: boolean }) {
-  return <MagicBrainLogo compact={compact} />;
-}
 
 function Sparkline({
   values,
@@ -197,7 +161,6 @@ export default function Home() {
   const { openCard, cardSurfaceProps } = useCardDetail();
   const { locale, t } = useLanguage();
   const searchInput = useRef<HTMLInputElement>(null);
-  const [activeNav, setActiveNav] = useState("Overview");
   const [timeframe, setTimeframe] = useState("30D");
   const [marketCards, setMarketCards] = useState<Card[]>(movers);
   const [marketDirection, setMarketDirection] = useState<"gainers" | "losers">("gainers");
@@ -210,8 +173,6 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<CatalogCard[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [mobileNav, setMobileNav] = useState(false);
-  const [brainExpanded, setBrainExpanded] = useState(false);
   const [toast, setToast] = useState("");
   const [portfolioLoaded, setPortfolioLoaded] = useState(false);
   const [portfolio, setPortfolio] = useState<{
@@ -375,107 +336,9 @@ export default function Home() {
   };
 
   return (
-    <main className="app-shell">
-      <aside className={`sidebar ${mobileNav ? "open" : ""}`}>
-        <div className="sidebar-head">
-          <Brand />
-          <button
-            className="icon-btn mobile-close"
-            onClick={() => setMobileNav(false)}
-            aria-label="Close menu"
-          >
-            <X size={20} />
-          </button>
-        </div>
-        <nav>
-          <span className="nav-caption">{t("Workspace")}</span>
-          {nav.map(({ label, icon: Icon }) => (
-            <button
-              key={label}
-              className={[
-                "nav-item",
-                activeNav === label ? "active" : "",
-              ].filter(Boolean).join(" ")}
-              onClick={() => {
-                const routes: Record<string, string> = {
-                  Market: "/market",
-                  Inventory: "/inventory",
-                  "Reserved List": "/reserved",
-                  Portfolio: "/portfolio",
-                  Watchlist: "/watchlist",
-                  Support: "/donate",
-                  Developers: "/developers",
-                };
-                if (routes[label]) {
-                  router.push(routes[label]);
-                  return;
-                }
-                setActiveNav(label);
-                setMobileNav(false);
-                if (label !== "Overview") {
-                  showToast(`${label} workspace is ready for your live data`);
-                }
-              }}
-            >
-              <Icon size={18} />
-              {t(label)}
-              {label === "Watchlist" && <span className="nav-count">{watchlist.length}</span>}
-            </button>
-          ))}
-          <div className={`sidebar-section-group ${brainExpanded ? "open" : ""}`}>
-            <button
-              className="nav-item premium-feature-link sidebar-section-trigger"
-              aria-expanded={brainExpanded}
-              onClick={() => setBrainExpanded((current) => !current)}
-            >
-              <Sparkles size={18} />
-              Brain Pro
-              <span className="nav-pro-label"><Crown size={10} /> {locale === "es" ? "GRATIS" : "FREE"}</span>
-              <ChevronDown className="sidebar-section-chevron" size={14} />
-            </button>
-            {brainExpanded && (
-              <div className="sidebar-subnav">
-                {brainNav.map(({ label, href, icon: Icon }) => (
-                  <button key={href} onClick={() => router.push(href)}>
-                    <Icon size={15} />
-                    {t(label)}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <span className="nav-caption lower">{t("Account")}</span>
-          <button className="nav-item">
-            <Bell size={18} />
-            {t("Alerts")}
-            <span className="premium-dot" />
-          </button>
-          <button className="nav-item" onClick={() => router.push("/settings")}>
-            <Settings size={18} />
-            {t("Settings")}
-          </button>
-        </nav>
-        <div className="sidebar-bottom">
-          <div className="mini-upgrade">
-            <span className="crown">
-              <CircleDollarSign size={16} />
-            </span>
-            <strong>{locale === "es" ? "Apoya Magic Brain" : "Support Magic Brain"}</strong>
-            <p>{locale === "es" ? "Ayuda a mantener el proyecto abierto." : "Help keep the project open."}</p>
-            <Link href="/donate">{locale === "es" ? "Hacer una donación" : "Make a donation"} <ArrowRight size={14} /></Link>
-          </div>
-          <AuthControl />
-        </div>
-      </aside>
-
-      {mobileNav && <button className="scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation" />}
-
-      <section className="main-panel">
+    <>
         <header className="topbar">
-          <button className="icon-btn menu-button" onClick={() => setMobileNav(true)} aria-label="Open menu">
-            <Menu size={21} />
-          </button>
-          <div className="mobile-brand"><Brand compact /></div>
+          <div className="mobile-brand"><MagicBrainLogo compact /></div>
           <div className="search-wrap">
             <label className="search">
               <Search size={17} />
@@ -669,9 +532,7 @@ export default function Home() {
             </span>
           </footer>
         </div>
-      </section>
-
       {toast && <div className="toast">{toast}</div>}
-    </main>
+    </>
   );
 }

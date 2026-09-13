@@ -9,6 +9,8 @@ import {
   HeartHandshake,
   LibraryBig,
   ListChecks,
+  Network,
+  Newspaper,
   Radar,
   Settings,
   Sparkles,
@@ -26,6 +28,8 @@ const groups = [
   {
     label: "Explore",
     links: [
+      { href: "/news", label: "News", icon: Newspaper },
+      { href: "/graph", label: "Opportunity Graph", icon: Network },
       { href: "/inventory", label: "Inventory", icon: LibraryBig },
       { href: "/discover", label: "Discover", icon: Compass, premium: true },
       { href: "/market/latest-set-watch", label: "Latest Set Watch", icon: Radar },
