@@ -70,7 +70,8 @@ of adoption, outcomes, or competitive superiority.
 
 - **Status: shipped fact.** The product supports catalogue search, market
   gainers/losers, Reserved List research, portfolios, watchlists, Brain
-  portfolio generation, signals, historical-price questions, discovery,
+  portfolio generation, set-level scenario prediction, signals,
+  historical-price questions, discovery,
   Cardmarket links, and developer access. Source: [README](../README.md).
 - **Status: unknown / not measured.** The repository does not publish research
   showing how users currently split work among spreadsheets, marketplace

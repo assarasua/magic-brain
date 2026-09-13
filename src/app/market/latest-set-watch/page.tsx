@@ -76,7 +76,11 @@ function ScoreBreakdown({ pick }: { pick: LatestSetWatchPick }) {
 export default function LatestSetWatchPage() {
   const { locale } = useLanguage();
   const { cardSurfaceProps } = useCardDetail();
-  const [setCodes, setSetCodes] = useState<string[]>([]);
+  const [setCodes, setSetCodes] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    const setCode = new URLSearchParams(window.location.search).get("set");
+    return setCode ? [setCode.toLowerCase()] : [];
+  });
   const [result, setResult] = useState<LatestSetWatchResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
