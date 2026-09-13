@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useCardDetail } from "@/components/card-detail-provider";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import type {
   MarketBrief,
@@ -202,6 +203,7 @@ function Category({
   tone: "up" | "down" | "neutral";
 }) {
   const { locale } = useLanguage();
+  const { openCard } = useCardDetail();
   return (
     <section className={styles.category}>
       <div className={styles.categoryHead}>
@@ -220,10 +222,20 @@ function Category({
       ) : (
         <div className={styles.items}>
           {items.map((item) => (
-            <article className={styles.item} key={`${item.cardId}-${title}`}>
+            <button
+              type="button"
+              className={styles.item}
+              key={`${item.cardId}-${title}`}
+              onClick={() => openCard(item.cardId)}
+              aria-label={`${locale === "es" ? "Abrir gráfico e histórico de" : "Open chart and history for"} ${item.name}`}
+            >
               <div>
                 <strong>{item.name}</strong>
                 <span>{item.setCode.toUpperCase()} · {item.setName}</span>
+                <span className={styles.chartHint}>
+                  <BarChart3 size={11} />
+                  {locale === "es" ? "Ver gráfico" : "View chart"}
+                </span>
               </div>
               <strong>{formatPrice(item.currentPrice, locale)}</strong>
               <span className={tone === "up" ? styles.up : tone === "down" ? styles.down : ""}>
@@ -232,7 +244,7 @@ function Category({
               <span className={(item.change30d ?? 0) > 0 ? styles.up : (item.change30d ?? 0) < 0 ? styles.down : ""}>
                 30D {formatPercent(item.change30d)}
               </span>
-            </article>
+            </button>
           ))}
         </div>
       )}

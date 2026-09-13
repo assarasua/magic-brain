@@ -215,13 +215,34 @@
 }
 
 .item {
+  width: 100%;
   display: grid;
   grid-template-columns: minmax(220px, 1fr) 110px 100px 100px;
   align-items: center;
   gap: 14px;
   padding: 14px 0;
+  border: 0;
   border-top: 1px solid var(--line);
+  color: inherit;
+  background: transparent;
   font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 160ms ease, padding 160ms ease;
+}
+
+.item:hover {
+  padding-inline: 12px;
+  background: rgba(72, 185, 255, 0.045);
+}
+
+.item:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: 10px;
 }
 
 .item > div {
@@ -240,6 +261,23 @@
 .item > div span {
   color: var(--muted);
   font-size: 11px;
+}
+
+.item > div .chartHint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--blue);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.item:hover .chartHint,
+.item:focus-visible .chartHint {
+  opacity: 1;
 }
 
 .item > span {
