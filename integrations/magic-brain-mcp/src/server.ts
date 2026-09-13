@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/server";
+import { McpServer, type AuthInfo } from "@modelcontextprotocol/server";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import {
@@ -7,6 +7,7 @@ import {
   type JsonValue,
 } from "./api-client.js";
 import type { MagicBrainMcpConfig } from "./config.js";
+import { createDelegation } from "./oauth.js";
 import { registerProductKnowledgeTools } from "./product/tools.js";
 import type { RulesKnowledgeBaseOptions } from "./rules/knowledge-base.js";
 import { registerRulesTools } from "./rules/tools.js";
@@ -68,8 +69,18 @@ export function createMagicBrainMcpServer(
   config: MagicBrainMcpConfig,
   fetchImpl: typeof fetch = fetch,
   rulesOptions?: RulesKnowledgeBaseOptions,
+  authInfo?: AuthInfo,
 ): McpServer {
   const api = new MagicBrainApiClient(config, fetchImpl);
+  const personalApi = authInfo && config.delegationSecret
+    ? new MagicBrainApiClient(
+        withoutApiKey(config),
+        fetchImpl,
+        createDelegation(authInfo, config.delegationSecret),
+      )
+    : config.allowPersonalApiKey && config.apiKey
+      ? api
+      : null;
   const server = new McpServer({
     name: "magic-brain",
     title: "Magic Brain",
@@ -362,6 +373,138 @@ export function createMagicBrainMcpServer(
       ),
   );
 
+  server.registerTool(
+    "get_market_brief_by_date",
+    {
+      title: "Get Market Brief By Date",
+      description:
+        "Retrieve one immutable deterministic market brief for an exact market-data date. Preserve its provenance, coverage, freshness, and liquidity caveats; it is not external news or financial advice.",
+      inputSchema: z.object({ date }).strict(),
+      outputSchema,
+      annotations,
+    },
+    async ({ date: requestedDate }) =>
+      callTool(config, () =>
+        api.request(`news/${encodeURIComponent(requestedDate)}`),
+      ),
+  );
+
+  server.registerTool(
+    "search_opportunity_graph",
+    {
+      title: "Search Opportunity Graph",
+      description:
+        "Search the public deterministic Opportunity Graph and retrieve bounded nodes, weighted neighbours, similarity reasons, clusters, methodology, and market-data date. Similarity is research context, not a recommendation.",
+      inputSchema: z
+        .object({
+          query: z.string().trim().min(2).max(100).optional(),
+          focus_card_id: z.string().uuid().optional(),
+          limit: z.number().int().min(12).max(80).default(48),
+        })
+        .strict(),
+      outputSchema,
+      annotations,
+    },
+    async ({ query, focus_card_id, limit }) =>
+      callTool(config, () =>
+        api.request("opportunity-graph", {
+          query: { q: query, focus: focus_card_id, limit },
+        }),
+      ),
+  );
+
+  server.registerTool(
+    "get_personalized_opportunities",
+    {
+      title: "Get Personalized Opportunities",
+      description:
+        "Retrieve account-scoped opportunity signals with verified-model versus deterministic-fallback status, confidence, freshness, drivers, provenance, and safety metadata. Requires profile:read.",
+      inputSchema: z
+        .object({ limit: z.number().int().min(1).max(25).default(10) })
+        .strict(),
+      outputSchema,
+      annotations,
+    },
+    async ({ limit }) =>
+      personalTool(authInfo, personalApi, ["profile:read"], config, () =>
+        personalApi!.request("ml/opportunities", { query: { limit } }),
+      ),
+  );
+
+  server.registerTool(
+    "get_predict_recommendation",
+    {
+      title: "Get Personalized Predict Recommendation",
+      description:
+        "Retrieve bounded Predict defaults derived from the authenticated user's preferences. Requires profile:read and never changes the profile or saves a scenario.",
+      inputSchema: z.object({}).strict(),
+      outputSchema,
+      annotations,
+    },
+    async () =>
+      personalTool(authInfo, personalApi, ["profile:read"], config, () =>
+        personalApi!.request("predict/recommendation"),
+      ),
+  );
+
+  server.registerTool(
+    "get_portfolio_intelligence",
+    {
+      title: "Get Portfolio Intelligence",
+      description:
+        "Retrieve the authenticated owner's portfolio summary, unrealized P&L, contributors, concentration, and 1Y/3Y/5Y forecast with truthful model/fallback status. Requires portfolio:read and profile:read.",
+      inputSchema: z.object({}).strict(),
+      outputSchema,
+      annotations,
+    },
+    async () =>
+      personalTool(
+        authInfo,
+        personalApi,
+        ["portfolio:read", "profile:read"],
+        config,
+        () => personalApi!.request("portfolio"),
+      ),
+  );
+
+  server.registerTool(
+    "list_portfolio_lists",
+    {
+      title: "List Portfolio Lists",
+      description:
+        "List the authenticated owner's portfolio lists and holding counts. Requires lists:read and never exposes another owner or share token.",
+      inputSchema: z.object({}).strict(),
+      outputSchema,
+      annotations,
+    },
+    async () =>
+      personalTool(authInfo, personalApi, ["lists:read"], config, () =>
+        personalApi!.request("portfolio/lists"),
+      ),
+  );
+
+  server.registerTool(
+    "get_portfolio_list",
+    {
+      title: "Get Portfolio List Intelligence",
+      description:
+        "Retrieve one owned list with holdings, P&L, concentration, and 1Y/3Y/5Y forecast. Requires lists:read, portfolio:read, and profile:read.",
+      inputSchema: z
+        .object({ list_id: z.string().uuid() })
+        .strict(),
+      outputSchema,
+      annotations,
+    },
+    async ({ list_id }) =>
+      personalTool(
+        authInfo,
+        personalApi,
+        ["lists:read", "portfolio:read", "profile:read"],
+        config,
+        () => personalApi!.request(`portfolio/lists/${list_id}`),
+      ),
+  );
+
   registerRulesTools(server, {
     ...(rulesOptions ?? {
       indexPath:
@@ -372,6 +515,64 @@ export function createMagicBrainMcpServer(
   registerProductKnowledgeTools(server);
 
   return server;
+}
+
+function withoutApiKey(config: MagicBrainMcpConfig): MagicBrainMcpConfig {
+  const { apiKey: _apiKey, ...rest } = config;
+  void _apiKey;
+  return rest;
+}
+
+async function personalTool(
+  authInfo: AuthInfo | undefined,
+  api: MagicBrainApiClient | null,
+  requiredScopes: string[],
+  config: MagicBrainMcpConfig,
+  operation: () => Promise<{
+    data: JsonValue;
+    sourceUrl: string;
+    requestId?: string;
+  }>,
+) {
+  if (!api) {
+    return {
+      isError: true,
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify({
+            error: {
+              code: "AUTHENTICATION_REQUIRED",
+              message:
+                "Sign in to Magic Brain and authorize this MCP client to use personal tools.",
+              required_scopes: requiredScopes,
+            },
+          }),
+        },
+      ],
+    };
+  }
+  if (
+    authInfo &&
+    requiredScopes.some((scope) => !authInfo.scopes.includes(scope))
+  ) {
+    return {
+      isError: true,
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify({
+            error: {
+              code: "INSUFFICIENT_SCOPE",
+              message: "The authorized token lacks a required scope.",
+              required_scopes: requiredScopes,
+            },
+          }),
+        },
+      ],
+    };
+  }
+  return callTool(config, operation);
 }
 
 async function callTool(

@@ -6,13 +6,18 @@ Connect a supported MCP client to Magic Brain's live, read-only remote server:
 https://magic-brain-mcp.assarasua.workers.dev/mcp
 ```
 
-The transport is **Streamable HTTP**. The hosted connector currently requires
-**no Magic Brain account, OAuth sign-in, or user API key**. Do not add an
-`Authorization` header or paste a Magic Brain data API key into a connector
-configuration.
+The transport is **Streamable HTTP**. Public research works anonymously.
+Supported clients can optionally use Magic Brain OAuth to unlock personal
+read tools after Google sign-in and explicit consent. Never paste a Magic Brain
+API key into a hosted connector.
+
+The server advertises RFC 9728 protected-resource metadata and RFC 8414
+authorization-server metadata. Authorization uses OAuth authorization code
+with S256 PKCE and RFC 8707 resource binding. Access tokens last 15 minutes;
+refresh tokens last 30 days and rotate on every use.
 
 After connecting, use the canonical [MCP tool reference](mcp-tools.md) for all
-11 tool inputs, outputs, limits, examples, evidence rules, and error behaviour.
+tool inputs, outputs, scopes, limits, examples, evidence rules, and errors.
 
 In addition to card, price, set, and rules retrieval, the connector exposes
 deterministic, source-cited product research. Claude can use it for diligence on
@@ -40,7 +45,8 @@ Enterprise. Free accounts are limited to one custom connector.
 3. Name it `Magic Brain`.
 4. Enter `https://magic-brain-mcp.assarasua.workers.dev/mcp` as the MCP server
    URL.
-5. Choose **No sign-in** if Claude asks for authentication, then select **Add**.
+5. Choose anonymous access for public research, or complete Magic Brain sign-in
+   when Claude offers authorization for personal tools.
 6. In a chat, use the **+** menu, open **Connectors**, and enable Magic Brain.
 
 ### Team or Enterprise
@@ -122,8 +128,8 @@ owners, and RBAC.
    users can use **Settings > Apps > Create**.
 3. Enter the required app metadata and
    `https://magic-brain-mcp.assarasua.workers.dev/mcp` as the endpoint.
-4. Do not configure authentication; Magic Brain does not require OAuth or a user
-   API key.
+4. Keep authentication optional for public research. Complete Magic Brain
+   OAuth when prompted to use personal tools.
 5. Select **Scan Tools**, wait for discovery to finish, then select **Create**.
 
 If **Create**, **Developer mode**, or the authentication option is absent, the
@@ -167,8 +173,9 @@ configuration health; it does not call the upstream Magic Brain API.
 - **Transport:** Choose HTTP or Streamable HTTP when a client asks. The MCP
   endpoint expects protocol requests, so opening it in a browser is not a valid
   connection test.
-- **Authentication:** Remove custom headers, OAuth settings, and Magic Brain API
-  keys. The hosted endpoint currently has no user authentication.
+- **Authentication:** Do not configure custom bearer headers. Anonymous tools
+  need no credentials. Personal tools return `AUTHENTICATION_REQUIRED` until
+  browser sign-in and consent complete. A `403` means a named scope is absent.
 - **Discovery or connection errors:** Confirm `/healthz` first, then restart or
   refresh the server in the client and inspect that client's MCP logs or output.
 - **Organization restrictions:** Ask an administrator to allow the exact
@@ -181,6 +188,24 @@ configuration health; it does not call the upstream Magic Brain API.
 - **Local self-hosting:** Local setup uses
   `http://127.0.0.1:8788/mcp` by default and has separate host/origin
   configuration. Cloud clients cannot reach that loopback address.
+
+## Consent scopes
+
+- `public:read` — public research (anonymous access remains available)
+- `portfolio:read` / `portfolio:write` — owned holdings and mutations
+- `lists:read` / `lists:write` — owned list data and lifecycle
+- `alerts:manage` — owned alert changes
+- `shares:manage` — owned share-link creation and revocation
+- `profile:read` — preference-derived personalization
+
+The hosted MCP currently exposes personal reads only. It does not expose
+account mutations even when a token carries a write scope. Future mutation
+tools must additionally require an idempotency key and explicit
+`confirm: true`.
+
+For contributor diagnostics, use the separate
+[`magic-brain-dev-mcp`](../integrations/magic-brain-dev-mcp/README.md). It is
+localhost-only by default and is not the public research connector.
 
 ## Official documentation consulted
 

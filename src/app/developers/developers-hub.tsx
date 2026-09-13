@@ -34,7 +34,7 @@ export type DeveloperEndpoint = {
   path: string;
   operationId: string;
   summary: string;
-  auth: "session" | "optional-key";
+  auth: "session" | "optional-key" | "scoped-key";
   parameters: Array<{
     name: string;
     location: string;
@@ -102,7 +102,7 @@ const mcpInstallers = [
     name: "Claude",
     requirement: "Free, Pro, Max, Team, or Enterprise",
     description:
-      "Add a custom connector in Customize > Connectors. Team and Enterprise require an Owner to add it first.",
+      "Add a custom connector in Customize > Connectors. Connect anonymously or approve OAuth for personal read tools.",
     snippet: mcpEndpoint,
     source: "https://claude.com/docs/connectors/custom/remote-mcp",
   },
@@ -142,7 +142,7 @@ const mcpInstallers = [
     name: "ChatGPT",
     requirement: "Pro read/fetch, or Business/Enterprise/Edu",
     description:
-      "Enable Developer mode, choose Apps > Create, enter the endpoint without authentication, then Scan Tools.",
+      "Enable Developer mode, choose Apps > Create, enter the endpoint, then use optional OAuth sign-in for personal reads.",
     snippet: mcpEndpoint,
     source: "https://help.openai.com/en/articles/12584461",
   },
@@ -171,7 +171,17 @@ const mcpToolGroups = [
   {
     name: "Sets & opportunities",
     summary: "Browse normalized sets and retrieve transparent, bounded latest-set research signals.",
-    tools: ["list_sets", "get_latest_set_opportunities"],
+    tools: ["list_sets", "get_latest_set_opportunities", "search_opportunity_graph"],
+  },
+  {
+    name: "Predictions & briefs",
+    summary: "Build unsaved scenarios and retrieve immutable price-derived briefs.",
+    tools: ["predict_set_growth", "build_portfolio_scenario", "get_latest_market_brief", "get_market_brief_by_date", "list_market_briefs"],
+  },
+  {
+    name: "Personal intelligence",
+    summary: "Opt-in OAuth tools for owned portfolio and preference-derived intelligence.",
+    tools: ["get_personalized_opportunities", "get_predict_recommendation", "get_portfolio_intelligence", "list_portfolio_lists", "get_portfolio_list"],
   },
   {
     name: "Comprehensive Rules",
@@ -233,10 +243,11 @@ function McpInstall() {
       <div className={styles.mcpCallout}>
         <ShieldCheck size={20} />
         <div>
-          <strong>Live remote connector · no Magic Brain API key required</strong>
+          <strong>Live remote connector · anonymous by default, optional sign-in</strong>
           <p>
             Use the exact HTTPS URL below. It is a hosted Streamable HTTP endpoint,
-            separate from local self-hosting.
+            separate from local self-hosting. Public research needs no account;
+            personal tools use OAuth consent in supported clients.
           </p>
         </div>
         <code>{mcpEndpoint}</code>
@@ -277,7 +288,7 @@ function McpInstall() {
       <div className={styles.toolCatalogue}>
         <div className={styles.toolCatalogueHeading}>
           <div>
-            <span>11 read-only tools</span>
+            <span>22 read-only tools</span>
             <h3>Evidence for data, rules, and diligence.</h3>
             <p>Explore the surface at a glance, then use the canonical reference for exact schemas, outputs, examples, caveats, and errors.</p>
           </div>
@@ -332,7 +343,9 @@ function EndpointReference({ endpoints }: { endpoints: DeveloperEndpoint[] }) {
               <span>
                 {endpoint.auth === "session"
                   ? "Magic Brain account session required"
-                  : "Anonymous access or Bearer API key"}
+                  : endpoint.auth === "scoped-key"
+                    ? "Scoped OAuth token or API key required"
+                    : "Anonymous access or Bearer API key"}
               </span>
               <a href={`/api/v1/openapi.json#/${endpoint.operationId}`}>
                 OpenAPI <ExternalLink size={12} />
@@ -373,6 +386,7 @@ function KeyManager() {
   const { status } = useSession();
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [name, setName] = useState("");
+  const [personalRead, setPersonalRead] = useState(false);
   const [secret, setSecret] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
@@ -420,7 +434,12 @@ function KeyManager() {
       const response = await fetch("/api/v1/api-keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim() }),
+        body: JSON.stringify({
+          name: name.trim(),
+          scopes: personalRead
+            ? ["data:read", "portfolio:read", "lists:read", "profile:read"]
+            : ["data:read"],
+        }),
       });
       const result = (await response.json()) as ApiEnvelope<ApiKey & { secret: string }>;
       if (!response.ok || !result.data) {
@@ -428,6 +447,7 @@ function KeyManager() {
       }
       setSecret(result.data.secret);
       setName("");
+      setPersonalRead(false);
       await loadKeys();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to create API key");
@@ -487,7 +507,16 @@ function KeyManager() {
             Create key
           </button>
         </div>
-        <small>Use a distinct key per environment. Up to 10 active keys.</small>
+        <label>
+          <input
+            type="checkbox"
+            checked={personalRead}
+            onChange={(event) => setPersonalRead(event.target.checked)}
+            disabled={loading}
+          />
+          Allow owned portfolio, list, and profile reads
+        </label>
+        <small>Use a distinct key per environment. Up to 10 active keys. This option grants no writes.</small>
       </form>
 
       {secret && (
@@ -520,6 +549,7 @@ function KeyManager() {
             </div>
             <div className={styles.keyDetails}>
               <span>{key.tier}</span>
+              <span>{key.scopes.join(", ")}</span>
               <span>Created {new Date(key.createdAt).toLocaleDateString()}</span>
               <span>{key.lastUsedAt ? `Used ${new Date(key.lastUsedAt).toLocaleDateString()}` : "Never used"}</span>
             </div>
@@ -603,7 +633,7 @@ export function DevelopersHub({
           <div className={styles.sectionHeading}>
             <span>Remote MCP</span>
             <h2>Connect your AI client.</h2>
-            <p>Install the live read-only Magic Brain tools in the client you already use. Retrieve card, price, rules, and source-cited product diligence evidence with explicit fact, principle, hypothesis, roadmap, or unknown status. No Magic Brain account, OAuth flow, or user API key is currently required.</p>
+            <p>Install the live read-only Magic Brain tools in the client you already use. Public card, price, graph, rules, and product research stays anonymous. Optionally sign in with Magic Brain OAuth to read your own portfolio and preference-derived intelligence; personal access is scoped and never grants writes by default.</p>
           </div>
           <McpInstall />
         </section>
@@ -634,7 +664,7 @@ export function DevelopersHub({
           <div className={styles.sectionHeading}>
             <span>Access</span>
             <h2>Your API keys.</h2>
-            <p>Keys carry the <code>data:read</code> scope. Revocation is immediate.</p>
+            <p>Keys always carry <code>data:read</code>. Personal scopes are opt-in and writes are not enabled by default. Revocation is immediate.</p>
           </div>
           <KeyManager />
         </section>

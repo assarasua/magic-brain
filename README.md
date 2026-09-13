@@ -27,17 +27,25 @@ English and Spanish are available from the header language control.
 
 Connect Claude, Cursor, VS Code with GitHub Copilot, ChatGPT, or the OpenAI
 Responses API to the live read-only Magic Brain MCP endpoint. No Magic Brain
-user API key is currently required.
+API key is required for anonymous public research; optional OAuth login enables
+owner-scoped personal read tools.
 
 Follow the [MCP installation guide](docs/mcp-installation.md) for current
 product requirements, exact configuration, and troubleshooting. Local
 self-hosting is documented separately in the
 [MCP package guide](integrations/magic-brain-mcp/PACKAGE.md#run-locally).
 The canonical [MCP tool reference](docs/mcp-tools.md) documents exact inputs,
-outputs, limits, examples, evidence handling, and errors for all 15 tools.
+outputs, scopes, limits, examples, evidence handling, and errors for all 22
+tools.
 The connector can also retrieve source-cited, epistemically labelled product
 and business diligence evidence. Its canonical public source is the
 [product strategy and FAQ](docs/product-strategy-faq.md).
+
+Contributors can also use the [Magic Brain CLI](tools/magic-brain-cli/README.md)
+and the separate
+[development MCP](integrations/magic-brain-dev-mcp/README.md). The complete
+platform and authorization contract is summarized in
+[docs/platform-api.md](docs/platform-api.md).
 
 ## Run locally
 

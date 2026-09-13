@@ -35,6 +35,7 @@ export class MagicBrainApiClient {
   constructor(
     private readonly config: MagicBrainMcpConfig,
     private readonly fetchImpl: typeof fetch = fetch,
+    private readonly delegation?: string,
   ) {}
 
   async request(path: string, options: RequestOptions = {}): Promise<{
@@ -54,6 +55,9 @@ export class MagicBrainApiClient {
     if (options.body !== undefined) headers.set("Content-Type", "application/json");
     if (this.config.apiKey) {
       headers.set("Authorization", `Bearer ${this.config.apiKey}`);
+    }
+    if (this.delegation) {
+      headers.set("X-Magic-Brain-Delegation", this.delegation);
     }
 
     let response: Response;

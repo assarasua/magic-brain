@@ -1,6 +1,11 @@
-import { createHash } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { query } from "@/lib/db";
+import {
+  oauthConfiguration,
+  recordOAuthAudit,
+  verifyOAuthAccessToken,
+} from "@/lib/oauth";
 import { ApiError, LocalRateLimiter, PUBLIC_API_LIMITS } from "./core";
 
 type RateLimitBinding = {
@@ -14,17 +19,26 @@ type PublicApiEnv = {
 
 type KeyRow = {
   id: string;
+  owner_id: string;
   prefix: string;
   scopes: string[];
   tier: string;
 };
 
 export type PublicApiAccess = {
-  kind: "anonymous" | "key";
+  kind: "anonymous" | "key" | "oauth";
+  keyId?: string;
+  ownerId?: string;
+  scopes: string[];
   tier: string;
   limit: number;
   remaining?: number;
   retryAfter?: number;
+};
+
+export type PublicApiAccessPolicy = {
+  allowAnonymous?: boolean;
+  requiredScopes?: readonly string[];
 };
 
 const anonymousFallback = new LocalRateLimiter(PUBLIC_API_LIMITS.anonymous);
@@ -88,35 +102,85 @@ async function consumeRateLimit(
 
 export async function authorizePublicRequest(
   request: Request,
+  policy: PublicApiAccessPolicy = {},
 ): Promise<PublicApiAccess> {
   const suppliedKey = apiKeyFrom(request);
   let keyRow: KeyRow | undefined;
+  let oauthAccess:
+    | { ownerId: string; keyId: string; scopes: string[] }
+    | undefined;
 
   if (suppliedKey) {
-    if (!/^mb_(?:live|test)_[A-Za-z0-9_-]{32,}$/.test(suppliedKey)) {
+    if (/^mba_[A-Za-z0-9_-]{32,}$/.test(suppliedKey)) {
+      const token = await verifyOAuthAccessToken(suppliedKey);
+      if (!token || token.resource !== oauthConfiguration().apiResource) {
+        throw new ApiError(401, "invalid_token", "The access token is invalid");
+      }
+      oauthAccess = {
+        ownerId: token.owner_id,
+        keyId: `oauth:${token.client_id}`,
+        scopes: token.scopes,
+      };
+    } else if (!/^mb_(?:live|test)_[A-Za-z0-9_-]{32,}$/.test(suppliedKey)) {
       throw new ApiError(401, "invalid_api_key", "The API key is invalid");
+    } else {
+      const hash = createHash("sha256").update(suppliedKey).digest("hex");
+      const result = await query<KeyRow>(
+        `
+          select keys.id::text, keys.owner_id::text, keys.prefix, keys.scopes, keys.tier
+          from app_api_keys keys
+          join app_users owner on owner.id = keys.owner_id
+          where keys.secret_hash = $1 and keys.revoked_at is null
+            and owner.authenticated_at is not null
+          limit 1
+        `,
+        [hash],
+      );
+      keyRow = result.rows[0];
+      if (!keyRow || !keyRow.scopes.includes("data:read")) {
+        throw new ApiError(401, "invalid_api_key", "The API key is invalid");
+      }
     }
-    const hash = createHash("sha256").update(suppliedKey).digest("hex");
-    const result = await query<KeyRow>(
-      `
-        select id::text, prefix, scopes, tier
-        from app_api_keys
-        where secret_hash = $1 and revoked_at is null
-        limit 1
-      `,
-      [hash],
-    );
-    keyRow = result.rows[0];
-    if (!keyRow || !keyRow.scopes.includes("data:read")) {
-      throw new ApiError(401, "invalid_api_key", "The API key is invalid");
-    }
+  } else {
+    oauthAccess = verifyDelegation(request);
   }
 
-  const kind = keyRow ? "key" : "anonymous";
-  const identifier = keyRow
-    ? `api-key:${keyRow.id}`
+  if (!keyRow && !oauthAccess && policy.allowAnonymous === false) {
+    throw new ApiError(
+      401,
+      "api_key_required",
+      "A user-scoped API key is required",
+    );
+  }
+  const missingScopes = (policy.requiredScopes ?? []).filter(
+    (scope) => !(keyRow?.scopes ?? oauthAccess?.scopes ?? []).includes(scope),
+  );
+  if (missingScopes.length) {
+    if (oauthAccess) {
+      await recordOAuthAudit(
+        "scope_denied",
+        oauthAccess.ownerId,
+        oauthAccess.keyId.replace(/^oauth:/, ""),
+        missingScopes,
+        request.headers.get("x-request-id"),
+      );
+    }
+    throw new ApiError(
+      403,
+      "insufficient_scope",
+      "The API key does not have the required scope",
+      { requiredScopes: missingScopes },
+    );
+  }
+
+  const kind = keyRow ? "key" : oauthAccess ? "oauth" : "anonymous";
+  const identifier = keyRow || oauthAccess
+    ? `api-key:${keyRow?.id ?? oauthAccess?.keyId}`
     : `anonymous:${clientIp(request)}`;
-  const rate = await consumeRateLimit(kind, identifier);
+  const rate = await consumeRateLimit(
+    kind === "anonymous" ? "anonymous" : "key",
+    identifier,
+  );
   if (!rate.success) {
     throw new ApiError(429, "rate_limit_exceeded", "Rate limit exceeded", {
       retryAfter: rate.retryAfter ?? 60,
@@ -137,9 +201,59 @@ export async function authorizePublicRequest(
 
   return {
     kind,
-    tier: keyRow?.tier ?? "anonymous",
+    ...(keyRow || oauthAccess
+      ? {
+          keyId: keyRow?.id ?? oauthAccess?.keyId,
+          ownerId: keyRow?.owner_id ?? oauthAccess?.ownerId,
+        }
+      : {}),
+    scopes: keyRow?.scopes ?? oauthAccess?.scopes ?? [],
+    tier: keyRow?.tier ?? (oauthAccess ? "oauth" : "anonymous"),
     limit: rate.limit,
     remaining: rate.remaining,
     retryAfter: rate.retryAfter,
+  };
+}
+
+function verifyDelegation(request: Request) {
+  const value = request.headers.get("x-magic-brain-delegation");
+  const secret = process.env.MAGIC_BRAIN_MCP_DELEGATION_SECRET;
+  if (!value || !secret) return undefined;
+  const [encoded, suppliedSignature] = value.split(".");
+  if (!encoded || !suppliedSignature) {
+    throw new ApiError(401, "invalid_token", "Delegation token is invalid");
+  }
+  const expected = createHmac("sha256", secret).update(encoded).digest();
+  let supplied: Buffer;
+  try {
+    supplied = Buffer.from(suppliedSignature, "base64url");
+  } catch {
+    throw new ApiError(401, "invalid_token", "Delegation token is invalid");
+  }
+  if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) {
+    throw new ApiError(401, "invalid_token", "Delegation token is invalid");
+  }
+  let payload: unknown;
+  try {
+    payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
+  } catch {
+    throw new ApiError(401, "invalid_token", "Delegation token is invalid");
+  }
+  const record = payload as Record<string, unknown>;
+  if (
+    record.aud !== "magic-brain-api" ||
+    typeof record.sub !== "string" ||
+    !Array.isArray(record.scopes) ||
+    !record.scopes.every((scope) => typeof scope === "string") ||
+    typeof record.exp !== "number" ||
+    record.exp <= Math.floor(Date.now() / 1000) ||
+    record.exp > Math.floor(Date.now() / 1000) + 120
+  ) {
+    throw new ApiError(401, "invalid_token", "Delegation token is invalid");
+  }
+  return {
+    ownerId: record.sub,
+    keyId: `delegation:${String(record.jti ?? "unknown")}`,
+    scopes: record.scopes as string[],
   };
 }

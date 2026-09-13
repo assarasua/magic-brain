@@ -58,6 +58,12 @@ export async function POST(
       { status: 409 },
     );
   }
+  if (result.status === "conflict") {
+    return NextResponse.json(
+      { error: "Idempotency key conflict" },
+      { status: 409 },
+    );
+  }
   const origin = new URL(request.url).origin;
   return attachSessionCookie(
     NextResponse.json(

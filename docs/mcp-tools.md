@@ -1,6 +1,6 @@
 # Magic Brain MCP tool reference
 
-This is the canonical reference for the 15 read-only tools currently registered
+This is the canonical reference for the 22 read-only tools currently registered
 by the Magic Brain MCP server. For installation and client configuration, see
 the [MCP installation guide](mcp-installation.md). The live endpoint is:
 
@@ -8,11 +8,10 @@ the [MCP installation guide](mcp-installation.md). The live endpoint is:
 https://magic-brain-mcp.assarasua.workers.dev/mcp
 ```
 
-The hosted connector requires no Magic Brain account, OAuth flow, or user API
-key. It can retrieve public card, price, set, rules, and product evidence only.
-It cannot access a user's account, portfolio, watchlist, collection,
-authentication records, payment, or contribution
-data, and it exposes no write or trading tools.
+Public research tools require no Magic Brain account. Optional OAuth 2.1
+authorization-code login with S256 PKCE enables three account-scoped read
+tools. The connector never exposes authentication records, payment data,
+secrets, owner identity, or write/trading tools.
 
 ## How answers are composed
 
@@ -40,10 +39,11 @@ tools and composes the final answer.
   Missing price values stay missing; they are not zero. A displayed price,
   score, confidence label, or entry range is not proof of liquidity, a profit
   probability, a price target, or financial advice.
-- Prediction and portfolio tools return unsaved research scenarios derived from
+- Public prediction and portfolio-scenario tools return unsaved research scenarios derived from
   public data and caller-supplied assumptions. Market briefs are deterministic
   summaries of stored prices, not external reporting. None of these tools read
-  or write a user's portfolio, watchlist, preferences, or account.
+  or write a user's portfolio, watchlist, preferences, or account. Personal
+  tools read only the authorizing owner's data and require their named scopes.
 
 All tools are read-only, non-destructive, and idempotent. Public-data tools may
 change as the public catalogue changes. Rules and product tools query pinned
@@ -329,6 +329,56 @@ are needed.
 not current quotes or journalism. Missing dates are not synthesized. The
 archive is bounded to the newest requested entries.
 
+### `get_market_brief_by_date`
+
+Returns one immutable deterministic market brief for a required `date`
+(`YYYY-MM-DD`). It has the same provenance and market-data caveats as the latest
+brief and is not external journalism.
+
+### `search_opportunity_graph`
+
+Searches deterministic graph nodes and weighted neighbours. Inputs are optional
+`query` (2–100 characters), optional `focus_card_id` UUID, and `limit` (12–80,
+default 48). Output includes similarity reasons, clusters, methodology, and the
+market-data date. Similarity is research context, not a recommendation.
+
+## Personal read tools
+
+These tools are always discoverable but return `AUTHENTICATION_REQUIRED` when
+called anonymously. OAuth access is bound to this MCP resource and the server
+uses a separate short-lived signed delegation to its API; the inbound OAuth
+token is never passed through.
+
+### `get_personalized_opportunities`
+
+Requires `profile:read`. Returns verified promoted-batch-model signals when
+eligible fresh scores exist, otherwise a deterministic market-momentum fallback
+with a truthful `ranking.reason`. Confidence, score date, generation time,
+drivers, price date, and safety metadata are preserved.
+
+### `get_predict_recommendation`
+
+Requires `profile:read`. Returns bounded Predict defaults derived from the
+owner's saved preferences. It does not save a scenario or change preferences.
+
+### `get_portfolio_intelligence`
+
+Requires both `portfolio:read` and `profile:read`. Returns only the authorizing
+owner's holdings, unrealized P&L, contributors, concentration, intelligence
+mode, and 1Y/3Y/5Y forecast points. This private endpoint can include the
+owner's cost basis; no public share token, owner identity, or email is exposed.
+
+### `list_portfolio_lists`
+
+Requires `lists:read`. Returns only the authorizing owner's list IDs, names,
+positions, default marker, and holding counts.
+
+### `get_portfolio_list`
+
+Requires `lists:read`, `portfolio:read`, and `profile:read`. Accepts one
+`list_id` UUID and returns that owned list's holdings and intelligence. A list
+owned by another user is indistinguishable from a missing list.
+
 ## Comprehensive Rules
 
 ### `search_rules`
@@ -514,8 +564,9 @@ handler failures use a structured error with:
 
 The public API currently applies a 60-second window of 30 requests per minute
 for anonymous callers and 300 per minute for a valid server-side API key. The
-hosted MCP connector does not accept a user's API key; its effective upstream
-tier is deployment-controlled and may be shared. On HTTP 429, use
+hosted MCP connector does not accept a user's API key. Optional OAuth tokens
+are audience-bound, short-lived, and validated by introspection; they are not
+forwarded to the API. On HTTP 429, use
 `retry_after` when present and retry with bounded backoff. Do not evade quotas
 by rotating identities or endpoints.
 

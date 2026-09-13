@@ -13,6 +13,10 @@ const config: MagicBrainMcpConfig = {
   bindHost: "127.0.0.1",
   allowedHosts: ["127.0.0.1", "localhost"],
   allowedOrigins: [],
+  oauthIssuerUrl: new URL("https://magicbrain.es"),
+  oauthResourceUrl: new URL("http://127.0.0.1:8788/mcp"),
+  oauthIntrospectionUrl: new URL("https://magicbrain.es/oauth/introspect"),
+  allowPersonalApiKey: false,
 };
 
 const cleanups: Array<() => Promise<void>> = [];
@@ -96,7 +100,7 @@ describe("HTTP surface", () => {
     await client.connect(transport);
 
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(15);
+    expect(tools).toHaveLength(22);
 
     await client.close();
   });

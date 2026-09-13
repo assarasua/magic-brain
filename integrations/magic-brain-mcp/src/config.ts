@@ -16,6 +16,20 @@ const envSchema = z.object({
   MCP_BIND_HOST: z.string().trim().min(1).default("127.0.0.1"),
   MCP_ALLOWED_HOSTS: z.string().default("localhost,127.0.0.1,[::1]"),
   MCP_ALLOWED_ORIGINS: z.string().default(""),
+  MAGIC_BRAIN_OAUTH_ISSUER_URL: z
+    .string()
+    .url()
+    .default("https://magicbrain.es"),
+  MAGIC_BRAIN_MCP_RESOURCE_URL: z
+    .string()
+    .url()
+    .default("https://magic-brain-mcp.assarasua.workers.dev/mcp"),
+  MAGIC_BRAIN_MCP_INTROSPECTION_CLIENT_ID: z.string().trim().min(1).optional(),
+  MAGIC_BRAIN_MCP_INTROSPECTION_SECRET: z.string().trim().min(16).optional(),
+  MAGIC_BRAIN_MCP_DELEGATION_SECRET: z.string().trim().min(32).optional(),
+  MAGIC_BRAIN_MCP_ALLOW_PERSONAL_API_KEY: z
+    .enum(["true", "false"])
+    .default("false"),
 });
 
 export type MagicBrainMcpConfig = {
@@ -28,6 +42,13 @@ export type MagicBrainMcpConfig = {
   bindHost: string;
   allowedHosts: string[];
   allowedOrigins: string[];
+  oauthIssuerUrl: URL;
+  oauthResourceUrl: URL;
+  oauthIntrospectionUrl: URL;
+  oauthIntrospectionClientId?: string;
+  oauthIntrospectionSecret?: string;
+  delegationSecret?: string;
+  allowPersonalApiKey: boolean;
 };
 
 function splitList(value: string): string[] {
@@ -52,6 +73,18 @@ export function loadConfig(
       "MAGIC_BRAIN_API_BASE_URL must use HTTPS except for local development",
     );
   }
+  for (const value of [
+    parsed.MAGIC_BRAIN_OAUTH_ISSUER_URL,
+    parsed.MAGIC_BRAIN_MCP_RESOURCE_URL,
+  ]) {
+    const url = new URL(value);
+    if (
+      url.protocol !== "https:" &&
+      !["localhost", "127.0.0.1", "::1"].includes(url.hostname)
+    ) {
+      throw new Error("OAuth URLs must use HTTPS except for local development");
+    }
+  }
 
   return {
     apiBaseUrl,
@@ -65,5 +98,28 @@ export function loadConfig(
     bindHost: parsed.MCP_BIND_HOST,
     allowedHosts: splitList(parsed.MCP_ALLOWED_HOSTS),
     allowedOrigins: splitList(parsed.MCP_ALLOWED_ORIGINS),
+    oauthIssuerUrl: new URL(parsed.MAGIC_BRAIN_OAUTH_ISSUER_URL),
+    oauthResourceUrl: new URL(parsed.MAGIC_BRAIN_MCP_RESOURCE_URL),
+    oauthIntrospectionUrl: new URL(
+      "/oauth/introspect",
+      parsed.MAGIC_BRAIN_OAUTH_ISSUER_URL,
+    ),
+    ...(parsed.MAGIC_BRAIN_MCP_INTROSPECTION_CLIENT_ID
+      ? {
+          oauthIntrospectionClientId:
+            parsed.MAGIC_BRAIN_MCP_INTROSPECTION_CLIENT_ID,
+        }
+      : {}),
+    ...(parsed.MAGIC_BRAIN_MCP_INTROSPECTION_SECRET
+      ? {
+          oauthIntrospectionSecret:
+            parsed.MAGIC_BRAIN_MCP_INTROSPECTION_SECRET,
+        }
+      : {}),
+    ...(parsed.MAGIC_BRAIN_MCP_DELEGATION_SECRET
+      ? { delegationSecret: parsed.MAGIC_BRAIN_MCP_DELEGATION_SECRET }
+      : {}),
+    allowPersonalApiKey:
+      parsed.MAGIC_BRAIN_MCP_ALLOW_PERSONAL_API_KEY === "true",
   };
 }

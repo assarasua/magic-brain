@@ -54,7 +54,9 @@ const endpoints = Object.entries(publicApiOpenApi.paths).flatMap(
         })),
         auth: definition.security?.some((entry) => "CookieAuth" in entry)
           ? "session"
-          : "optional-key",
+          : definition.security?.some((entry) => "OAuth2" in entry)
+            ? "scoped-key"
+            : "optional-key",
       } satisfies DeveloperEndpoint;
     }),
 );

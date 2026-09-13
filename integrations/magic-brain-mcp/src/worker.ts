@@ -1,18 +1,23 @@
-import { createMcpHandler } from "@modelcontextprotocol/server";
+import {
+  bearerAuthChallengeResponse,
+  createMcpHandler,
+  getOAuthProtectedResourceMetadataUrl,
+  OAuthError,
+  OAuthErrorCode,
+  oauthMetadataResponse,
+  verifyBearerToken,
+  type AuthInfo,
+} from "@modelcontextprotocol/server";
 import rulesIndex from "../rules-data/rules-index.json" with { type: "json" };
 import type { MagicBrainMcpConfig } from "./config.js";
 import type { RulesIndex } from "./rules/types.js";
 import { createMagicBrainMcpServer } from "./server.js";
+import { MagicBrainTokenVerifier } from "./oauth.js";
 
-const config: MagicBrainMcpConfig = {
-  apiBaseUrl: new URL("https://magicbrain.es/api/v1/"),
-  apiTimeoutMs: 8_000,
-  maxResponseBytes: 524_288,
-  maxToolChars: 90_000,
-  port: 8788,
-  bindHost: "127.0.0.1",
-  allowedHosts: [],
-  allowedOrigins: [],
+type WorkerEnv = {
+  MAGIC_BRAIN_MCP_INTROSPECTION_CLIENT_ID?: string;
+  MAGIC_BRAIN_MCP_INTROSPECTION_SECRET?: string;
+  MAGIC_BRAIN_MCP_DELEGATION_SECRET?: string;
 };
 
 const allowedOrigins = new Set([
@@ -22,20 +27,51 @@ const allowedOrigins = new Set([
   "https://claude.com",
 ]);
 
-const handler = createMcpHandler(
-  () =>
-    createMagicBrainMcpServer(config, (input, init) => fetch(input, init), {
-      index: rulesIndex as RulesIndex,
-    }),
-  {
-    legacy: "stateless",
-    responseMode: "auto",
-  },
-);
-
 const worker = {
-  async fetch(request: Request): Promise<Response> {
+  async fetch(request: Request, env: WorkerEnv = {}): Promise<Response> {
+    const config = workerConfig(env);
     const url = new URL(request.url);
+    const oauthMetadata = {
+      issuer: config.oauthIssuerUrl.toString().replace(/\/$/, ""),
+      authorization_endpoint: new URL(
+        "/oauth/authorize",
+        config.oauthIssuerUrl,
+      ).toString(),
+      token_endpoint: new URL("/oauth/token", config.oauthIssuerUrl).toString(),
+      registration_endpoint: new URL(
+        "/oauth/register",
+        config.oauthIssuerUrl,
+      ).toString(),
+      revocation_endpoint: new URL(
+        "/oauth/revoke",
+        config.oauthIssuerUrl,
+      ).toString(),
+      response_types_supported: ["code"],
+      grant_types_supported: ["authorization_code", "refresh_token"],
+      token_endpoint_auth_methods_supported: ["none"],
+      code_challenge_methods_supported: ["S256"],
+      scopes_supported: [
+        "public:read",
+        "portfolio:read",
+        "portfolio:write",
+        "lists:read",
+        "lists:write",
+        "alerts:manage",
+        "shares:manage",
+        "profile:read",
+      ],
+    };
+    const metadataResponse = oauthMetadataResponse(request, {
+      oauthMetadata,
+      resourceServerUrl: config.oauthResourceUrl,
+      resourceName: "Magic Brain MCP",
+      serviceDocumentationUrl: new URL(
+        "/developers",
+        config.oauthIssuerUrl,
+      ),
+      scopesSupported: oauthMetadata.scopes_supported,
+    });
+    if (metadataResponse) return metadataResponse;
     if (request.method === "GET" && url.pathname === "/healthz") {
       return json({
         status: "ok",
@@ -44,6 +80,7 @@ const worker = {
         transport: "streamable-http",
         upstream: config.apiBaseUrl.toString(),
         rulesVersion: (rulesIndex as RulesIndex).source.version,
+        authentication: "optional-oauth-2.1-pkce",
       });
     }
     if (url.pathname !== "/mcp") {
@@ -61,11 +98,54 @@ const worker = {
       });
     }
 
-    // Some hosted connector probes omit one or both MCP response media types.
-    // Normalize them here so a transport-negotiation 406 is not mistaken for
-    // an OAuth challenge by the client.
+    // Normalize before inspection so the same request is passed to the SDK.
     const mcpRequest = normalizeAcceptHeader(request);
-    const response = await handler.fetch(mcpRequest);
+    const requiredScopes = await personalToolScopes(mcpRequest);
+    const resourceMetadataUrl = getOAuthProtectedResourceMetadataUrl(
+      config.oauthResourceUrl,
+    );
+    let authInfo: AuthInfo | undefined;
+    const authorization = request.headers.get("authorization");
+    if (authorization) {
+      try {
+        authInfo = await verifyBearerToken(authorization, {
+          verifier: new MagicBrainTokenVerifier(config),
+          requiredScopes,
+          resourceMetadataUrl,
+        });
+      } catch (error) {
+        return withCors(
+          bearerAuthChallengeResponse(error, { resourceMetadataUrl }),
+          origin,
+        );
+      }
+    } else if (requiredScopes.length) {
+      return withCors(
+        bearerAuthChallengeResponse(
+          new OAuthError(
+            OAuthErrorCode.InvalidToken,
+            "Authentication is required for this personal tool",
+          ),
+          { requiredScopes, resourceMetadataUrl },
+        ),
+        origin,
+      );
+    }
+
+    const handler = createMcpHandler(
+      (context) =>
+        createMagicBrainMcpServer(
+          config,
+          (input, init) => fetch(input, init),
+          { index: rulesIndex as RulesIndex },
+          context.authInfo,
+        ),
+      { legacy: "stateless", responseMode: "auto" },
+    );
+    const response = await handler.fetch(
+      mcpRequest,
+      authInfo ? { authInfo } : undefined,
+    );
     const headers = new Headers(response.headers);
     headers.set("Cache-Control", "no-store");
     headers.set("Referrer-Policy", "no-referrer");
@@ -82,6 +162,70 @@ const worker = {
 };
 
 export default worker;
+
+function workerConfig(env: WorkerEnv): MagicBrainMcpConfig {
+  const oauthIssuerUrl = new URL("https://magicbrain.es");
+  const oauthResourceUrl = new URL(
+    "https://magic-brain-mcp.assarasua.workers.dev/mcp",
+  );
+  return {
+    apiBaseUrl: new URL("https://magicbrain.es/api/v1/"),
+    apiTimeoutMs: 8_000,
+    maxResponseBytes: 524_288,
+    maxToolChars: 90_000,
+    port: 8788,
+    bindHost: "127.0.0.1",
+    allowedHosts: [],
+    allowedOrigins: [],
+    oauthIssuerUrl,
+    oauthResourceUrl,
+    oauthIntrospectionUrl: new URL("/oauth/introspect", oauthIssuerUrl),
+    ...(env.MAGIC_BRAIN_MCP_INTROSPECTION_CLIENT_ID
+      ? {
+          oauthIntrospectionClientId:
+            env.MAGIC_BRAIN_MCP_INTROSPECTION_CLIENT_ID,
+        }
+      : {}),
+    ...(env.MAGIC_BRAIN_MCP_INTROSPECTION_SECRET
+      ? { oauthIntrospectionSecret: env.MAGIC_BRAIN_MCP_INTROSPECTION_SECRET }
+      : {}),
+    ...(env.MAGIC_BRAIN_MCP_DELEGATION_SECRET
+      ? { delegationSecret: env.MAGIC_BRAIN_MCP_DELEGATION_SECRET }
+      : {}),
+    allowPersonalApiKey: false,
+  };
+}
+
+function withCors(response: Response, origin: string | null) {
+  const headers = new Headers(response.headers);
+  for (const [name, value] of corsHeaders(origin)) headers.set(name, value);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+async function personalToolScopes(request: Request): Promise<string[]> {
+  if (request.method !== "POST") return [];
+  try {
+    const body = (await request.clone().json()) as {
+      method?: string;
+      params?: { name?: string };
+    };
+    if (body.method !== "tools/call") return [];
+    const scopesByTool: Record<string, string[]> = {
+      get_personalized_opportunities: ["profile:read"],
+      get_predict_recommendation: ["profile:read"],
+      get_portfolio_intelligence: ["portfolio:read", "profile:read"],
+      list_portfolio_lists: ["lists:read"],
+      get_portfolio_list: ["lists:read", "portfolio:read", "profile:read"],
+    };
+    return scopesByTool[body.params?.name ?? ""] ?? [];
+  } catch {
+    return [];
+  }
+}
 
 function normalizeAcceptHeader(request: Request): Request {
   if (request.method !== "POST") return request;
