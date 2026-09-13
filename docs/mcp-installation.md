@@ -11,6 +11,14 @@ The transport is **Streamable HTTP**. The hosted connector currently requires
 `Authorization` header or paste a Magic Brain data API key into a connector
 configuration.
 
+In addition to card, price, set, and rules retrieval, the connector exposes
+deterministic, source-cited product research. Claude can use it for diligence on
+Magic Brain's positioning, moat, users, monetization, provenance, regulatory
+posture, trust, incidents, liquidity, signals, growth hypotheses, and adjacent
+TCG options. Claims retain an explicit epistemic status, and unknown business
+metrics are returned as unknown rather than estimated. See the canonical
+[product strategy and FAQ](product-strategy-faq.md).
+
 > This guide installs the hosted endpoint. It does not run code on your
 > computer. For local development or self-hosting, follow
 > [`integrations/magic-brain-mcp/PACKAGE.md`](../integrations/magic-brain-mcp/PACKAGE.md#run-locally)
@@ -128,7 +136,7 @@ The OpenAI Responses API accepts arbitrary remote MCP servers through the
 {
   "type": "mcp",
   "server_label": "magic_brain",
-  "server_description": "Read-only Magic card, set, market price, and rules tools.",
+  "server_description": "Read-only Magic card, price, rules, and source-cited Magic Brain product research.",
   "server_url": "https://magic-brain-mcp.assarasua.workers.dev/mcp"
 }
 ```

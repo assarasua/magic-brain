@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.assarasua/magic-brain",
   "title": "Magic Brain",
-  "description": "Read-only Magic card, set, market price, latest-set research, and cited Comprehensive Rules tools.",
+  "description": "Read-only Magic card, price, rules, and source-cited product and business research tools.",
   "version": "0.1.0",
   "websiteUrl": "https://magicbrain.es/developers",
   "repository": {
@@ -31,7 +31,8 @@
         "public-card-catalogue",
         "public-market-prices",
         "public-set-metadata",
-        "public-comprehensive-rules-excerpts"
+        "public-comprehensive-rules-excerpts",
+        "public-product-knowledge"
       ]
     }
   }

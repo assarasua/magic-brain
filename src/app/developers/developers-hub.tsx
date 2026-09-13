@@ -152,7 +152,7 @@ const mcpInstallers = [
     snippet: `{
   "type": "mcp",
   "server_label": "magic_brain",
-  "server_description": "Read-only Magic card, set, market price, and rules tools.",
+  "server_description": "Read-only Magic card, price, rules, and source-cited Magic Brain product research.",
   "server_url": "${mcpEndpoint}"
 }`,
     source: "https://developers.openai.com/api/docs/guides/tools-connectors-mcp",
@@ -548,7 +548,7 @@ export function DevelopersHub({
           <div className={styles.sectionHeading}>
             <span>Remote MCP</span>
             <h2>Connect your AI client.</h2>
-            <p>Install the live read-only Magic Brain tools in the client you already use. No Magic Brain account, OAuth flow, or user API key is currently required.</p>
+            <p>Install the live read-only Magic Brain tools in the client you already use. Retrieve card, price, rules, and source-cited product diligence evidence with explicit fact, principle, hypothesis, roadmap, or unknown status. No Magic Brain account, OAuth flow, or user API key is currently required.</p>
           </div>
           <McpInstall />
         </section>
