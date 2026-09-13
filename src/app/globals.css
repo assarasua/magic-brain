@@ -8028,6 +8028,111 @@ button:active,
   }
 }
 
+/* Optional watchlist alert editor */
+.watch-alert-summary {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.watch-alert-summary > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.watch-alert-summary > div > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 5px 7px;
+  border: 1px solid rgba(139, 92, 246, 0.16);
+  border-radius: 999px;
+  color: #b9acdf;
+  background: rgba(139, 92, 246, 0.07);
+  font-size: 8px;
+}
+
+.watch-alert-summary > div > span.triggered {
+  border-color: rgba(242, 198, 109, 0.28);
+  color: #f2c66d;
+  background: rgba(242, 198, 109, 0.08);
+}
+
+.watch-alert-summary > div > small {
+  color: #68717d;
+  font-size: 9px;
+}
+
+.watch-alert-summary > button,
+.watch-alert-editor > header button {
+  min-height: 34px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 9px;
+  color: #c9bcf0;
+  background: rgba(139, 92, 246, 0.08);
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.watch-alert-editor {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  border-radius: 12px;
+  background: rgba(139, 92, 246, 0.04);
+}
+
+.watch-alert-editor > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.watch-alert-editor > header > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: #b7a9df;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .watch-row > .watch-alert-summary,
+  .watch-row > .watch-alert-editor {
+    grid-area: alerts;
+  }
+}
+
+@media (max-width: 760px) {
+  .watch-alert-summary {
+    min-height: 44px;
+  }
+
+  .watch-alert-summary > button,
+  .watch-alert-editor > header button {
+    min-height: 44px;
+  }
+
+  .watch-alert-editor {
+    padding: 11px;
+  }
+}
+
 /* Release fixes: responsive discovery deck and live mover controls */
 .movers-panel.loading .rows,
 .market-columns.loading {
