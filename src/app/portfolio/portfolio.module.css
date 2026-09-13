@@ -250,6 +250,17 @@
   color: #cad2dc;
 }
 
+.pnlDisclosure {
+  margin: -2px 0 16px;
+  padding: 11px 14px;
+  border: 1px solid rgba(211, 173, 98, 0.14);
+  border-radius: 11px;
+  color: #9aa5b3;
+  background: rgba(211, 173, 98, 0.045);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
 .constraint {
   margin: 14px 0;
   padding: 10px 12px;
@@ -305,6 +316,14 @@
   color: var(--gold);
   background: transparent;
   cursor: pointer;
+}
+
+.deterministicReason {
+  display: block;
+  margin-top: 9px;
+  color: #9ba7b5 !important;
+  font-size: 10px !important;
+  line-height: 1.5;
 }
 
 @media (max-width: 760px) {
@@ -674,6 +693,14 @@
 .momentum {
   color: #8293a7 !important;
   line-height: 1.45;
+}
+
+.holdingReturn {
+  display: block;
+  margin-top: 4px;
+  color: #7c8998;
+  font-size: 9px;
+  line-height: 1.35;
 }
 
 .editFields {

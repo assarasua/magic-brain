@@ -33,6 +33,20 @@ test("all customer ML surfaces use one disclosure component", async () => {
   });
 });
 
+test("portfolio fallback serves rule-based insights instead of ML empty copy", async () => {
+  const [route, page] = await Promise.all([
+    readFile(new URL("src/app/api/portfolio/route.ts", root), "utf8"),
+    readFile(new URL("src/app/portfolio/page.tsx", root), "utf8"),
+  ]);
+
+  assert.match(route, /getMarketMovers\(24, "gainers", 7\)/);
+  assert.match(route, /buildPortfolioIntelligence/);
+  assert.match(page, /Rule-based candidates/);
+  assert.match(page, /Holdings to review/);
+  assert.match(page, /no current price/);
+  assert.doesNotMatch(page, /No verified learned candidates are available/);
+});
+
 test("serving reads only promoted real-data models", async () => {
   const source = await readFile(new URL("src/lib/ml-serving.ts", root), "utf8");
   assert.match(source, /model\.status = 'ready'/);
