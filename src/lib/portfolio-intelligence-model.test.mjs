@@ -52,6 +52,37 @@ test("screenshot fallback state returns useful rules-based insights", () => {
   assert.equal(result.holdingReviews[0].reviewSignal, "hold");
 });
 
+test("21 fully priced lots never collapse into the reported double-empty state", () => {
+  const holdings = Array.from({ length: 21 }, (_, index) =>
+    holding({
+      id: index + 1,
+      cardId: `held-card-${index + 1}`,
+      name: `Held card ${index + 1}`,
+      currentValue: 40 + index,
+      change7d: 0.5,
+      change30d: 1,
+    }),
+  );
+  const result = buildPortfolioIntelligence({
+    holdings,
+    candidates: [
+      candidate({ id: "held-card-1" }),
+      candidate({ id: "too-expensive", price: 101 }),
+      candidate({ id: "negative-momentum", change7d: -0.1 }),
+    ],
+    ranking: fallbackRanking,
+    maximumCandidatePrice: 100,
+  });
+
+  assert.equal(result.mode, "deterministic");
+  assert.equal(result.state, "active");
+  assert.equal(result.candidateState, "no_candidates_after_constraints");
+  assert.deepEqual(result.candidateAdditions, []);
+  assert.equal(result.holdingReviews.length, 1);
+  assert.equal(result.holdingReviews[0].name, "Held card 21");
+  assert.equal(result.holdingReviews[0].reviewSignal, "hold");
+});
+
 test("fallback enforces identity, price, and positive momentum constraints", () => {
   const result = buildPortfolioIntelligence({
     holdings: [holding()],
