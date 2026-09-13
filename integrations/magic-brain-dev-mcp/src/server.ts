@@ -62,8 +62,10 @@ export function createDevMcpServer(
       outputSchema,
       annotations,
     },
-    async () =>
-      result(await apiRequest(config, fetchImpl, "openapi", {}), config),
+    async () => {
+      const document = await apiRequest(config, fetchImpl, "openapi", {});
+      return result(summarizeOpenApi(document), config);
+    },
   );
 
   server.registerTool(
@@ -357,11 +359,40 @@ async function apiRequest(
     signal: AbortSignal.timeout(config.timeoutMs),
   });
   const text = await response.text();
-  if (text.length > config.maxOutputChars) {
+  const responseLimit =
+    selected === "openapi" ? 1_048_576 : config.maxOutputChars;
+  if (text.length > responseLimit) {
     throw new Error("Development API response exceeded the output bound");
   }
   if (!response.ok) throw new Error(`Development API returned HTTP ${response.status}`);
   return JSON.parse(text) as unknown;
+}
+
+function summarizeOpenApi(value: unknown) {
+  const document = value as {
+    openapi?: unknown;
+    info?: { title?: unknown; version?: unknown };
+    paths?: Record<string, Record<string, unknown>>;
+    components?: { securitySchemes?: Record<string, unknown> };
+  };
+  const paths = Object.keys(document.paths ?? {}).sort();
+  const methods = new Set(["get", "post", "put", "patch", "delete"]);
+  const operationCount = Object.values(document.paths ?? {}).reduce(
+    (total, operations) =>
+      total +
+      Object.keys(operations).filter((method) => methods.has(method)).length,
+    0,
+  );
+  return {
+    openapi: document.openapi,
+    title: document.info?.title,
+    version: document.info?.version,
+    operationCount,
+    paths,
+    securitySchemes: Object.keys(
+      document.components?.securitySchemes ?? {},
+    ).sort(),
+  };
 }
 
 function operationUrl(

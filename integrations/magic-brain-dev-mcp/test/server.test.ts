@@ -96,4 +96,44 @@ describe("development MCP safety", () => {
     await client.close();
     await server.close();
   });
+
+  it("summarizes a bounded large OpenAPI document", async () => {
+    const document = {
+      openapi: "3.1.0",
+      info: {
+        title: "Magic Brain Data API",
+        version: "1.3.0",
+        description: "x".repeat(70_000),
+      },
+      paths: {
+        "/cards": { get: { operationId: "listCards" } },
+        "/portfolio": { get: { operationId: "getPortfolio" } },
+      },
+      components: {
+        securitySchemes: { ApiKey: {}, OAuth2: {} },
+      },
+    };
+    const server = createDevMcpServer(
+      config,
+      vi.fn<typeof fetch>(
+        async () => new Response(JSON.stringify(document)),
+      ),
+    );
+    const client = new Client({ name: "test", version: "1" });
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+    const response = await client.callTool({
+      name: "inspect_openapi_contract",
+      arguments: {},
+    });
+    expect(response.isError).not.toBe(true);
+    expect(JSON.stringify(response)).toContain('"operationCount":2');
+    expect(JSON.stringify(response)).not.toContain("x".repeat(1_000));
+    await client.close();
+    await server.close();
+  });
 });
