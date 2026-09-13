@@ -12,6 +12,7 @@ import {
   Trash2,
   TrendingDown,
   TrendingUp,
+  Upload,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -21,6 +22,7 @@ import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
 import { useCardDetail } from "@/components/card-detail-provider";
 import { PortfolioOnboarding } from "@/components/portfolio-onboarding";
+import { PortfolioImportModal } from "@/components/portfolio-import-modal";
 import { CARD_LANGUAGES, type CardLanguage } from "@/lib/card-languages";
 import type { CatalogCard } from "@/lib/catalog";
 import { formatCurrency } from "@/lib/data";
@@ -173,6 +175,7 @@ export default function PortfolioPage() {
   const [data, setData] = useState(emptyPortfolio);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [requestedCardId, setRequestedCardId] = useState("");
   const [cardQuery, setCardQuery] = useState("");
   const [results, setResults] = useState<CatalogCard[]>([]);
@@ -498,7 +501,10 @@ export default function PortfolioPage() {
       <div className="account-content">
         <div className="account-heading">
           <div><span className="eyebrow">{locale === "es" ? "Rendimiento personal" : "Personal performance"}</span><h1>{t("My portfolio")}</h1><p>{locale === "es" ? "Valoración en tiempo real según tus precios de compra." : "Real-time valuation based on your actual purchase prices."}</p></div>
-          <button ref={addButtonRef} className="primary-button" onClick={() => setShowAdd(true)}><Plus size={16} /> {t("Add holding")}</button>
+          <div className={styles.headingActions}>
+            <button className={styles.importButton} onClick={() => setShowImport(true)}><Upload size={16} /> {locale === "es" ? "Importar" : "Import"}</button>
+            <button ref={addButtonRef} className="primary-button" onClick={() => setShowAdd(true)}><Plus size={16} /> {t("Add holding")}</button>
+          </div>
         </div>
 
         {loading ? (
@@ -618,6 +624,16 @@ export default function PortfolioPage() {
             <button className="primary-button form-submit" disabled={!selectedCard || saving}>{saving ? "Saving…" : t("Add holding")}</button>
           </form>
         </div>
+      )}
+      {showImport && (
+        <PortfolioImportModal
+          locale={locale}
+          onClose={() => setShowImport(false)}
+          onComplete={async () => {
+            setLoading(true);
+            await loadPortfolio();
+          }}
+        />
       )}
     </main>
   );
