@@ -3170,13 +3170,19 @@ footer {
   .portfolio-row img:hover,
   .watch-row img:hover,
   .holding img:hover,
-  .card-thumb:hover,
+  .card-thumb:hover {
+    z-index: 40;
+    border-radius: 7px;
+    box-shadow: 0 28px 85px rgba(0, 0, 0, 0.76);
+    transform: scale(7);
+  }
+
   .recommendations article > img:hover,
   .market-list img:hover {
     z-index: 40;
-    border-radius: 4px;
-    box-shadow: 0 22px 60px rgba(0, 0, 0, 0.65);
-    transform: scale(4.2);
+    border-radius: 7px;
+    box-shadow: 0 28px 85px rgba(0, 0, 0, 0.76);
+    transform: scale(5.5);
   }
 
   .inventory-image img {
