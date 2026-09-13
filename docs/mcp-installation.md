@@ -11,6 +11,9 @@ The transport is **Streamable HTTP**. The hosted connector currently requires
 `Authorization` header or paste a Magic Brain data API key into a connector
 configuration.
 
+After connecting, use the canonical [MCP tool reference](mcp-tools.md) for all
+11 tool inputs, outputs, limits, examples, evidence rules, and error behaviour.
+
 In addition to card, price, set, and rules retrieval, the connector exposes
 deterministic, source-cited product research. Claude can use it for diligence on
 Magic Brain's positioning, moat, users, monetization, provenance, regulatory

@@ -18,10 +18,18 @@ See the canonical [MCP installation guide](../../docs/mcp-installation.md) for
 current Claude, Cursor, VS Code/GitHub Copilot, ChatGPT, and OpenAI Responses
 API instructions, requirements, and troubleshooting.
 
+For exact inputs, outputs, limits, examples, evidence rules, and failure modes
+for every registered tool, use the canonical
+[MCP tool reference](../../docs/mcp-tools.md).
+
 The hosted URL is separate from local development and self-hosting. The steps
 below run your own server and do not install the live connector.
 
 ## Tools
+
+The list below is a summary. The
+[canonical MCP tool reference](../../docs/mcp-tools.md) documents all 11 tools
+without duplicating their schemas here.
 
 - `search_cards` — bounded catalogue search with set/card filters
 - `get_card` — one public card record
