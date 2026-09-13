@@ -396,7 +396,7 @@ export function PreferencesOnboarding() {
   const blocking = loading || error || account?.preferencesOnboardingCompleted !== true;
   useEffect(() => {
     const elements = document.querySelectorAll<HTMLElement>(
-      ".preferences-gated-content, .mobile-tab-bar",
+      ".authenticated-app-shell > .desktop-sidebar, .authenticated-app-shell > .main-panel, .authenticated-app-shell > .mobile-tab-bar",
     );
     elements.forEach((element) => {
       if (blocking) element.setAttribute("inert", "");

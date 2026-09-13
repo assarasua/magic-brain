@@ -7,6 +7,8 @@ type Locale = "en" | "es";
 const spanish: Record<string, string> = {
   "Overview": "Resumen",
   "Market": "Mercado",
+  "News": "Noticias",
+  "Opportunity Graph": "Grafo de oportunidades",
   "Inventory": "Inventario",
   "Discover": "Descubrir",
   "More": "Más",

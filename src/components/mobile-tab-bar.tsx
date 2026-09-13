@@ -20,7 +20,7 @@ const tabs = [
   { href: "/brain-pro", label: "Brain Pro", icon: BrainCircuit, premium: true },
 ];
 
-const moreRoutes = ["/inventory", "/discover", "/watchlist", "/reserved", "/brain", "/signals", "/analyst", "/predict", "/pro", "/settings", "/donate", "/developers"];
+const moreRoutes = ["/news", "/graph", "/inventory", "/discover", "/watchlist", "/reserved", "/brain", "/signals", "/analyst", "/predict", "/pro", "/settings", "/donate", "/developers"];
 
 export function MobileTabBar() {
   const pathname = usePathname();
