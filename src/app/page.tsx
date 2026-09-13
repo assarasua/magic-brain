@@ -9,6 +9,7 @@ import {
   Bell,
   Bookmark,
   BrainCircuit,
+  ChevronDown,
   CircleDollarSign,
   Crown,
   ExternalLink,
@@ -48,13 +49,17 @@ const nav = [
   { label: "Market", icon: TrendingUp },
   { label: "Inventory", icon: LibraryBig },
   { label: "Reserved List", icon: Crown },
-  { label: "Discover", icon: Heart },
   { label: "Portfolio", icon: WalletCards },
   { label: "Watchlist", icon: Eye },
-  { label: "Brain Pro", icon: Sparkles },
-  { label: "Brain Signals", icon: TrendingUp },
-  { label: "Ask Brain", icon: MessageCircleQuestion },
   { label: "Support", icon: CircleDollarSign },
+];
+
+const brainNav = [
+  { label: "Brain Pro", href: "/brain-pro", icon: Crown },
+  { label: "Portfolio Builder", href: "/brain", icon: BrainCircuit },
+  { label: "Brain Signals", href: "/signals", icon: TrendingUp },
+  { label: "Ask Brain", href: "/analyst", icon: MessageCircleQuestion },
+  { label: "Discover", href: "/discover", icon: Heart },
 ];
 
 function Brand({ compact = false }: { compact?: boolean }) {
@@ -202,6 +207,7 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<CatalogCard[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
+  const [brainExpanded, setBrainExpanded] = useState(false);
   const [toast, setToast] = useState("");
   const [account, setAccount] = useState({ isPro: false, subscriptionStatus: "free" });
   const [portfolioLoaded, setPortfolioLoaded] = useState(false);
@@ -391,21 +397,14 @@ export default function Home() {
               className={[
                 "nav-item",
                 activeNav === label ? "active" : "",
-                label === "Discover" || label === "Brain Pro" || label === "Brain Signals" || label === "Ask Brain"
-                  ? "premium-feature-link"
-                  : "",
               ].filter(Boolean).join(" ")}
               onClick={() => {
                 const routes: Record<string, string> = {
                   Market: "/market",
                   Inventory: "/inventory",
                   "Reserved List": "/reserved",
-                  Discover: "/discover",
                   Portfolio: "/portfolio",
                   Watchlist: "/watchlist",
-                  "Brain Pro": "/brain-pro",
-                "Brain Signals": "/signals",
-                  "Ask Brain": "/analyst",
                   Support: "/donate",
                 };
                 if (routes[label]) {
@@ -422,11 +421,30 @@ export default function Home() {
               <Icon size={18} />
               {t(label)}
               {label === "Watchlist" && <span className="nav-count">{watchlist.length}</span>}
-              {!account.isPro && ["Discover", "Brain Pro", "Brain Signals", "Ask Brain"].includes(label) && (
-                <span className="nav-pro-label"><Crown size={10} /> PRO</span>
-              )}
             </button>
           ))}
+          <div className={`sidebar-section-group ${brainExpanded ? "open" : ""}`}>
+            <button
+              className="nav-item premium-feature-link sidebar-section-trigger"
+              aria-expanded={brainExpanded}
+              onClick={() => setBrainExpanded((current) => !current)}
+            >
+              <Sparkles size={18} />
+              Brain Pro
+              {!account.isPro && <span className="nav-pro-label"><Crown size={10} /> PRO</span>}
+              <ChevronDown className="sidebar-section-chevron" size={14} />
+            </button>
+            {brainExpanded && (
+              <div className="sidebar-subnav">
+                {brainNav.map(({ label, href, icon: Icon }) => (
+                  <button key={href} onClick={() => router.push(href)}>
+                    <Icon size={15} />
+                    {t(label)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <span className="nav-caption lower">{t("Account")}</span>
           <button className="nav-item">
             <Bell size={18} />
