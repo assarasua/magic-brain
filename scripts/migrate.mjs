@@ -43,6 +43,7 @@ try {
       "012_market_briefs.sql",
       "013_preferences_onboarding.sql",
       "014_ml_data_contract.sql",
+      "015_ml_batch_serving.sql",
   ];
   let applied = 0;
   for (const filename of filenames) {
