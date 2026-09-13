@@ -74,12 +74,15 @@ test("consent survives login without cookie state and is consumed once", async (
   ]);
   assert.match(routeSource, /callbackUrl=\$\{encodeURIComponent\(callback\)\}/);
   assert.match(routeSource, /createOAuthConsentRequest/);
-  assert.match(routeSource, /consumeOAuthConsentRequest/);
+  assert.match(routeSource, /completeOAuthConsentRequest/);
   assert.doesNotMatch(routeSource, /mb_oauth_consent/);
   assert.match(oauthSource, /now\(\) \+ \(\$9::text \|\| ' seconds'\)::interval/);
   assert.match(oauthSource, /consent\.expires_at > now\(\)/);
   assert.match(oauthSource, /consent\.consumed_at is null/);
   assert.match(oauthSource, /set consumed_at = now\(\)/);
+  assert.match(oauthSource, /client\.query\("begin"\)/);
+  assert.match(oauthSource, /client\.query\("commit"\)/);
+  assert.match(oauthSource, /client\.query\("rollback"\)/);
   assert.match(migration, /created_at timestamptz/);
   assert.match(migration, /expires_at timestamptz/);
   assert.match(migration, /consumed_at timestamptz/);

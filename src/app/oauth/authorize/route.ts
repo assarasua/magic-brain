@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import {
-  consumeOAuthConsentRequest,
+  completeOAuthConsentRequest,
   consumeOAuthRateLimit,
-  createAuthorizationCode,
   createOAuthConsentRequest,
-  recordOAuthAudit,
   validateAuthorizationRequest,
 } from "@/lib/oauth";
 import { ApiError } from "@/lib/public-api/core";
@@ -56,37 +54,24 @@ export async function POST(request: NextRequest) {
     if (typeof requestToken !== "string") {
       throw new ApiError(400, "invalid_request", "Consent request is required");
     }
-    const consent = await consumeOAuthConsentRequest(
-      session.user.id,
-      requestToken,
-    );
     const decision = form.get("decision");
     if (decision !== "allow" && decision !== "deny") {
       throw new ApiError(400, "invalid_request", "Consent decision is required");
     }
+    const completion = await completeOAuthConsentRequest({
+      ownerId: session.user.id,
+      requestToken,
+      decision,
+      requestId: request.headers.get("x-request-id"),
+    });
+    const consent = completion.consent;
     const redirect = new URL(consent.redirectUri);
     redirect.searchParams.set("state", consent.state);
-    if (decision === "deny") {
-      await recordOAuthAudit(
-        "authorization_denied",
-        session.user.id,
-        consent.clientId,
-        consent.scopes,
-        request.headers.get("x-request-id"),
-      );
+    if (completion.decision === "deny") {
       redirect.searchParams.set("error", "access_denied");
       return NextResponse.redirect(redirect, 303);
     }
-    const code = await createAuthorizationCode({
-      ownerId: session.user.id,
-      clientId: consent.clientId,
-      redirectUri: consent.redirectUri,
-      resource: consent.resource,
-      scopes: consent.scopes,
-      codeChallenge: consent.challenge,
-      requestId: request.headers.get("x-request-id"),
-    });
-    redirect.searchParams.set("code", code);
+    redirect.searchParams.set("code", completion.code);
     return NextResponse.redirect(redirect, 303);
   } catch (error) {
     return oauthError(error);
