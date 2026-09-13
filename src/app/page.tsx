@@ -36,7 +36,6 @@ import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
 import { PortfolioOnboarding } from "@/components/portfolio-onboarding";
-import { ProFeaturePreview } from "@/components/pro-feature-preview";
 import { useCardDetail } from "@/components/card-detail-provider";
 import {
   Card,
@@ -212,7 +211,6 @@ export default function Home() {
   const [mobileNav, setMobileNav] = useState(false);
   const [brainExpanded, setBrainExpanded] = useState(false);
   const [toast, setToast] = useState("");
-  const [account, setAccount] = useState({ isPro: false, subscriptionStatus: "free" });
   const [portfolioLoaded, setPortfolioLoaded] = useState(false);
   const [portfolio, setPortfolio] = useState<{
     holdings: PortfolioHolding[];
@@ -257,24 +255,19 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/account")
-      .then((response) => response.json())
-      .then(async (result: { isPro: boolean; subscriptionStatus: string }) => {
-        setAccount(result);
-        await Promise.all([
-          fetch("/api/portfolio")
-            .then((response) => response.json())
-            .then((portfolioResult) => {
-              setPortfolio(portfolioResult);
-              setPortfolioLoaded(true);
-            }),
-          fetch("/api/watchlist")
-            .then((response) => response.json())
-            .then((watchlistResult: { cards: CatalogCard[] }) =>
-              setWatchlist(watchlistResult.cards.map((card) => card.id)),
-            ),
-        ]);
-      })
+    Promise.all([
+      fetch("/api/portfolio")
+        .then((response) => response.json())
+        .then((portfolioResult) => {
+          setPortfolio(portfolioResult);
+          setPortfolioLoaded(true);
+        }),
+      fetch("/api/watchlist")
+        .then((response) => response.json())
+        .then((watchlistResult: { cards: CatalogCard[] }) =>
+          setWatchlist(watchlistResult.cards.map((card) => card.id)),
+        ),
+    ])
       .catch(() => undefined);
   }, []);
 
@@ -435,7 +428,7 @@ export default function Home() {
             >
               <Sparkles size={18} />
               Brain Pro
-              {!account.isPro && <span className="nav-pro-label"><Crown size={10} /> PRO</span>}
+              <span className="nav-pro-label"><Crown size={10} /> {locale === "es" ? "GRATIS" : "FREE"}</span>
               <ChevronDown className="sidebar-section-chevron" size={14} />
             </button>
             {brainExpanded && (
@@ -461,14 +454,14 @@ export default function Home() {
           </button>
         </nav>
         <div className="sidebar-bottom">
-          {!account.isPro && <div className="mini-upgrade">
+          <div className="mini-upgrade">
             <span className="crown">
-              <Crown size={16} />
+              <CircleDollarSign size={16} />
             </span>
-            <strong>{locale === "es" ? "Desbloquea Brain Pro" : "Unlock Brain Pro"}</strong>
-            <p>{locale === "es" ? "Mejores señales. Mejores decisiones." : "Sharper signals. Smarter collecting."}</p>
-            <Link href="/pro">{locale === "es" ? "Descubrir Pro" : "Explore Pro"} <ArrowRight size={14} /></Link>
-          </div>}
+            <strong>{locale === "es" ? "Apoya Magic Brain" : "Support Magic Brain"}</strong>
+            <p>{locale === "es" ? "Ayuda a mantener el proyecto abierto." : "Help keep the project open."}</p>
+            <Link href="/donate">{locale === "es" ? "Hacer una donación" : "Make a donation"} <ArrowRight size={14} /></Link>
+          </div>
           <AuthControl />
         </div>
       </aside>
@@ -649,18 +642,18 @@ export default function Home() {
               {!portfolio.holdings.length && <div className="empty-holdings">Add your first card to start tracking returns.</div>}
             </div>
 
-            <div className="panel premium-panel" id="premium">
+            <div className="panel premium-panel">
               <div className="premium-copy">
-                <span className="pro-pill"><Crown size={13} /> Brain Pro</span>
-                <h2>{locale === "es" ? "Convierte el movimiento del mercado en tu ventaja." : "Turn market movement into your advantage."}</h2>
-                <p>{locale === "es" ? "Convierte presupuesto, riesgo y horizonte en hasta 20 posiciones con asignación, tesis y guía de compra." : "Turn budget, risk, and horizon into up to 20 positions with allocation, rationale, and buyer guidance."}</p>
-                <button onClick={() => router.push("/pro")}>
-                  {locale === "es" ? "Descubrir Brain Pro" : "Explore Brain Pro"} <ArrowRight size={15} />
+                <span className="pro-pill"><CircleDollarSign size={13} /> {locale === "es" ? "APOYA EL PROYECTO" : "SUPPORT THE PROJECT"}</span>
+                <h2>{locale === "es" ? "Ayuda a construir una inteligencia de mercado abierta." : "Help build open market intelligence."}</h2>
+                <p>{locale === "es" ? "Todas las herramientas están disponibles gratis. Tu donación ayuda a mantener los datos, la infraestructura y el desarrollo." : "Every tool is available for free. Your donation helps fund data, infrastructure, and continued development."}</p>
+                <button onClick={() => router.push("/donate")}>
+                  {locale === "es" ? "Donar al proyecto" : "Donate to the project"} <ArrowRight size={15} />
                 </button>
-                <span className="no-card">{locale === "es" ? "Basic: seguimiento · Pro: estrategia · Sin cargo hoy" : "Basic: tracking · Pro: strategy · No charge today"}</span>
+                <span className="no-card">{locale === "es" ? "Contribución voluntaria · PayPal P2P" : "Voluntary contribution · PayPal P2P"}</span>
               </div>
               <div className="premium-visual">
-                <ProFeaturePreview feature="brain" locale={locale} compact />
+                <CircleDollarSign size={64} />
               </div>
             </div>
           </section>

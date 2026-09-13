@@ -22,7 +22,7 @@ jobs:
       AUTH_URL: http://localhost:3000
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -32,6 +32,7 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm ci --prefix integrations/magic-brain-mcp
+      - run: npm run rules:build --prefix integrations/magic-brain-mcp
       - run: npm run check --prefix integrations/magic-brain-mcp
       - run: npm test --prefix integrations/magic-brain-mcp
       - run: npm run build --prefix integrations/magic-brain-mcp

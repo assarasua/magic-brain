@@ -25,7 +25,6 @@ import {
 type AccountSettings = {
   name: string | null;
   email: string | null;
-  plan: "basic" | "pro";
   preferences: UserPreferences;
 };
 
@@ -147,7 +146,7 @@ export default function SettingsPage() {
         <section className="settings-profile-card">
           <span><UserRound size={19} /></span>
           <div><strong>{account?.name ?? (es ? "Inversor de Magic Brain" : "Magic Brain investor")}</strong><small>{account?.email ?? (es ? "Perfil guardado en este dispositivo" : "Profile saved on this device")}</small></div>
-          <em className={account?.plan === "pro" ? "pro" : ""}>{account?.plan ?? "basic"}</em>
+          <em>{es ? "Acceso gratuito" : "Free access"}</em>
         </section>
 
         <div className="settings-grid">

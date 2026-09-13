@@ -1,21 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMarketMovers } from "@/lib/catalog";
-import { attachSessionCookie, getOrCreateUser, isPro } from "@/lib/session";
+import { attachSessionCookie, getOrCreateUser } from "@/lib/session";
 
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   try {
-    const { user, newToken } = await getOrCreateUser(request);
-    if (!isPro(user)) {
-      return attachSessionCookie(
-        NextResponse.json(
-          { error: "Brain Signals requires Brain Pro" },
-          { status: 403 },
-        ),
-        newToken,
-      );
-    }
+    const { newToken } = await getOrCreateUser(request);
 
     const requestedDays = Number(request.nextUrl.searchParams.get("days") ?? 30);
     const days = [7, 30, 90].includes(requestedDays) ? requestedDays : 30;

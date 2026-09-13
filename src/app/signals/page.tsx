@@ -21,7 +21,6 @@ import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
 import { useCardDetail } from "@/components/card-detail-provider";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
-import { ProGate } from "@/components/pro-gate";
 import type { CatalogCard } from "@/lib/catalog";
 import { formatCurrency } from "@/lib/data";
 
@@ -172,7 +171,7 @@ function SignalsContent() {
   return (
     <div className="account-content signals-content">
       <div className="signals-hero">
-        <span className="pro-pill"><Sparkles size={13} /> Brain Pro</span>
+        <span className="pro-pill"><Sparkles size={13} /> Brain Pro · {locale === "es" ? "Gratis" : "Free"}</span>
         <h1>{es ? "Brain Signals" : "Brain Signals"}</h1>
         <p>
           {es
@@ -332,7 +331,7 @@ export default function SignalsPage() {
         <AuthControl compact />
         <Link href="/" className="back-dashboard"><ArrowLeft size={15} /> {locale === "es" ? "Panel" : "Dashboard"}</Link>
       </header>
-      <ProGate feature="signals"><SignalsContent /></ProGate>
+      <SignalsContent />
     </main>
   );
 }
