@@ -1,0 +1,21 @@
+{
+  "card": {
+    "scryfallId": "11111111-1111-4111-8111-111111111111",
+    "metadataAvailableAt": "2024-12-20",
+    "releasedAt": "2024-12-15",
+    "rarity": "rare",
+    "cardType": "Artifact",
+    "isReserved": false
+  },
+  "asOfDate": "2025-01-31",
+  "priceSource": "fixture",
+  "prices": [
+    { "date": "2025-01-01", "source": "fixture", "eur": 10 },
+    { "date": "2025-01-08", "source": "fixture", "eur": 12 },
+    { "date": "2025-01-31", "source": "fixture", "eur": 15 },
+    { "date": "2025-02-07", "source": "fixture", "eur": 18 },
+    { "date": "2025-03-02", "source": "fixture", "eur": 12 },
+    { "date": "2025-05-01", "source": "fixture", "eur": 21 },
+    { "date": "2025-05-02", "source": "fixture", "eur": 1000 }
+  ]
+}
