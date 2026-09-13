@@ -15,6 +15,7 @@ export type OAuthScope = (typeof OAUTH_SCOPES)[number];
 export const ACCESS_TOKEN_SECONDS = 15 * 60;
 export const REFRESH_TOKEN_SECONDS = 30 * 24 * 60 * 60;
 export const AUTHORIZATION_CODE_SECONDS = 5 * 60;
+export const CONSENT_REQUEST_SECONDS = 15 * 60;
 
 export class OAuthInputError extends Error {}
 

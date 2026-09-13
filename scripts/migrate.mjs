@@ -51,6 +51,7 @@ try {
       "020_portfolio_list_shares.sql",
       "021_public_api_account_scope.sql",
       "022_mcp_oauth.sql",
+      "023_oauth_consent_requests.sql",
   ];
   let applied = 0;
   for (const filename of filenames) {
