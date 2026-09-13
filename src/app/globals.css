@@ -256,32 +256,42 @@ button {
   background: rgba(242, 198, 109, 0.08);
 }
 
+.sidebar-subnav .magic-pro-badge,
+.mobile-more-groups .magic-pro-badge {
+  margin-left: auto;
+}
+
 .premium-feature-link,
-.account-topbar nav a[href="/brain-pro"],
+.account-topbar nav a[href="/predict"],
 .account-topbar nav a[href="/brain"],
 .account-topbar nav a[href="/signals"],
 .account-topbar nav a[href="/analyst"],
-.mobile-more-groups a[href="/brain-pro"],
+.account-topbar nav a[href="/discover"],
+.mobile-more-groups a[href="/predict"],
 .mobile-more-groups a[href="/brain"],
 .mobile-more-groups a[href="/signals"],
-.mobile-more-groups a[href="/analyst"] {
+.mobile-more-groups a[href="/analyst"],
+.mobile-more-groups a[href="/discover"] {
   color: #f2c66d !important;
 }
 
 .nav-item.premium-feature-link:hover,
 .nav-item.premium-feature-link.active,
-.account-topbar nav a[href="/brain-pro"]:hover,
+.account-topbar nav a[href="/predict"]:hover,
 .account-topbar nav a[href="/brain"]:hover,
 .account-topbar nav a[href="/signals"]:hover,
 .account-topbar nav a[href="/analyst"]:hover,
-.mobile-more-groups a[href="/brain-pro"]:hover,
+.account-topbar nav a[href="/discover"]:hover,
+.mobile-more-groups a[href="/predict"]:hover,
 .mobile-more-groups a[href="/brain"]:hover,
 .mobile-more-groups a[href="/signals"]:hover,
 .mobile-more-groups a[href="/analyst"]:hover,
-.mobile-more-groups a[href="/brain-pro"].active,
+.mobile-more-groups a[href="/discover"]:hover,
+.mobile-more-groups a[href="/predict"].active,
 .mobile-more-groups a[href="/brain"].active,
 .mobile-more-groups a[href="/signals"].active,
-.mobile-more-groups a[href="/analyst"].active {
+.mobile-more-groups a[href="/analyst"].active,
+.mobile-more-groups a[href="/discover"].active {
   color: #ffe3a3 !important;
   background: rgba(242, 198, 109, 0.1);
   box-shadow: inset 0 0 0 1px rgba(242, 198, 109, 0.14);
@@ -1097,6 +1107,80 @@ kbd {
   font-weight: 750;
   text-transform: uppercase;
   letter-spacing: 0.1em;
+}
+
+.magic-pro-badge {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 9px;
+  border: 1px solid rgba(242, 198, 109, 0.34);
+  border-radius: 999px;
+  color: #f8d98f;
+  background: rgba(242, 198, 109, 0.1);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.magic-pro-badge svg {
+  flex: 0 0 auto;
+  color: #ffd978;
+}
+
+.magic-pro-badge small {
+  padding-left: 7px;
+  border-left: 1px solid rgba(242, 198, 109, 0.3);
+  color: #d7c49b;
+  font: inherit;
+  letter-spacing: 0.04em;
+}
+
+.magic-pro-badge.compact {
+  gap: 4px;
+  padding: 4px 6px;
+  font-size: 7px;
+}
+
+.magic-pro-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 13px 15px;
+  border: 1px solid rgba(242, 198, 109, 0.22);
+  border-radius: 14px;
+  color: #bfc5ce;
+  background: linear-gradient(120deg, rgba(242, 198, 109, 0.085), rgba(242, 198, 109, 0.025));
+}
+
+.magic-pro-notice-icon {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  color: #ffd978;
+  background: rgba(242, 198, 109, 0.11);
+}
+
+.magic-pro-notice p {
+  margin: 1px 0 0;
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.magic-pro-notice strong {
+  color: #f8d98f;
+}
+
+.magic-pro-notice em {
+  color: #e8d7b2;
+  font-style: normal;
+  font-weight: 700;
 }
 
 .premium-copy h2 {
@@ -3981,6 +4065,10 @@ footer {
 .settings-profile-card em.pro {
   color: #c3aaff;
   background: rgba(124, 58, 237, 0.13);
+}
+
+.settings-content > .magic-pro-notice {
+  margin-bottom: 16px;
 }
 
 .settings-grid {
@@ -9755,6 +9843,12 @@ button:active,
   max-width: 850px;
   margin: 0 auto 42px;
   text-align: center;
+}
+
+.brain-pro-hub-hero .magic-pro-notice {
+  max-width: 720px;
+  margin: 22px auto 0;
+  text-align: left;
 }
 
 .brain-pro-hub-mark {

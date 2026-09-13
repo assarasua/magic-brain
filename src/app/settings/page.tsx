@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
+import { ProBadge, ProNotice } from "@/components/magic-brain-pro";
 import { SetSelector } from "@/components/set-selector";
 import { CARD_COLORS, CARD_RARITIES, CARD_TYPES } from "@/lib/card-filters";
 import {
@@ -133,7 +134,7 @@ export default function SettingsPage() {
     <main className="account-page settings-page">
       <header className="account-topbar">
         <Link href="/" className="inventory-brand"><MagicBrainLogo /></Link>
-        <nav><Link href="/portfolio">{t("Portfolio")}</Link><Link href="/watchlist">{t("Watchlist")}</Link><Link href="/brain-pro">Brain Pro</Link></nav>
+        <nav><Link href="/portfolio">{t("Portfolio")}</Link><Link href="/watchlist">{t("Watchlist")}</Link><Link href="/brain">Portfolio Builder</Link></nav>
         <LanguageToggle />
         <AuthControl compact />
         <Link href="/" className="back-dashboard"><ArrowLeft size={15} /> {t("Dashboard")}</Link>
@@ -155,8 +156,9 @@ export default function SettingsPage() {
         <section className="settings-profile-card">
           <span><UserRound size={19} /></span>
           <div><strong>{account?.name ?? (es ? "Inversor de Magic Brain" : "Magic Brain investor")}</strong><small>{account?.email ?? (es ? "Perfil guardado en este dispositivo" : "Profile saved on this device")}</small></div>
-          <em>{es ? "Acceso gratuito" : "Free access"}</em>
+          <ProBadge compact />
         </section>
+        <ProNotice />
 
         <div className="settings-grid">
           <section className="settings-panel">

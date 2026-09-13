@@ -5,7 +5,6 @@ import {
   ArrowRight,
   BrainCircuit,
   Check,
-  Crown,
   Heart,
   MessageCircleQuestion,
   Target,
@@ -15,6 +14,7 @@ import Link from "next/link";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo, MagicBrainMark } from "@/components/brand-logo";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
+import { ProBadge, ProNotice } from "@/components/magic-brain-pro";
 import { ProFeaturePreview, type ProFeature } from "@/components/pro-feature-preview";
 
 const tools = [
@@ -127,13 +127,10 @@ export default function BrainProHubPage() {
       <div className="brain-pro-hub-content">
         <section className="brain-pro-hub-hero">
           <div className="brain-pro-hub-mark"><MagicBrainMark size={54} /></div>
-          <span className="pro-badge"><Crown size={14} /> MAGIC BRAIN AI PRO</span>
+          <ProBadge />
           <h1>{es ? "Todas tus herramientas de inversión. Un solo cerebro." : "Every investment tool. One intelligent workspace."}</h1>
           <p>{es ? "Investiga el mercado, genera una estrategia, valida oportunidades y descubre nuevas cartas desde un único centro." : "Research the market, build a strategy, validate opportunities, and discover new cards from one command centre."}</p>
-          <span className="brain-pro-status active">
-            <Check size={13} />
-            {es ? "Brain Pro gratis por ahora" : "Brain Pro free for now"}
-          </span>
+          <ProNotice />
         </section>
 
         <section className="brain-pro-tool-grid">

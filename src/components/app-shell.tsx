@@ -29,6 +29,7 @@ import { useEffect, useState } from "react";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
 import { useLanguage } from "@/components/language-provider";
+import { ProBadge } from "@/components/magic-brain-pro";
 import { MobileTabBar } from "@/components/mobile-tab-bar";
 import { PreferencesOnboarding } from "@/components/preferences-onboarding";
 
@@ -62,9 +63,9 @@ function routeIsActive(pathname: string, href: string) {
 function DesktopSidebar() {
   const pathname = usePathname();
   const { locale, t } = useLanguage();
-  const brainRouteActive =
-    routeIsActive(pathname, "/brain-pro") ||
-    brainNav.some(({ href }) => routeIsActive(pathname, href));
+  const brainRouteActive = brainNav.some(({ href }) =>
+    routeIsActive(pathname, href),
+  );
   const [brainExpanded, setBrainExpanded] = useState(brainRouteActive);
   const [watchlistCount, setWatchlistCount] = useState<number | null>(null);
 
@@ -115,7 +116,7 @@ function DesktopSidebar() {
             onClick={() => setBrainExpanded((current) => !current)}
           >
             <Sparkles size={18} />
-            {t("Brain tools")}
+            Magic Brain Pro
             <ChevronDown className="sidebar-section-chevron" size={14} />
           </button>
           {showBrainNav && (
@@ -125,12 +126,13 @@ function DesktopSidebar() {
                 return (
                   <Link
                     href={href}
-                    className={active ? "active" : undefined}
+                    className={`premium-feature-link${active ? " active" : ""}`}
                     aria-current={active ? "page" : undefined}
                     key={href}
                   >
                     <Icon size={15} />
                     {t(label)}
+                    <ProBadge compact />
                   </Link>
                 );
               })}
@@ -141,7 +143,6 @@ function DesktopSidebar() {
         <button type="button" className="nav-item">
           <Bell size={18} />
           {t("Alerts")}
-          <span className="premium-dot" />
         </button>
         <Link
           href="/settings"

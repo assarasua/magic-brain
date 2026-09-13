@@ -56,7 +56,7 @@ export default function LoginPage() {
           <div className="auth-benefits">
             <div><span><BarChart3 size={18} /></span><div><strong>{es ? "Mercado bajo control" : "Market clarity"}</strong><small>{es ? "Historiales diarios y señales de movimiento." : "Daily histories and movement signals."}</small></div></div>
             <div><span><WalletCards size={18} /></span><div><strong>{es ? "Tu cartera real" : "Your real portfolio"}</strong><small>{es ? "Rentabilidad, exposición y coste de compra." : "Returns, exposure, and purchase cost."}</small></div></div>
-            <div><span><Sparkles size={18} /></span><div><strong>Brain Pro</strong><small>{es ? "Estrategias y descubrimiento personalizados, gratis por ahora." : "Personalised strategies and discovery, free for now."}</small></div></div>
+            <div><span><Sparkles size={18} /></span><div><strong>Magic Brain Pro</strong><small>{es ? "Predicción avanzada, señales personalizadas, inteligencia automatizada de carteras y análisis más profundos. Gratis para usuarios pioneros." : "Advanced prediction, personalised signals, automated portfolio intelligence, and deeper analysis. Free for early adopters."}</small></div></div>
           </div>
         </div>
 

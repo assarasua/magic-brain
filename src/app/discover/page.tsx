@@ -19,6 +19,7 @@ import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
 import { useCardDetail } from "@/components/card-detail-provider";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
+import { ProBadge } from "@/components/magic-brain-pro";
 import type { DiscoveryCard } from "@/lib/discovery";
 import { formatCurrency } from "@/lib/data";
 
@@ -154,7 +155,7 @@ export default function DiscoverPage() {
 
       <div className="discovery-content">
           <div className="discovery-heading">
-            <span className="pro-badge"><Sparkles size={13} /> Brain Discovery</span>
+            <ProBadge />
             <h1>{es ? "Descubre tu próxima carta." : "Discover your next card."}</h1>
             <p>{es ? "Una selección personal basada en tus preferencias. Desliza a la derecha para guardarla en seguimiento." : "A personal selection based on your preferences. Swipe right to add a card to your watchlist."}</p>
             <Link href="/settings"><SlidersHorizontal size={14} /> {es ? "Ajustar preferencias" : "Tune preferences"}</Link>
