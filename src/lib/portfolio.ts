@@ -1,4 +1,9 @@
-import { query } from "@/lib/db";
+import { createHash, timingSafeEqual } from "node:crypto";
+import { db, query } from "@/lib/db";
+import {
+  MAX_PORTFOLIO_LISTS,
+  type PortfolioBulkRequest,
+} from "@/lib/portfolio-list-model";
 import {
   calculateOpportunityAnalytics,
   calculatePortfolioSummary,
@@ -9,6 +14,7 @@ import {
 
 export type PortfolioHolding = {
   id: number;
+  listId: string;
   cardId: string;
   name: string;
   setCode: string;
@@ -36,6 +42,7 @@ export type PortfolioHolding = {
 
 type HoldingRow = {
   id: number;
+  list_id: string;
   card_id: string;
   name: string;
   set_code: string;
@@ -67,6 +74,7 @@ const mapHolding = (row: HoldingRow): PortfolioHolding => {
 
   return {
     id: row.id,
+    listId: row.list_id,
     cardId: row.card_id,
     name: row.name,
     setCode: row.set_code,
@@ -98,12 +106,83 @@ const mapHolding = (row: HoldingRow): PortfolioHolding => {
   };
 };
 
-export async function getPortfolio(userId: string) {
+export type PortfolioList = {
+  id: string;
+  name: string;
+  position: number;
+  isDefault: boolean;
+  holdingCount: number;
+};
+
+type PortfolioListRow = {
+  id: string;
+  name: string;
+  position: number;
+  is_default: boolean;
+  holding_count: number;
+};
+
+const mapList = (row: PortfolioListRow): PortfolioList => ({
+  id: row.id,
+  name: row.name,
+  position: row.position,
+  isDefault: row.is_default,
+  holdingCount: row.holding_count,
+});
+
+export async function ensurePortfolioLists(userId: string) {
+  await query(
+    `
+      insert into app_portfolio_lists (user_id, name, position, is_default)
+      select id,
+        case when locale = 'es' then 'Mi colección' else 'My collection' end,
+        0,
+        true
+      from app_users
+      where id = $1
+        and not exists (
+          select 1 from app_portfolio_lists where user_id = $1
+        )
+      on conflict do nothing
+    `,
+    [userId],
+  );
+}
+
+export async function getPortfolioLists(userId: string) {
+  await ensurePortfolioLists(userId);
+  const result = await query<PortfolioListRow>(
+    `
+      select
+        list.id::text,
+        list.name,
+        list.position,
+        list.is_default,
+        count(item.id)::integer as holding_count
+      from app_portfolio_lists list
+      left join app_portfolio_items item
+        on item.list_id = list.id and item.user_id = list.user_id
+      where list.user_id = $1
+      group by list.id
+      order by list.position, list.created_at, list.id
+    `,
+    [userId],
+  );
+  return result.rows.map(mapList);
+}
+
+export async function getPortfolio(userId: string, requestedListId?: string) {
+  const lists = await getPortfolioLists(userId);
+  const selectedList = requestedListId
+    ? lists.find((list) => list.id === requestedListId)
+    : lists.find((list) => list.isDefault) ?? lists[0];
+  if (!selectedList) return null;
   const [{ rows }, historyResult] = await Promise.all([
     query<HoldingRow>(
     `
       select
         i.id,
+        i.list_id::text,
         c.scryfall_id::text as card_id,
         c.name,
         c.set_code,
@@ -161,10 +240,10 @@ export async function getPortfolio(userId: string) {
         order by date desc
         limit 1
       ) month_price on true
-      where i.user_id = $1
+      where i.user_id = $1 and i.list_id = $2
       order by current_value desc nulls last, i.created_at desc
     `,
-    [userId],
+    [userId, selectedList.id],
     ),
     query<{ date: string; value: string; invested: string }>(
       `
@@ -178,11 +257,11 @@ export async function getPortfolio(userId: string) {
           and p.source = 'mtgjson'
           and p.date >= current_date - interval '365 days'
           and p.date >= i.acquired_at
-        where i.user_id = $1 and p.eur is not null
+        where i.user_id = $1 and i.list_id = $2 and p.eur is not null
         group by p.date
         order by p.date
       `,
-      [userId],
+      [userId, selectedList.id],
     ),
   ]);
 
@@ -190,6 +269,8 @@ export async function getPortfolio(userId: string) {
   const summary = calculatePortfolioSummary(holdings);
 
   return {
+    lists,
+    selectedListId: selectedList.id,
     holdings,
     summary,
     opportunities: calculateOpportunityAnalytics(holdings, summary.value),
@@ -210,18 +291,28 @@ export async function addPortfolioItem(
     condition: string;
     language: string;
     acquiredAt?: string;
+    listId?: string;
   },
 ) {
-  await query(
+  await ensurePortfolioLists(userId);
+  const result = await query(
     `
       insert into app_portfolio_items (
-        user_id, scryfall_id, quantity, purchase_price_eur,
+        user_id, list_id, scryfall_id, quantity, purchase_price_eur,
         condition, language, acquired_at
       )
-      values ($1, $2, $3, $4, $5, $6, coalesce($7::date, current_date))
+      select $1, list.id, $3, $4, $5, $6, $7, coalesce($8::date, current_date)
+      from app_portfolio_lists list
+      where list.user_id = $1
+        and (
+          ($2::uuid is not null and list.id = $2)
+          or ($2::uuid is null and list.is_default)
+        )
+      returning id
     `,
     [
       userId,
+      input.listId ?? null,
       input.cardId,
       input.quantity,
       input.purchasePrice,
@@ -230,6 +321,7 @@ export async function addPortfolioItem(
       input.acquiredAt ?? null,
     ],
   );
+  return result.rowCount === 1;
 }
 
 export async function deletePortfolioItem(userId: string, itemId: number) {
@@ -267,4 +359,303 @@ export async function updatePortfolioItem(
     ],
   );
   return result.rowCount === 1;
+}
+
+export async function createPortfolioList(userId: string, name: string) {
+  const client = await db.connect();
+  try {
+    await client.query("begin");
+    await client.query(`select id from app_users where id = $1 for update`, [
+      userId,
+    ]);
+    const count = await client.query<{ count: number }>(
+      `select count(*)::integer as count from app_portfolio_lists where user_id = $1`,
+      [userId],
+    );
+    if (count.rows[0].count >= MAX_PORTFOLIO_LISTS) {
+      await client.query("rollback");
+      return { status: "limit" as const };
+    }
+    const inserted = await client.query<PortfolioListRow>(
+      `
+        insert into app_portfolio_lists (user_id, name, position, is_default)
+        select $1, $2, coalesce(max(position) + 1, 0), count(*) = 0
+        from app_portfolio_lists where user_id = $1
+        returning id::text, name, position, is_default, 0::integer as holding_count
+      `,
+      [userId, name],
+    );
+    await client.query("commit");
+    return { status: "created" as const, list: mapList(inserted.rows[0]) };
+  } catch (error) {
+    await client.query("rollback");
+    if ((error as { code?: string }).code === "23505") {
+      return { status: "duplicate" as const };
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function renamePortfolioList(
+  userId: string,
+  listId: string,
+  name: string,
+) {
+  try {
+    const result = await query(
+      `
+        update app_portfolio_lists
+        set name = $3, updated_at = now()
+        where id = $1 and user_id = $2
+        returning id
+      `,
+      [listId, userId, name],
+    );
+    return result.rowCount === 1 ? "updated" : "missing";
+  } catch (error) {
+    if ((error as { code?: string }).code === "23505") return "duplicate";
+    throw error;
+  }
+}
+
+export async function reorderPortfolioLists(
+  userId: string,
+  orderedIds: string[],
+) {
+  const result = await query(
+    `
+      with owned as (
+        select array_agg(id order by id) as ids
+        from app_portfolio_lists where user_id = $1
+      ),
+      supplied as (
+        select array_agg(id order by id) as ids
+        from unnest($2::uuid[]) id
+      ),
+      valid as (
+        select 1 from owned, supplied where owned.ids = supplied.ids
+      ),
+      positions as (
+        select id, ordinality - 1 as position
+        from unnest($2::uuid[]) with ordinality as value(id, ordinality)
+      )
+      update app_portfolio_lists list
+      set position = positions.position, updated_at = now()
+      from positions, valid
+      where list.id = positions.id and list.user_id = $1
+      returning list.id
+    `,
+    [userId, orderedIds],
+  );
+  return result.rowCount === orderedIds.length;
+}
+
+export async function deletePortfolioList(
+  userId: string,
+  listId: string,
+  destinationListId?: string,
+) {
+  const client = await db.connect();
+  try {
+    await client.query("begin");
+    const lists = await client.query<{
+      id: string;
+      is_default: boolean;
+      holding_count: number;
+    }>(
+      `
+        select list.id::text, list.is_default,
+          (
+            select count(*)::integer
+            from app_portfolio_items item
+            where item.list_id = list.id and item.user_id = list.user_id
+          ) as holding_count
+        from app_portfolio_lists list
+        where list.user_id = $1
+        order by list.position
+        for update
+      `,
+      [userId],
+    );
+    const source = lists.rows.find((list) => list.id === listId);
+    if (!source) {
+      await client.query("rollback");
+      return "missing" as const;
+    }
+    if (source.is_default || lists.rows.length === 1) {
+      await client.query("rollback");
+      return "protected" as const;
+    }
+    if (source.holding_count > 0) {
+      const destination = lists.rows.find(
+        (list) => list.id === destinationListId && list.id !== listId,
+      );
+      if (!destination) {
+        await client.query("rollback");
+        return "destination_required" as const;
+      }
+      await client.query(
+        `update app_portfolio_items set list_id = $1, updated_at = now()
+         where user_id = $2 and list_id = $3`,
+        [destination.id, userId, listId],
+      );
+    }
+    await client.query(
+      `delete from app_portfolio_lists where id = $1 and user_id = $2`,
+      [listId, userId],
+    );
+    await client.query(
+      `
+        with ordered as (
+          select id, row_number() over (order by position, created_at, id) - 1 as position
+          from app_portfolio_lists where user_id = $1
+        )
+        update app_portfolio_lists list set position = ordered.position
+        from ordered where list.id = ordered.id
+      `,
+      [userId],
+    );
+    await client.query("commit");
+    return "deleted" as const;
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function bulkManagePortfolio(
+  userId: string,
+  request: PortfolioBulkRequest,
+) {
+  const client = await db.connect();
+  const requestHash = createHash("sha256")
+    .update(JSON.stringify({
+      action: request.action,
+      holdingIds: [...request.holdingIds].sort((a, b) => a - b),
+      sourceListId: request.sourceListId,
+      destinationListId: request.destinationListId ?? null,
+    }))
+    .digest();
+  try {
+    await client.query("begin");
+    await client.query(`select id from app_users where id = $1 for update`, [
+      userId,
+    ]);
+    const previous = await client.query<{
+      action: string;
+      request_hash: Buffer;
+      response: unknown;
+    }>(
+      `
+        select action, request_hash, response from app_portfolio_bulk_operations
+        where user_id = $1 and request_id = $2
+      `,
+      [userId, request.requestId],
+    );
+    if (previous.rows[0]) {
+      if (
+        previous.rows[0].action !== request.action ||
+        previous.rows[0].request_hash.length !== requestHash.length ||
+        !timingSafeEqual(previous.rows[0].request_hash, requestHash)
+      ) {
+        await client.query("rollback");
+        return { status: "conflict" as const };
+      }
+      await client.query("commit");
+      return { status: "ok" as const, result: previous.rows[0].response };
+    }
+    const source = await client.query<{ id: number }>(
+      `
+        select id from app_portfolio_items
+        where user_id = $1 and list_id = $2 and id = any($3::bigint[])
+        for update
+      `,
+      [userId, request.sourceListId, request.holdingIds],
+    );
+    if (source.rowCount !== request.holdingIds.length) {
+      await client.query("rollback");
+      return { status: "missing" as const };
+    }
+    if (request.destinationListId) {
+      const destination = await client.query(
+        `select id from app_portfolio_lists where id = $1 and user_id = $2`,
+        [request.destinationListId, userId],
+      );
+      if (destination.rowCount !== 1) {
+        await client.query("rollback");
+        return { status: "missing" as const };
+      }
+    }
+    let affected = 0;
+    if (request.action === "move") {
+      const result = await client.query(
+        `
+          update app_portfolio_items set list_id = $1, updated_at = now()
+          where user_id = $2 and list_id = $3 and id = any($4::bigint[])
+        `,
+        [
+          request.destinationListId,
+          userId,
+          request.sourceListId,
+          request.holdingIds,
+        ],
+      );
+      affected = result.rowCount ?? 0;
+    } else if (request.action === "copy") {
+      const result = await client.query(
+        `
+          insert into app_portfolio_items (
+            user_id, list_id, scryfall_id, quantity, purchase_price_eur,
+            condition, language, acquired_at, notes
+          )
+          select user_id, $1, scryfall_id, quantity, purchase_price_eur,
+            condition, language, acquired_at, notes
+          from app_portfolio_items
+          where user_id = $2 and list_id = $3 and id = any($4::bigint[])
+        `,
+        [
+          request.destinationListId,
+          userId,
+          request.sourceListId,
+          request.holdingIds,
+        ],
+      );
+      affected = result.rowCount ?? 0;
+    } else {
+      const result = await client.query(
+        `
+          delete from app_portfolio_items
+          where user_id = $1 and list_id = $2 and id = any($3::bigint[])
+        `,
+        [userId, request.sourceListId, request.holdingIds],
+      );
+      affected = result.rowCount ?? 0;
+    }
+    const response = { action: request.action, affected };
+    await client.query(
+      `
+        insert into app_portfolio_bulk_operations
+          (user_id, request_id, action, request_hash, response)
+        values ($1, $2, $3, $4, $5::jsonb)
+      `,
+      [
+        userId,
+        request.requestId,
+        request.action,
+        requestHash,
+        JSON.stringify(response),
+      ],
+    );
+    await client.query("commit");
+    return { status: "ok" as const, result: response };
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
 }

@@ -4,10 +4,15 @@
 
 import {
   ArrowLeft,
+  ChevronDown,
+  ChevronUp,
   Check,
+  Copy,
+  FolderInput,
   Pencil,
   Plus,
   Search,
+  Share2,
   Trash2,
   TrendingDown,
   TrendingUp,
@@ -28,7 +33,7 @@ import { CARD_LANGUAGES, type CardLanguage } from "@/lib/card-languages";
 import type { CatalogCard } from "@/lib/catalog";
 import { formatCurrency } from "@/lib/data";
 import { calculateSeriesMetrics } from "@/lib/financial-analytics";
-import type { PortfolioHolding } from "@/lib/portfolio";
+import type { PortfolioHolding, PortfolioList } from "@/lib/portfolio";
 import type { PortfolioForecast } from "@/lib/portfolio-forecast-model";
 import type { MlCardContext, MlRankingStatus } from "@/lib/ml-experience";
 import {
@@ -39,6 +44,8 @@ import {
 import styles from "./portfolio.module.css";
 
 type PortfolioData = {
+  lists: PortfolioList[];
+  selectedListId: string;
   holdings: Array<PortfolioHolding & { ml?: MlCardContext | null }>;
   summary: {
     invested: number;
@@ -128,6 +135,8 @@ const fallbackRanking: MlRankingStatus = {
 };
 
 const emptyPortfolio: PortfolioData = {
+  lists: [],
+  selectedListId: "",
   holdings: [],
   summary: {
     invested: 0,
@@ -286,17 +295,38 @@ export default function PortfolioPage() {
   const [editQuantity, setEditQuantity] = useState("");
   const [editPurchasePrice, setEditPurchasePrice] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [selectedHoldingIds, setSelectedHoldingIds] = useState<number[]>([]);
+  const [bulkDestination, setBulkDestination] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [newListName, setNewListName] = useState("");
+  const [managingLists, setManagingLists] = useState(false);
+  const [share, setShare] = useState<{
+    id: string;
+    expiresAt: string;
+    active: boolean;
+    url?: string;
+  } | null>(null);
+  const [shareNow, setShareNow] = useState(0);
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
-  const loadPortfolio = () =>
-    fetch("/api/portfolio")
-      .then((response) => response.json())
-      .then((result: PortfolioData) => setData(result))
+  const loadPortfolio = (listId?: string) =>
+    fetch(`/api/portfolio${listId ? `?listId=${encodeURIComponent(listId)}` : ""}`)
+      .then((response) => {
+        if (!response.ok) throw new Error("Unable to load portfolio");
+        return response.json();
+      })
+      .then((result: PortfolioData) => {
+        setData(result);
+        setSelectedHoldingIds([]);
+        window.localStorage.setItem("portfolio.activeListId", result.selectedListId);
+      })
       .finally(() => setLoading(false));
 
   useEffect(() => {
-    loadPortfolio().catch(() => setError("Unable to load portfolio"));
+    loadPortfolio(window.localStorage.getItem("portfolio.activeListId") ?? undefined)
+      .catch(() => loadPortfolio().catch(() => setError("Unable to load portfolio")));
   }, []);
 
   useEffect(() => {
@@ -361,6 +391,22 @@ export default function PortfolioPage() {
       trigger?.focus();
     };
   }, [showAdd]);
+
+  useEffect(() => {
+    if (!managingLists || !data.selectedListId) return;
+    fetch(`/api/portfolio/lists/${data.selectedListId}/shares`)
+      .then((response) => response.json())
+      .then((result: { shares?: Array<typeof share> }) =>
+        setShare(result.shares?.find((candidate) => candidate?.active) ?? null),
+      )
+      .catch(() => setShare(null));
+  }, [data.selectedListId, managingLists]);
+
+  useEffect(() => {
+    if (!share?.active) return;
+    const timer = window.setInterval(() => setShareNow(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, [share?.active]);
 
   const allocation = useMemo(
     () => {
@@ -441,6 +487,194 @@ export default function PortfolioPage() {
     return `conic-gradient(${stops.join(",")})`;
   }, [displayedAllocation]);
 
+  const activeList = data.lists.find(
+    (list) => list.id === data.selectedListId,
+  );
+  const otherLists = data.lists.filter(
+    (list) => list.id !== data.selectedListId,
+  );
+
+  const createList = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    const response = await fetch("/api/portfolio/lists", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newListName }),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      setError(result.error ?? "Unable to create list");
+      return;
+    }
+    setNewListName("");
+    setNotice(locale === "es" ? "Lista creada." : "List created.");
+    await loadPortfolio(result.list.id);
+  };
+
+  const renameList = async (list: PortfolioList) => {
+    const name = window.prompt(
+      locale === "es" ? "Nuevo nombre de la lista" : "New list name",
+      list.name,
+    )?.trim();
+    if (!name || name === list.name) return;
+    const response = await fetch(`/api/portfolio/lists/${list.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (!response.ok) {
+      const result = await response.json();
+      setError(result.error ?? "Unable to rename list");
+      return;
+    }
+    setNotice(locale === "es" ? "Lista renombrada." : "List renamed.");
+    await loadPortfolio(data.selectedListId);
+  };
+
+  const reorderList = async (listId: string, offset: -1 | 1) => {
+    const index = data.lists.findIndex((list) => list.id === listId);
+    const target = index + offset;
+    if (index < 0 || target < 0 || target >= data.lists.length) return;
+    const ordered = data.lists.map((list) => list.id);
+    [ordered[index], ordered[target]] = [ordered[target], ordered[index]];
+    const response = await fetch("/api/portfolio/lists", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderedIds: ordered }),
+    });
+    if (response.ok) await loadPortfolio(data.selectedListId);
+    else setError(locale === "es" ? "No se pudo reordenar." : "Unable to reorder.");
+  };
+
+  const deleteList = async (list: PortfolioList) => {
+    if (list.isDefault) return;
+    const destination = data.lists.find((candidate) => candidate.isDefault);
+    const message = list.holdingCount
+      ? locale === "es"
+        ? `Eliminar “${list.name}” moverá sus ${list.holdingCount} posiciones a “${destination?.name}”. ¿Continuar?`
+        : `Deleting “${list.name}” will move its ${list.holdingCount} holdings to “${destination?.name}”. Continue?`
+      : locale === "es"
+        ? `¿Eliminar la lista vacía “${list.name}”?`
+        : `Delete the empty list “${list.name}”?`;
+    if (!window.confirm(message)) return;
+    const response = await fetch(`/api/portfolio/lists/${list.id}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        list.holdingCount ? { destinationListId: destination?.id } : {},
+      ),
+    });
+    if (!response.ok) {
+      const result = await response.json();
+      setError(result.error ?? "Unable to delete list");
+      return;
+    }
+    setNotice(locale === "es" ? "Lista eliminada." : "List deleted.");
+    await loadPortfolio(
+      list.id === data.selectedListId ? destination?.id : data.selectedListId,
+    );
+  };
+
+  const runBulkAction = async (action: "move" | "copy" | "delete") => {
+    if (!selectedHoldingIds.length) return;
+    if (
+      action === "delete" &&
+      !window.confirm(
+        locale === "es"
+          ? `Eliminar permanentemente ${selectedHoldingIds.length} posiciones de la cartera?`
+          : `Permanently remove ${selectedHoldingIds.length} holdings from your portfolio?`,
+      )
+    ) return;
+    if (
+      action !== "delete" &&
+      (!bulkDestination || bulkDestination === data.selectedListId)
+    ) {
+      setError(locale === "es" ? "Elige otra lista." : "Choose another list.");
+      return;
+    }
+    setBulkBusy(true);
+    setError("");
+    const response = await fetch("/api/portfolio/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action,
+        holdingIds: selectedHoldingIds,
+        sourceListId: data.selectedListId,
+        destinationListId: action === "delete" ? undefined : bulkDestination,
+        requestId: crypto.randomUUID(),
+      }),
+    });
+    if (response.ok) {
+      setNotice(
+        locale === "es"
+          ? action === "copy"
+            ? "Posiciones copiadas; se conservan en la lista original."
+            : action === "move"
+              ? "Posiciones movidas a otra lista."
+              : "Posiciones eliminadas de la cartera."
+          : action === "copy"
+            ? "Holdings copied; originals remain in this list."
+            : action === "move"
+              ? "Holdings moved to another list."
+              : "Holdings removed from the portfolio.",
+      );
+      await loadPortfolio(data.selectedListId);
+    } else {
+      setError(locale === "es" ? "La acción masiva falló." : "Bulk action failed.");
+    }
+    setBulkBusy(false);
+  };
+
+  const createShare = async () => {
+    if (
+      share?.active &&
+      !window.confirm(
+        locale === "es"
+          ? "Crear un enlace nuevo revocará inmediatamente el enlace activo. ¿Continuar?"
+          : "Creating a new link immediately revokes the active link. Continue?",
+      )
+    ) return;
+    const response = await fetch(
+      `/api/portfolio/lists/${data.selectedListId}/shares`,
+      { method: "POST" },
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      setError(result.error ?? "Unable to create share link");
+      return;
+    }
+    setShare({ ...result.share, url: result.url });
+    setShareNow(Date.now());
+    setNotice(
+      locale === "es"
+        ? "Enlace creado. Caduca exactamente 24 horas después de su creación."
+        : "Link created. It expires exactly 24 hours after creation.",
+    );
+  };
+
+  const revokeShare = async () => {
+    if (!share || !window.confirm(
+      locale === "es"
+        ? "¿Revocar este enlace ahora?"
+        : "Revoke this link now?",
+    )) return;
+    const response = await fetch(
+      `/api/portfolio/lists/${data.selectedListId}/shares/${share.id}`,
+      { method: "DELETE" },
+    );
+    if (response.ok) {
+      setShare(null);
+      setNotice(locale === "es" ? "Enlace revocado." : "Link revoked.");
+    }
+  };
+
+  const shareCountdown = share?.active
+    ? Math.max(0, new Date(share.expiresAt).getTime() - shareNow)
+    : 0;
+  const shareCountdownLabel = `${Math.floor(shareCountdown / 3_600_000)}h ${Math.floor((shareCountdown % 3_600_000) / 60_000)}m ${Math.floor((shareCountdown % 60_000) / 1_000)}s`;
+
   const addHolding = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedCard) return;
@@ -456,10 +690,11 @@ export default function PortfolioPage() {
         condition: form.get("condition"),
         language: form.get("language"),
         acquiredAt: form.get("acquiredAt"),
+        listId: data.selectedListId,
       }),
     });
     if (response.ok) {
-      await loadPortfolio();
+      await loadPortfolio(data.selectedListId);
       setShowAdd(false);
       setSelectedCard(null);
       setCardQuery("");
@@ -470,8 +705,13 @@ export default function PortfolioPage() {
   };
 
   const removeHolding = async (id: number) => {
+    if (!window.confirm(
+      locale === "es"
+        ? "¿Eliminar esta posición de la cartera? Esta acción es permanente."
+        : "Remove this holding from the portfolio? This is permanent.",
+    )) return;
     const response = await fetch(`/api/portfolio/${id}`, { method: "DELETE" });
-    if (response.ok) await loadPortfolio();
+    if (response.ok) await loadPortfolio(data.selectedListId);
   };
 
   const patchHolding = async (
@@ -532,7 +772,7 @@ export default function PortfolioPage() {
         body: JSON.stringify(update),
       });
       if (!response.ok) throw new Error("Update failed");
-      await loadPortfolio();
+      await loadPortfolio(data.selectedListId);
       setEditingHolding(null);
     } catch {
       setData(previous);
@@ -593,6 +833,7 @@ export default function PortfolioPage() {
         purchasePrice: candidate.price,
         condition: "near_mint",
         language: "en",
+        listId: data.selectedListId,
       }),
     });
     if (response.ok) {
@@ -603,7 +844,7 @@ export default function PortfolioPage() {
         context: candidate.ml ?? undefined,
         rankPosition,
       });
-      await loadPortfolio();
+      await loadPortfolio(data.selectedListId);
     }
   };
 
@@ -625,6 +866,98 @@ export default function PortfolioPage() {
             <button ref={addButtonRef} className="primary-button" onClick={() => setShowAdd(true)}><Plus size={16} /> {t("Add holding")}</button>
           </div>
         </div>
+
+        {!loading && data.lists.length > 0 && (
+          <section className={styles.listWorkspace} aria-label={locale === "es" ? "Listas de cartera" : "Portfolio lists"}>
+            <div className={styles.listSwitcher}>
+              <label>
+                <span>{locale === "es" ? "Lista activa" : "Active list"}</span>
+                <select
+                  value={data.selectedListId}
+                  onChange={(event) => {
+                    setLoading(true);
+                    void loadPortfolio(event.target.value).catch(() =>
+                      setError(locale === "es" ? "No se pudo cambiar de lista." : "Unable to switch list."),
+                    );
+                  }}
+                >
+                  {data.lists.map((list) => (
+                    <option key={list.id} value={list.id}>
+                      {list.name} ({list.holdingCount})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button type="button" onClick={() => setManagingLists((value) => !value)} aria-expanded={managingLists}>
+                {locale === "es" ? "Gestionar listas" : "Manage lists"}
+              </button>
+            </div>
+            {managingLists && (
+              <div className={styles.listManager}>
+                <form onSubmit={createList}>
+                  <label>
+                    <span>{locale === "es" ? "Nueva lista" : "New list"}</span>
+                    <input
+                      value={newListName}
+                      maxLength={80}
+                      onChange={(event) => setNewListName(event.target.value)}
+                      placeholder={locale === "es" ? "Por ejemplo, Modern" : "For example, Modern"}
+                    />
+                  </label>
+                  <button className="primary-button" disabled={!newListName.trim()}>
+                    <Plus size={15} /> {locale === "es" ? "Crear" : "Create"}
+                  </button>
+                </form>
+                <div>
+                  {data.lists.map((list, index) => (
+                    <div className={styles.listManagerRow} key={list.id}>
+                      <span><strong>{list.name}</strong><small>{list.holdingCount} {locale === "es" ? "posiciones" : "holdings"}{list.isDefault ? ` · ${locale === "es" ? "predeterminada" : "default"}` : ""}</small></span>
+                      <button type="button" disabled={index === 0} onClick={() => void reorderList(list.id, -1)} aria-label={`${locale === "es" ? "Subir" : "Move up"} ${list.name}`}><ChevronUp size={15} /></button>
+                      <button type="button" disabled={index === data.lists.length - 1} onClick={() => void reorderList(list.id, 1)} aria-label={`${locale === "es" ? "Bajar" : "Move down"} ${list.name}`}><ChevronDown size={15} /></button>
+                      <button type="button" onClick={() => void renameList(list)} aria-label={`${locale === "es" ? "Renombrar" : "Rename"} ${list.name}`}><Pencil size={14} /></button>
+                      <button type="button" disabled={list.isDefault || data.lists.length === 1} onClick={() => void deleteList(list)} aria-label={`${locale === "es" ? "Eliminar" : "Delete"} ${list.name}`}><Trash2 size={15} /></button>
+                    </div>
+                  ))}
+                </div>
+                <section className={styles.shareManager}>
+                  <div>
+                    <Share2 size={16} />
+                    <span>
+                      <strong>{locale === "es" ? `Compartir “${activeList?.name}”` : `Share “${activeList?.name}”`}</strong>
+                      <small>{locale === "es" ? "Vista pública en vivo, de solo lectura y sin datos financieros privados." : "Live, public read-only view with no private financial data."}</small>
+                    </span>
+                  </div>
+                  {share?.active ? (
+                    <>
+                      <p role="status">
+                        {locale === "es" ? "Caduca en " : "Expires in "}
+                        <strong>{shareCountdownLabel}</strong>
+                        {" · "}
+                        {new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(share.expiresAt))}
+                      </p>
+                      {share.url ? (
+                        <div className={styles.shareLink}>
+                          <input readOnly value={share.url} aria-label={locale === "es" ? "Enlace compartido" : "Share link"} />
+                          <button type="button" onClick={() => void navigator.clipboard.writeText(share.url!).then(() => setNotice(locale === "es" ? "Enlace copiado." : "Link copied."))}>{locale === "es" ? "Copiar" : "Copy"}</button>
+                        </div>
+                      ) : (
+                        <p>{locale === "es" ? "Por seguridad, el enlace completo solo se muestra al crearlo. Puedes reemplazarlo." : "For security, the full link is shown only when created. You can replace it."}</p>
+                      )}
+                      <div className={styles.shareActions}>
+                        <button type="button" onClick={() => void createShare()}>{locale === "es" ? "Reemplazar enlace" : "Replace link"}</button>
+                        <button type="button" onClick={() => void revokeShare()}>{locale === "es" ? "Revocar ahora" : "Revoke now"}</button>
+                      </div>
+                    </>
+                  ) : (
+                    <button type="button" className={styles.createShareButton} onClick={() => void createShare()}>
+                      <Share2 size={15} /> {locale === "es" ? "Crear enlace de 24 horas" : "Create 24-hour link"}
+                    </button>
+                  )}
+                </section>
+              </div>
+            )}
+          </section>
+        )}
 
         {loading ? (
           <div className="portfolio-loading">{locale === "es" ? "Preparando tu espacio…" : "Preparing your workspace…"}</div>
@@ -773,9 +1106,28 @@ export default function PortfolioPage() {
             </section>
 
             <section className="fintech-panel holdings-table">
-              <div className="section-title"><div><span className="eyebrow">{t("Your collection")}</span><h2>{locale === "es" ? "Posiciones" : "Holdings"}</h2></div><span>{data.holdings.length} {locale === "es" ? "lotes" : "lots"}</span></div>
+              <div className="section-title"><div><span className="eyebrow">{t("Your collection")}</span><h2>{locale === "es" ? "Posiciones" : "Holdings"} · {activeList?.name}</h2></div><span>{data.holdings.length} {locale === "es" ? "lotes" : "lots"}</span></div>
+            <div className={styles.selectionControls}>
+              <button type="button" onClick={() => setSelectedHoldingIds(data.holdings.map((holding) => holding.id))}>{locale === "es" ? "Seleccionar todo" : "Select all"}</button>
+              <button type="button" disabled={!selectedHoldingIds.length} onClick={() => setSelectedHoldingIds([])}>{locale === "es" ? "Limpiar selección" : "Clear selection"}</button>
+              <span role="status">{selectedHoldingIds.length} {locale === "es" ? "seleccionadas" : "selected"}</span>
+            </div>
             <div className="holdings-list">
               {data.holdings.map((holding) => <div className={`portfolio-row card-surface ${styles.holdingRow} ${updatingHolding === holding.id ? styles.updating : ""}`} key={holding.id} {...cardSurfaceProps(holding.cardId)}>
+                <label className={styles.selectionBox} onClick={(event) => event.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selectedHoldingIds.includes(holding.id)}
+                    onChange={(event) =>
+                      setSelectedHoldingIds((current) =>
+                        event.target.checked
+                          ? [...current, holding.id]
+                          : current.filter((id) => id !== holding.id),
+                      )
+                    }
+                    aria-label={`${locale === "es" ? "Seleccionar" : "Select"} ${holding.name}`}
+                  />
+                </label>
                 {holding.imageUrl && <img src={holding.imageUrl} alt="" />}
                 <div className="holding-identity">
                   <strong>{holding.name}</strong>
@@ -808,8 +1160,21 @@ export default function PortfolioPage() {
               </div>)}
             </div>
             </section>
+            {selectedHoldingIds.length > 0 && (
+              <div className={styles.bulkBar} role="region" aria-label={locale === "es" ? "Acciones masivas" : "Bulk actions"}>
+                <strong>{selectedHoldingIds.length} {locale === "es" ? "seleccionadas" : "selected"}</strong>
+                <select value={bulkDestination} onChange={(event) => setBulkDestination(event.target.value)} aria-label={locale === "es" ? "Lista de destino" : "Destination list"}>
+                  <option value="">{locale === "es" ? "Elige destino…" : "Choose destination…"}</option>
+                  {otherLists.map((list) => <option key={list.id} value={list.id}>{list.name}</option>)}
+                </select>
+                <button type="button" disabled={bulkBusy || !bulkDestination} onClick={() => void runBulkAction("move")}><FolderInput size={15} /> {locale === "es" ? "Mover" : "Move"}</button>
+                <button type="button" disabled={bulkBusy || !bulkDestination} onClick={() => void runBulkAction("copy")}><Copy size={15} /> {locale === "es" ? "Copiar" : "Copy"}</button>
+                <button type="button" disabled={bulkBusy} onClick={() => void runBulkAction("delete")}><Trash2 size={15} /> {locale === "es" ? "Eliminar de cartera" : "Remove from portfolio"}</button>
+              </div>
+            )}
           </>
         )}
+        {notice && <div className={styles.notice} role="status">{notice}</div>}
         {error && <div className="inline-error">{error}</div>}
       </div>
 
@@ -822,6 +1187,7 @@ export default function PortfolioPage() {
             {!selectedCard && results.length > 0 && <div className="holding-results">{results.map((card) => <button type="button" key={card.id} onClick={() => { setSelectedCard(card); setCardQuery(`${card.name} · ${card.setCode.toUpperCase()}`); setResults([]); }}>{card.imageUrl && <img src={card.imageUrl} alt="" />}<span><strong>{card.name}</strong><small>{card.setName}</small></span><b>{card.price === null ? "—" : formatCurrency(card.price)}</b></button>)}</div>}
             <div className="form-grid"><label>Quantity<input name="quantity" type="number" min="1" defaultValue="1" required /></label><label>{locale === "es" ? "Precio de compra unitario" : "Unit purchase price"}<input key={selectedCard?.id ?? "no-card"} name="purchasePrice" type="number" min="0" step=".01" defaultValue={selectedCard?.price ?? ""} required /></label></div>
             <div className="form-grid"><label>Condition<select name="condition"><option value="near_mint">Near Mint</option><option value="excellent">Excellent</option><option value="good">Good</option><option value="light_played">Light Played</option></select></label><label>{locale === "es" ? "Idioma" : "Language"}<select name="language">{CARD_LANGUAGES.map((language) => <option key={language.code} value={language.code}>{language[locale]}</option>)}</select></label></div>
+            <label>{locale === "es" ? "Lista de destino" : "Destination list"}<select name="listId" value={data.selectedListId} onChange={(event) => void loadPortfolio(event.target.value)}>{data.lists.map((list) => <option key={list.id} value={list.id}>{list.name}</option>)}</select></label>
             <label>{locale === "es" ? "Fecha de compra" : "Purchase date"}<input name="acquiredAt" type="date" defaultValue={new Date().toISOString().slice(0, 10)} /></label>
             <button className="primary-button form-submit" disabled={!selectedCard || saving}>{saving ? "Saving…" : t("Add holding")}</button>
           </form>
@@ -830,10 +1196,12 @@ export default function PortfolioPage() {
       {showImport && (
         <PortfolioImportModal
           locale={locale}
+          lists={data.lists}
+          selectedListId={data.selectedListId}
           onClose={() => setShowImport(false)}
           onComplete={async () => {
             setLoading(true);
-            await loadPortfolio();
+            await loadPortfolio(data.selectedListId);
           }}
         />
       )}

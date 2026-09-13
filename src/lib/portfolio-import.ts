@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createHash, timingSafeEqual } from "node:crypto";
 import { db, query } from "@/lib/db";
 import type {
   ConfirmedPortfolioImportRow,
@@ -36,7 +37,21 @@ type CandidateRow = {
 export async function resolvePortfolioImport(
   userId: string,
   rows: PortfolioImportRow[],
+  listId?: string,
 ): Promise<ResolvedPortfolioImportRow[]> {
+  await query(
+    `
+      insert into app_portfolio_lists (user_id, name, position, is_default)
+      select id,
+        case when locale = 'es' then 'Mi colección' else 'My collection' end,
+        0, true
+      from app_users
+      where id = $1
+        and not exists (select 1 from app_portfolio_lists where user_id = $1)
+      on conflict do nothing
+    `,
+    [userId],
+  );
   const payload = rows.map((row) => ({
     input_row: row.row,
     name: row.name,
@@ -76,7 +91,13 @@ export async function resolvePortfolioImport(
           count(*) over ()::integer as candidate_count,
           exists (
             select 1 from app_portfolio_items item
-            where item.user_id = $1 and item.scryfall_id = c.scryfall_id
+            where item.user_id = $1
+              and item.list_id = coalesce(
+                $3::uuid,
+                (select id from app_portfolio_lists
+                 where user_id = $1 and is_default)
+              )
+              and item.scryfall_id = c.scryfall_id
           ) as existing
         from cards c
         where lower(c.name) = lower(input.name)
@@ -98,7 +119,7 @@ export async function resolvePortfolioImport(
       ) candidate on true
       order by input.input_row, candidate.id
     `,
-    [userId, JSON.stringify(payload)],
+    [userId, JSON.stringify(payload), listId ?? null],
   );
 
   const candidates = new Map<number, CandidateRow[]>();
@@ -137,10 +158,68 @@ export async function importPortfolioItems(
   userId: string,
   rows: ConfirmedPortfolioImportRow[],
   existingStrategy: "add" | "skip",
+  listId?: string,
+  requestId?: string,
 ) {
+  const requestHash = createHash("sha256")
+    .update(JSON.stringify({ rows, existingStrategy, listId: listId ?? null }))
+    .digest();
   const client = await db.connect();
   try {
     await client.query("begin");
+    await client.query(`select id from app_users where id = $1 for update`, [
+      userId,
+    ]);
+    if (requestId) {
+      const previous = await client.query<{
+        request_hash: Buffer;
+        response: { inserted: number; skipped: number };
+      }>(
+        `
+          select request_hash, response
+          from app_portfolio_import_operations
+          where user_id = $1 and request_id = $2
+        `,
+        [userId, requestId],
+      );
+      if (previous.rows[0]) {
+        if (
+          previous.rows[0].request_hash.length !== requestHash.length ||
+          !timingSafeEqual(previous.rows[0].request_hash, requestHash)
+        ) {
+          await client.query("rollback");
+          return { inserted: 0, skipped: 0, error: "idempotency_conflict" as const };
+        }
+        await client.query("commit");
+        return previous.rows[0].response;
+      }
+    }
+    await client.query(
+      `
+        insert into app_portfolio_lists (user_id, name, position, is_default)
+        select id,
+          case when locale = 'es' then 'Mi colección' else 'My collection' end,
+          0, true
+        from app_users
+        where id = $1
+          and not exists (select 1 from app_portfolio_lists where user_id = $1)
+        on conflict do nothing
+      `,
+      [userId],
+    );
+    const destination = await client.query<{ id: string }>(
+      `
+        select id::text from app_portfolio_lists
+        where user_id = $1
+          and (($2::uuid is not null and id = $2)
+            or ($2::uuid is null and is_default))
+      `,
+      [userId, listId ?? null],
+    );
+    if (destination.rowCount !== 1) {
+      await client.query("rollback");
+      return { inserted: 0, skipped: 0, error: "list_not_found" as const };
+    }
     const cardIds = [...new Set(rows.map((row) => row.cardId))];
     const cards = await client.query<{ id: string }>(
       `select scryfall_id::text as id from cards where scryfall_id = any($1::uuid[])`,
@@ -150,39 +229,65 @@ export async function importPortfolioItems(
       throw new Error("One or more cards no longer exist");
     }
 
-    let inserted = 0;
-    let skipped = 0;
-    for (const row of rows) {
-      const result = await client.query(
-        `
-          insert into app_portfolio_items (
-            user_id, scryfall_id, quantity, purchase_price_eur,
-            condition, language, acquired_at
+    const result = await client.query(
+      `
+        with input as (
+          select *
+          from jsonb_to_recordset($3::jsonb) as value(
+            card_id uuid,
+            quantity integer,
+            purchase_price numeric,
+            condition text,
+            language text,
+            acquired_at date
           )
-          select $1, $2, $3, $4, $5, $6, coalesce($7::date, current_date)
-          where $8::text = 'add'
-            or not exists (
-              select 1 from app_portfolio_items
-              where user_id = $1 and scryfall_id = $2
-            )
-          returning id
+        )
+        insert into app_portfolio_items (
+          user_id, list_id, scryfall_id, quantity, purchase_price_eur,
+          condition, language, acquired_at
+        )
+        select $1, $2, input.card_id, input.quantity, input.purchase_price,
+          input.condition, input.language, coalesce(input.acquired_at, current_date)
+        from input
+        where $4::text = 'add'
+          or not exists (
+            select 1 from app_portfolio_items item
+            where item.user_id = $1
+              and item.list_id = $2
+              and item.scryfall_id = input.card_id
+          )
+      `,
+      [
+        userId,
+        destination.rows[0].id,
+        JSON.stringify(
+          rows.map((row) => ({
+            card_id: row.cardId,
+            quantity: row.quantity,
+            purchase_price: row.purchasePrice,
+            condition: row.condition,
+            language: row.language,
+            acquired_at: row.acquiredAt ?? null,
+          })),
+        ),
+        existingStrategy,
+      ],
+    );
+    const inserted = result.rowCount ?? 0;
+    const skipped = rows.length - inserted;
+    const response = { inserted, skipped };
+    if (requestId) {
+      await client.query(
+        `
+          insert into app_portfolio_import_operations
+            (user_id, request_id, request_hash, response)
+          values ($1, $2, $3, $4::jsonb)
         `,
-        [
-          userId,
-          row.cardId,
-          row.quantity,
-          row.purchasePrice,
-          row.condition,
-          row.language,
-          row.acquiredAt ?? null,
-          existingStrategy,
-        ],
+        [userId, requestId, requestHash, JSON.stringify(response)],
       );
-      if (result.rowCount === 1) inserted += 1;
-      else skipped += 1;
     }
     await client.query("commit");
-    return { inserted, skipped };
+    return response;
   } catch (error) {
     await client.query("rollback");
     throw error;

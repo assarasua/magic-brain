@@ -8,6 +8,7 @@ import {
   importPortfolioItems,
   resolvePortfolioImport,
 } from "@/lib/portfolio-import";
+import { isUuid } from "@/lib/portfolio-list-model";
 import { attachSessionCookie, getOrCreateUser } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -42,7 +43,8 @@ export async function POST(request: NextRequest) {
 
     if (record.action === "preview") {
       if (
-        Object.keys(record).some((key) => !["action", "rows"].includes(key))
+        Object.keys(record).some((key) => !["action", "rows", "listId"].includes(key)) ||
+        (record.listId !== undefined && !isUuid(record.listId))
       ) {
         return NextResponse.json(
           { error: "Invalid import request" },
@@ -57,7 +59,13 @@ export async function POST(request: NextRequest) {
         );
       }
       return attachSessionCookie(
-        NextResponse.json({ rows: await resolvePortfolioImport(user.id, rows) }),
+        NextResponse.json({
+          rows: await resolvePortfolioImport(
+            user.id,
+            rows,
+            typeof record.listId === "string" ? record.listId : undefined,
+          ),
+        }),
         newToken,
       );
     }
@@ -65,9 +73,18 @@ export async function POST(request: NextRequest) {
     if (record.action === "confirm") {
       if (
         Object.keys(record).some(
-          (key) => !["action", "rows", "existingStrategy"].includes(key),
+          (key) =>
+            ![
+              "action",
+              "rows",
+              "existingStrategy",
+              "listId",
+              "requestId",
+            ].includes(key),
         ) ||
-        (record.existingStrategy !== "add" && record.existingStrategy !== "skip")
+        (record.existingStrategy !== "add" && record.existingStrategy !== "skip") ||
+        (record.listId !== undefined && !isUuid(record.listId)) ||
+        !isUuid(record.requestId)
       ) {
         return NextResponse.json(
           { error: "Invalid import request" },
@@ -86,7 +103,21 @@ export async function POST(request: NextRequest) {
         user.id,
         rows,
         record.existingStrategy,
+        typeof record.listId === "string" ? record.listId : undefined,
+        record.requestId,
       );
+      if ("error" in result) {
+        if (result.error === "idempotency_conflict") {
+          return NextResponse.json(
+            { error: "Idempotency key was already used for another import" },
+            { status: 409 },
+          );
+        }
+        return NextResponse.json(
+          { error: "Portfolio list not found" },
+          { status: 404 },
+        );
+      }
       return attachSessionCookie(
         NextResponse.json(result, { status: 201 }),
         newToken,
