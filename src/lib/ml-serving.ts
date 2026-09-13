@@ -37,6 +37,11 @@ type ScoreRow = {
   score_date: string;
 };
 
+export type MlServingDecision = MlRankingStatus & {
+  cohort: "off" | "control" | "ml";
+  scoreGeneratedAt: string | null;
+};
+
 const configuredCohortPercent = () => {
   const value = Number(process.env.ML_RANKING_COHORT_PERCENT ?? "0");
   return Number.isInteger(value) && value >= 0 && value <= 100 ? value : 0;
@@ -185,10 +190,12 @@ export async function getPersonalizedBatchSignals(
   if (!assignment.enabled) {
     return { signals: [], ranking: {
       source: "deterministic",
+      cohort: assignment.reason === "experiment_off" ? "off" : "control",
       reason: assignment.reason,
       modelVersion: null,
       scoreDate: null,
-    } satisfies MlRankingStatus };
+      scoreGeneratedAt: null,
+    } satisfies MlServingDecision };
   }
 
   const maximumPrice = Math.min(
@@ -265,10 +272,12 @@ export async function getPersonalizedBatchSignals(
   if (!rows.length) {
     return { signals: [], ranking: {
       source: "deterministic",
+      cohort: "ml",
       reason: "scores_missing_or_stale",
       modelVersion: null,
       scoreDate: null,
-    } satisfies MlRankingStatus };
+      scoreGeneratedAt: null,
+    } satisfies MlServingDecision };
   }
   return {
     signals: rows.map((row) => ({
@@ -306,9 +315,11 @@ export async function getPersonalizedBatchSignals(
     })),
     ranking: {
       source: "ml_batch",
+      cohort: "ml",
       reason: null,
       modelVersion: rows[0].model_version,
       scoreDate: rows[0].score_date,
-    } satisfies MlRankingStatus,
+      scoreGeneratedAt: rows[0].generated_at,
+    } satisfies MlServingDecision,
   };
 }
