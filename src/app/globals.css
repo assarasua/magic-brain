@@ -8131,6 +8131,16 @@ button:active,
   .watch-alert-editor {
     padding: 11px;
   }
+
+  .mobile-tab-bar > a.premium {
+    color: #c8a85f;
+  }
+
+  .mobile-tab-bar > a.premium.active {
+    color: #ffe3a3;
+    background: rgba(242, 198, 109, 0.12);
+    box-shadow: inset 0 0 0 1px rgba(242, 198, 109, 0.12);
+  }
 }
 
 /* Release fixes: responsive discovery deck and live mover controls */

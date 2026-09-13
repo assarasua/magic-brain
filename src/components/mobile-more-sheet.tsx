@@ -6,6 +6,7 @@ import {
   Crown,
   Heart,
   HeartHandshake,
+  LibraryBig,
   ListChecks,
   Settings,
   Sparkles,
@@ -21,6 +22,7 @@ const groups = [
   {
     label: "Explore",
     links: [
+      { href: "/inventory", label: "Inventory", icon: LibraryBig, premium: false },
       { href: "/discover", label: "Discover", icon: Compass, premium: true },
       { href: "/watchlist", label: "Watchlist", icon: Heart, premium: false },
       { href: "/reserved", label: "Reserved List", icon: ListChecks, premium: false },

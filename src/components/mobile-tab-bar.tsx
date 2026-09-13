@@ -2,8 +2,8 @@
 
 import {
   ChartNoAxesCombined,
+  Crown,
   House,
-  LibraryBig,
   Menu,
   WalletCards,
 } from "lucide-react";
@@ -14,13 +14,13 @@ import { useLanguage } from "@/components/language-provider";
 import { MobileMoreSheet } from "@/components/mobile-more-sheet";
 
 const tabs = [
-  { href: "/", label: "Overview", icon: House },
-  { href: "/market", label: "Market", icon: ChartNoAxesCombined },
-  { href: "/inventory", label: "Inventory", icon: LibraryBig },
-  { href: "/portfolio", label: "Portfolio", icon: WalletCards },
+  { href: "/", label: "Overview", icon: House, premium: false },
+  { href: "/market", label: "Market", icon: ChartNoAxesCombined, premium: false },
+  { href: "/portfolio", label: "Portfolio", icon: WalletCards, premium: false },
+  { href: "/brain-pro", label: "Brain Pro", icon: Crown, premium: true },
 ];
 
-const moreRoutes = ["/discover", "/watchlist", "/reserved", "/brain-pro", "/brain", "/signals", "/analyst", "/pro", "/settings", "/donate"];
+const moreRoutes = ["/inventory", "/discover", "/watchlist", "/reserved", "/brain", "/signals", "/analyst", "/pro", "/settings", "/donate"];
 
 export function MobileTabBar() {
   const pathname = usePathname();
@@ -33,13 +33,13 @@ export function MobileTabBar() {
 
   return (
     <nav className="mobile-tab-bar" aria-label="Primary navigation">
-      {tabs.map(({ href, label, icon: Icon }) => {
+      {tabs.map(({ href, label, icon: Icon, premium }) => {
         const active =
           href === "/"
             ? pathname === "/"
             : pathname === href || pathname.startsWith(`${href}/`);
         return (
-          <Link href={href} className={active ? "active" : ""} aria-current={active ? "page" : undefined} key={href}>
+          <Link href={href} className={[active ? "active" : "", premium ? "premium" : ""].filter(Boolean).join(" ")} aria-current={active ? "page" : undefined} key={href}>
             <Icon size={20} strokeWidth={active ? 2.3 : 1.8} />
             <span>{t(label)}</span>
           </Link>
