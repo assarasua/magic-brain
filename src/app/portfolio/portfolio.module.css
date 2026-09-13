@@ -1,0 +1,200 @@
+.opportunityPanel {
+  margin: 0 0 16px;
+  padding: 22px;
+}
+
+.methodology {
+  max-width: 920px;
+  margin: 4px 0 16px;
+  color: #7d8998;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.opportunityGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.opportunityGrid article {
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.opportunityGrid article[data-classification="strong_growth"] {
+  border-color: rgba(79, 218, 164, 0.2);
+}
+
+.opportunityGrid article[data-classification="recovery_opportunity"] {
+  border-color: rgba(72, 185, 255, 0.2);
+}
+
+.opportunityGrid article[data-classification="lost_momentum"] {
+  border-color: rgba(255, 138, 114, 0.2);
+}
+
+.opportunityGrid span,
+.opportunityGrid strong,
+.opportunityGrid small,
+.opportunityGrid em {
+  display: block;
+}
+
+.opportunityGrid span {
+  color: #8995a4;
+  font-size: 10px;
+}
+
+.opportunityGrid strong {
+  margin: 8px 0 3px;
+  font-size: 22px;
+}
+
+.opportunityGrid small,
+.opportunityGrid em {
+  color: #697687;
+  font-size: 9px;
+  font-style: normal;
+  line-height: 1.5;
+}
+
+.holdingRow {
+  grid-template-columns:
+    34px minmax(210px, 1fr) minmax(190px, 0.65fr)
+    minmax(85px, 0.3fr) minmax(85px, 0.3fr) auto;
+  transition: opacity 150ms ease;
+}
+
+.updating {
+  opacity: 0.68;
+}
+
+.momentum {
+  color: #8293a7 !important;
+  line-height: 1.45;
+}
+
+.editFields {
+  display: flex;
+  gap: 7px;
+}
+
+.editFields label {
+  min-width: 0;
+}
+
+.editFields label:first-child {
+  width: 66px;
+}
+
+.editFields label:last-child {
+  width: 104px;
+}
+
+.editFields input {
+  width: 100%;
+  height: 30px;
+  padding: 0 7px;
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  border-radius: 7px;
+  outline: none;
+  color: #edf3f8;
+  background: #0d1118;
+  font-size: 10px;
+}
+
+.editFields input:focus {
+  border-color: #8b5cf6;
+}
+
+.actions {
+  position: relative;
+  display: flex;
+  gap: 3px;
+}
+
+.savingIndicator {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 3px);
+  color: #9ca8b7 !important;
+  font-size: 8px !important;
+  white-space: nowrap;
+}
+
+.actions button {
+  width: 29px;
+  height: 29px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  color: #77889b;
+  background: transparent;
+  cursor: pointer;
+}
+
+.actions button:hover {
+  color: #d8e5ee;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.actions button:disabled {
+  cursor: wait;
+  opacity: 0.45;
+}
+
+@media (max-width: 900px) {
+  .holdingRow {
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "image identity actions"
+      "image cost actions"
+      "image value actions"
+      "image pnl actions";
+    padding: 12px 0;
+  }
+
+  .holdingRow > img {
+    grid-area: image;
+  }
+
+  .holdingRow > div:nth-of-type(1) {
+    grid-area: identity;
+  }
+
+  .holdingRow > div:nth-of-type(2) {
+    grid-area: cost;
+    display: block;
+  }
+
+  .holdingRow > div:nth-of-type(3) {
+    grid-area: value;
+    display: block;
+  }
+
+  .holdingRow > div:nth-of-type(4) {
+    grid-area: pnl;
+  }
+
+  .holdingRow > div:nth-of-type(5) {
+    grid-area: actions;
+  }
+}
+
+@media (max-width: 640px) {
+  .opportunityGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .holdingRow {
+    min-height: 180px !important;
+  }
+
+  .editFields {
+    flex-wrap: wrap;
+  }
+}
