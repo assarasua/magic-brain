@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
 
     const stripe = new Stripe(requiredEnv("STRIPE_RESTRICTED_KEY"), {
       apiVersion: "2026-08-26.dahlia",
+      httpClient: Stripe.createFetchHttpClient(),
     });
     const origin = process.env.NEXT_PUBLIC_APP_URL ?? request.nextUrl.origin;
     const suffix = Array.from(randomBytes(8), (byte) =>
@@ -75,6 +76,18 @@ export async function POST(request: NextRequest) {
       newToken,
     );
   } catch (error) {
+    console.error("[stripe-donation] Unable to create payment session", {
+      name: error instanceof Error ? error.name : typeof error,
+      message: error instanceof Error ? error.message : "Unknown error",
+      code:
+        typeof error === "object" && error !== null && "code" in error
+          ? String(error.code)
+          : undefined,
+      type:
+        typeof error === "object" && error !== null && "type" in error
+          ? String(error.type)
+          : undefined,
+    });
     const message =
       error instanceof Error && error.message.includes("is not configured")
         ? error.message

@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
     const { user, newToken } = await getOrCreateUser(request);
     const stripe = new Stripe(requiredEnv("STRIPE_RESTRICTED_KEY"), {
       apiVersion: "2026-08-26.dahlia",
+      httpClient: Stripe.createFetchHttpClient(),
     });
     const price = requiredEnv("STRIPE_PRO_PRICE_ID");
     const origin = process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin;
@@ -51,6 +52,18 @@ export async function POST(request: NextRequest) {
       newToken,
     );
   } catch (error) {
+    console.error("[stripe-checkout] Unable to create subscription session", {
+      name: error instanceof Error ? error.name : typeof error,
+      message: error instanceof Error ? error.message : "Unknown error",
+      code:
+        typeof error === "object" && error !== null && "code" in error
+          ? String(error.code)
+          : undefined,
+      type:
+        typeof error === "object" && error !== null && "type" in error
+          ? String(error.type)
+          : undefined,
+    });
     const message =
       error instanceof Error && error.message.includes("is not configured")
         ? error.message
