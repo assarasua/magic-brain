@@ -1,5 +1,12 @@
 import { createHash } from "node:crypto";
 import { query } from "@/lib/db";
+import {
+  deterministicRanking,
+  normalizeDrivers,
+  type MlCardContext,
+  type MlExperience,
+  type MlRankingStatus,
+} from "@/lib/ml-experience";
 import type { UserPreferences } from "@/lib/user-preferences";
 
 const MIN_CONFIDENCE = 0.6;
@@ -30,17 +37,6 @@ type ScoreRow = {
   score_date: string;
 };
 
-export type MlRankingStatus = {
-  source: "ml_batch" | "deterministic";
-  reason:
-    | null
-    | "experiment_off"
-    | "outside_cohort"
-    | "scores_missing_or_stale";
-  modelVersion: string | null;
-  scoreDate: string | null;
-};
-
 const configuredCohortPercent = () => {
   const value = Number(process.env.ML_RANKING_COHORT_PERCENT ?? "0");
   return Number.isInteger(value) && value >= 0 && value <= 100 ? value : 0;
@@ -62,6 +58,122 @@ export function mlExperimentAssignment(userId: string) {
     return { enabled: false, reason: "outside_cohort" as const };
   }
   return { enabled: true, reason: null };
+}
+
+export const unavailableMlExperience = (): MlExperience => ({
+  ranking: deterministicRanking("scores_missing_or_stale"),
+  scores: {},
+});
+
+type ContextScoreRow = {
+  card_id: string;
+  score_id: string;
+  model_version: string;
+  rank_score: string;
+  confidence: string;
+  probability_positive_30d: string | null;
+  expected_downside_90d: string | null;
+  feature_contributions: unknown;
+  generated_at: string;
+  score_date: string;
+};
+
+export async function getMlExperienceForCards(
+  userId: string,
+  cardIds: string[],
+): Promise<MlExperience> {
+  const assignment = mlExperimentAssignment(userId);
+  if (!assignment.enabled) {
+    return {
+      ranking: deterministicRanking(assignment.reason ?? "experiment_off"),
+      scores: {},
+    };
+  }
+  const uniqueIds = [...new Set(cardIds)].slice(0, 100);
+  if (!uniqueIds.length) {
+    return {
+      ranking: deterministicRanking("scores_missing_or_stale"),
+      scores: {},
+    };
+  }
+  const { rows } = await query<ContextScoreRow>(
+    `
+      with latest_scores as (
+        select scores.score_date, scores.model_version
+        from app_ml_card_user_scores scores
+        join app_ml_model_versions model on model.version = scores.model_version
+        where scores.user_id = $1
+          and model.status = 'ready'
+          and model.verified_at is not null
+          and model.promotion_evidence->>'dataset_kind' = 'real'
+          and scores.score_date >= current_date - 2
+          and scores.generated_at >= now() - ($2::text || ' hours')::interval
+          and (scores.expires_at is null or scores.expires_at > now())
+        order by scores.score_date desc, model.verified_at desc, model.version desc
+        limit 1
+      )
+      select
+        scores.scryfall_id::text as card_id,
+        scores.id::text as score_id,
+        scores.model_version,
+        scores.rank_score,
+        scores.confidence,
+        scores.probability_positive_30d,
+        scores.expected_downside_90d,
+        scores.feature_contributions,
+        scores.generated_at::text,
+        scores.score_date::text
+      from latest_scores
+      join app_ml_card_user_scores scores
+        on scores.user_id = $1
+       and scores.score_date = latest_scores.score_date
+       and scores.model_version = latest_scores.model_version
+      where scores.scryfall_id = any($3::uuid[])
+        and scores.confidence >= $4
+        and jsonb_array_length(scores.feature_contributions) > 0
+        and scores.generated_at >= now() - ($2::text || ' hours')::interval
+        and (scores.expires_at is null or scores.expires_at > now())
+      order by scores.rank_score desc, scores.scryfall_id
+    `,
+    [userId, MAX_SCORE_AGE_HOURS, uniqueIds, MIN_CONFIDENCE],
+  );
+  if (!rows.length) {
+    return {
+      ranking: deterministicRanking("scores_missing_or_stale"),
+      scores: {},
+    };
+  }
+  const scores = Object.fromEntries(
+    rows.map((row) => [
+      row.card_id,
+      {
+        scoreId: row.score_id,
+        modelVersion: row.model_version,
+        score: Number(row.rank_score),
+        confidence: Number(row.confidence),
+        probabilityPositive30d:
+          row.probability_positive_30d === null
+            ? null
+            : Number(row.probability_positive_30d),
+        expectedDownside90d:
+          row.expected_downside_90d === null
+            ? null
+            : Number(row.expected_downside_90d),
+        drivers: normalizeDrivers(row.feature_contributions),
+        generatedAt: row.generated_at,
+        scoreDate: row.score_date,
+      } satisfies MlCardContext,
+    ]),
+  );
+  return {
+    ranking: {
+      source: "ml_batch",
+      reason: null,
+      modelVersion: rows[0].model_version,
+      scoreDate: rows[0].score_date,
+    },
+    scores,
+  };
 }
 
 export async function getPersonalizedBatchSignals(
@@ -91,6 +203,8 @@ export async function getPersonalizedBatchSignals(
         join app_ml_model_versions model on model.version = scores.model_version
         where scores.user_id = $1
           and model.status = 'ready'
+          and model.verified_at is not null
+          and model.promotion_evidence->>'dataset_kind' = 'real'
           and scores.score_date >= current_date - 2
           and scores.confidence >= $2
           and scores.generated_at >= now() - ($3::text || ' hours')::interval
@@ -185,8 +299,9 @@ export async function getPersonalizedBatchSignals(
           row.expected_downside_90d === null
             ? null
             : Number(row.expected_downside_90d),
-        contributions: row.feature_contributions,
+        drivers: normalizeDrivers(row.feature_contributions),
         generatedAt: row.generated_at,
+        scoreDate: row.score_date,
       },
     })),
     ranking: {

@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rankByVerifiedScores } from "@/lib/ml-experience";
+import {
+  getMlExperienceForCards,
+  unavailableMlExperience,
+} from "@/lib/ml-serving";
 import { getOpportunityGraph } from "@/lib/opportunity-graph";
+import { attachSessionCookie, getOrCreateUser } from "@/lib/session";
 
 export const runtime = "nodejs";
 
@@ -20,17 +26,33 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    return NextResponse.json(
-      await getOpportunityGraph({
-        limit,
-        search,
-        focusId: requestedFocus,
-      }),
+    const { user, newToken } = await getOrCreateUser(request);
+    const graph = await getOpportunityGraph({
+      limit,
+      search,
+      focusId: requestedFocus,
+    });
+    const experience = await getMlExperienceForCards(
+      user.id,
+      graph.nodes.map((node) => node.id),
+    ).catch(unavailableMlExperience);
+    return attachSessionCookie(
+      NextResponse.json(
+        {
+          ...graph,
+          nodes: rankByVerifiedScores(graph.nodes, experience).map((node) => ({
+            ...node,
+            ml: experience.scores[node.id] ?? null,
+          })),
+          ranking: experience.ranking,
+        },
       {
         headers: {
           "Cache-Control": "private, max-age=60, stale-while-revalidate=240",
         },
       },
+      ),
+      newToken,
     );
   } catch {
     return NextResponse.json(

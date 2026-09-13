@@ -26,6 +26,7 @@ import { MagicBrainLogo } from "@/components/brand-logo";
 import { useCardDetail } from "@/components/card-detail-provider";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { ProBadge } from "@/components/magic-brain-pro";
+import { MlInsight, trackMlFeedback } from "@/components/ml-insight";
 import { SetSelector } from "@/components/set-selector";
 import type {
   BrainMarketInsight,
@@ -33,6 +34,7 @@ import type {
 } from "@/lib/brain";
 import type { GrowthTarget } from "@/lib/predict-model";
 import type { SetPrediction } from "@/lib/predict";
+import type { MlCardContext, MlRankingStatus } from "@/lib/ml-experience";
 import {
   defaultUserPreferences,
   type UserPreferences,
@@ -93,6 +95,13 @@ type AutomaticPortfolio = {
   lostMomentum: BrainMarketInsight[];
 };
 
+type PredictResult = Omit<SetPrediction, "cardPredictions"> & {
+  cardPredictions: Array<
+    SetPrediction["cardPredictions"][number] & { ml?: MlCardContext | null }
+  >;
+  ranking: MlRankingStatus;
+};
+
 export default function PredictPage() {
   const { locale, t } = useLanguage();
   const { cardSurfaceProps } = useCardDetail();
@@ -103,7 +112,7 @@ export default function PredictPage() {
   const [demand, setDemand] = useState(3);
   const [scarcity, setScarcity] = useState(3);
   const [reprints, setReprints] = useState(3);
-  const [result, setResult] = useState<SetPrediction | null>(null);
+  const [result, setResult] = useState<PredictResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(
@@ -169,7 +178,7 @@ export default function PredictPage() {
       setError("");
       fetch(requestUrl, { signal: controller.signal })
         .then(async (response) => {
-          const payload = (await response.json()) as SetPrediction & { error?: string };
+          const payload = (await response.json()) as PredictResult & { error?: string };
           if (!response.ok) throw new Error(payload.error ?? "Prediction unavailable");
           return payload;
         })
@@ -285,6 +294,21 @@ export default function PredictPage() {
     const addedIds = new Set(
       results.filter((item) => item.added).map((item) => item.id),
     );
+    selectedPicks.forEach((pick, pickIndex) => {
+      if (!addedIds.has(pick.card.id) || !pick.ml) return;
+      trackMlFeedback({
+        eventType: destination === "portfolio"
+          ? "add_to_portfolio"
+          : "save_to_watchlist",
+        surface: "predict",
+        cardId: pick.card.id,
+        context: pick.ml,
+        rankPosition:
+          (result?.cardPredictions.findIndex(
+            (candidate) => candidate.card.id === pick.card.id,
+          ) ?? pickIndex) + 1,
+      });
+    });
     setSelectedCardIds((current) => {
       const next = new Set(current);
       addedIds.forEach((id) => next.delete(id));
@@ -625,7 +649,7 @@ export default function PredictPage() {
               onClick={() => setBuildMode("automatic")}
             >
               <Sparkles size={14} />
-              {es ? "Cartera automática con AI" : "Automatic AI portfolio"}
+              {es ? "Cartera automática" : "Automatic portfolio"}
             </button>
           </div>
 
@@ -662,6 +686,13 @@ export default function PredictPage() {
                 </button>
               </div>
             </div>
+          )}
+          {result && (
+            <MlInsight
+              locale={locale}
+              ranking={result.ranking}
+              surface="predict"
+            />
           )}
 
           {buildMode === "automatic" && (
@@ -845,7 +876,7 @@ export default function PredictPage() {
                 <div className={styles.autoResult}>
                   <header>
                     <div>
-                      <span>{es ? "LISTA AI GENERADA" : "GENERATED AI LIST"}</span>
+                      <span>{es ? "LISTA GENERADA" : "GENERATED LIST"}</span>
                       <h3>
                         {autoPortfolio.name} ·{" "}
                         {automaticSetCode && result
@@ -1016,6 +1047,14 @@ export default function PredictPage() {
                     <b>{signed(pick.momentum30d)} 30D</b>
                   </div>
                   <p>{pick.rationale[0]}</p>
+                  <MlInsight
+                    locale={locale}
+                    ranking={result.ranking}
+                    context={pick.ml ?? undefined}
+                    surface="predict"
+                    cardId={pick.card.id}
+                    rankPosition={index + 1}
+                  />
                 </div>
               </article>
             ))}

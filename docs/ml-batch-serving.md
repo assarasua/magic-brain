@@ -98,3 +98,28 @@ Batch scoring additionally excludes stale prices, fewer than 90 history days,
 fewer than 60 observations in 90 days, preference mismatches, and cards over
 the lower of the user's maximum card price and 45% of budget. These are hard
 policy checks outside the learned probability.
+
+## Customer experience
+
+Migration `016_ml_product_experience.sql` adds the allowlisted Daily News and
+Opportunity Graph feedback surfaces plus user-confirmed smart-alert
+subscriptions. Run the normal migration command before enabling the
+experiment.
+
+When a fresh score from a real-data, verified, `ready` model exists, Brain
+Signals, Predict, Discover, Portfolio, Daily News, and Opportunity Graph show
+the same compact method/confidence/freshness/driver disclosure. Candidate
+lists use learned ordering where supported. Otherwise they retain their
+deterministic order and explicitly label the fallback; deterministic scores
+are never presented as learned output.
+
+Verified learned scores appear only after:
+
+1. A real-data artifact passes promotion gates and is registered as `ready`.
+2. Daily batch scoring writes current, unexpired user scores with confidence
+   of at least `0.60` and non-empty contributions.
+3. `ML_RANKING_EXPERIMENT_ENABLED=true` and
+   `ML_RANKING_COHORT_PERCENT` includes the user.
+
+The checked-in synthetic artifact remains draft-only and cannot satisfy the
+production read predicates.

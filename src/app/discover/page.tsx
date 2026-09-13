@@ -19,15 +19,27 @@ import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
 import { useCardDetail } from "@/components/card-detail-provider";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
+import { MlInsight, trackMlFeedback } from "@/components/ml-insight";
 import { ProBadge } from "@/components/magic-brain-pro";
 import type { DiscoveryCard } from "@/lib/discovery";
 import { formatCurrency } from "@/lib/data";
+import type { MlCardContext, MlRankingStatus } from "@/lib/ml-experience";
+
+type RankedDiscoveryCard = DiscoveryCard & { ml?: MlCardContext | null };
+
+const fallbackRanking: MlRankingStatus = {
+  source: "deterministic",
+  reason: "scores_missing_or_stale",
+  modelVersion: null,
+  scoreDate: null,
+};
 
 export default function DiscoverPage() {
   const { locale, t } = useLanguage();
   const { openCard } = useCardDetail();
   const es = locale === "es";
-  const [cards, setCards] = useState<DiscoveryCard[]>([]);
+  const [cards, setCards] = useState<RankedDiscoveryCard[]>([]);
+  const [ranking, setRanking] = useState<MlRankingStatus>(fallbackRanking);
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -46,11 +58,14 @@ export default function DiscoverPage() {
     setHistory([]);
     fetch("/api/discover")
       .then(async (response) => {
-        if (response.status === 403) return { cards: [] };
+        if (response.status === 403) return { cards: [], ranking: fallbackRanking };
         if (!response.ok) throw new Error("Unable to load cards");
-        return response.json() as Promise<{ cards: DiscoveryCard[] }>;
+        return response.json() as Promise<{ cards: RankedDiscoveryCard[]; ranking: MlRankingStatus }>;
       })
-      .then((result) => setCards(result.cards))
+      .then((result) => {
+        setCards(result.cards);
+        if (result.ranking) setRanking(result.ranking);
+      })
       .catch(() => setCards([]))
       .finally(() => setLoading(false));
   }, []);
@@ -59,11 +74,14 @@ export default function DiscoverPage() {
     const controller = new AbortController();
     fetch("/api/discover", { signal: controller.signal })
       .then(async (response) => {
-        if (response.status === 403) return { cards: [] };
+        if (response.status === 403) return { cards: [], ranking: fallbackRanking };
         if (!response.ok) throw new Error("Unable to load cards");
-        return response.json() as Promise<{ cards: DiscoveryCard[] }>;
+        return response.json() as Promise<{ cards: RankedDiscoveryCard[]; ranking: MlRankingStatus }>;
       })
-      .then((result) => setCards(result.cards))
+      .then((result) => {
+        setCards(result.cards);
+        if (result.ranking) setRanking(result.ranking);
+      })
       .catch((error: Error) => {
         if (error.name !== "AbortError") setCards([]);
       })
@@ -103,12 +121,21 @@ export default function DiscoverPage() {
         setDragX(0);
         setSaving(false);
       }, 180);
+      if (current.ml) {
+        trackMlFeedback({
+          eventType: decision === "liked" ? "save_to_watchlist" : "dismiss",
+          surface: "discover",
+          cardId: current.id,
+          context: current.ml,
+          rankPosition: index + 1,
+        });
+      }
     } else {
       setNotice(es ? "No se pudo guardar. Inténtalo de nuevo." : "Could not save. Try again.");
       setDragX(0);
       setSaving(false);
     }
-  }, [current, es, saving]);
+  }, [current, es, index, saving]);
 
   const undo = useCallback(async () => {
     const previous = history.at(-1);
@@ -160,11 +187,20 @@ export default function DiscoverPage() {
             <p>{es ? "Una selección personal basada en tus preferencias. Desliza a la derecha para guardarla en seguimiento." : "A personal selection based on your preferences. Swipe right to add a card to your watchlist."}</p>
             <Link href="/settings"><SlidersHorizontal size={14} /> {es ? "Ajustar preferencias" : "Tune preferences"}</Link>
           </div>
+          <MlInsight locale={locale} ranking={ranking} surface="discover" />
 
           {loading ? (
             <div className="discovery-loading"><LoaderCircle className="spin" size={25} /> {es ? "Buscando cartas compatibles…" : "Finding your best matches…"}</div>
           ) : current ? (
             <div className="discovery-stage">
+              <MlInsight
+                locale={locale}
+                ranking={ranking}
+                context={current.ml ?? undefined}
+                surface="discover"
+                cardId={current.id}
+                rankPosition={index + 1}
+              />
               <div className="discovery-session">
                 <div><strong>{es ? "Selección de hoy" : "Today's selection"}</strong><span>{cards.length - index} {es ? "por revisar" : "left"}</span></div>
                 <div className="discovery-progress"><span style={{ width: `${Math.max(4, (index / cards.length) * 100)}%` }} /></div>
@@ -196,7 +232,18 @@ export default function DiscoverPage() {
                     setDragX(0);
                   }}
                   onClick={() => {
-                    if (Math.abs(dragX) < 8 && !saving) openCard(current.id);
+                    if (Math.abs(dragX) < 8 && !saving) {
+                      if (current.ml) {
+                        trackMlFeedback({
+                          eventType: "open_details",
+                          surface: "discover",
+                          cardId: current.id,
+                          context: current.ml,
+                          rankPosition: index + 1,
+                        });
+                      }
+                      openCard(current.id);
+                    }
                   }}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {

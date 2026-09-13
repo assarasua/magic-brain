@@ -4,6 +4,11 @@ import {
   saveDiscoveryDecision,
   undoDiscoveryDecision,
 } from "@/lib/discovery";
+import { rankByVerifiedScores } from "@/lib/ml-experience";
+import {
+  getMlExperienceForCards,
+  unavailableMlExperience,
+} from "@/lib/ml-serving";
 import { attachSessionCookie, getOrCreateUser } from "@/lib/session";
 import { addWatchlistItemIfMissing } from "@/lib/watchlist";
 
@@ -15,9 +20,18 @@ const uuidPattern =
 export async function GET(request: NextRequest) {
   try {
     const { user, newToken } = await getOrCreateUser(request);
+    const cards = await getDiscoveryCards(user.id, user.preferences);
+    const experience = await getMlExperienceForCards(
+      user.id,
+      cards.map((card) => card.id),
+    ).catch(unavailableMlExperience);
     return attachSessionCookie(
       NextResponse.json({
-        cards: await getDiscoveryCards(user.id, user.preferences),
+        cards: rankByVerifiedScores(cards, experience).map((card) => ({
+          ...card,
+          ml: experience.scores[card.id] ?? null,
+        })),
+        ranking: experience.ranking,
       }),
       newToken,
     );

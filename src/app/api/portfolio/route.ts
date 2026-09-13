@@ -5,6 +5,11 @@ import {
   isValidPortfolioQuantity,
   isValidPortfolioUnitPrice,
 } from "@/lib/portfolio-model";
+import {
+  getMlExperienceForCards,
+  getPersonalizedBatchSignals,
+  unavailableMlExperience,
+} from "@/lib/ml-serving";
 import { attachSessionCookie, getOrCreateUser } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -22,8 +27,41 @@ export async function GET(request: NextRequest) {
       );
     }
     const { user, newToken } = session;
+    const portfolio = await getPortfolio(user.id);
+    const [experience, candidates] = await Promise.all([
+      getMlExperienceForCards(
+        user.id,
+        portfolio.holdings.map((holding) => holding.cardId),
+      ).catch(unavailableMlExperience),
+      getPersonalizedBatchSignals(user.id, user.preferences, 8).catch(() => ({
+        signals: [],
+        ranking: unavailableMlExperience().ranking,
+      })),
+    ]);
+    const heldIds = new Set(portfolio.holdings.map((holding) => holding.cardId));
     return attachSessionCookie(
-      NextResponse.json(await getPortfolio(user.id)),
+      NextResponse.json({
+        ...portfolio,
+        holdings: portfolio.holdings.map((holding) => ({
+          ...holding,
+          ml: experience.scores[holding.cardId] ?? null,
+        })),
+        mlIntelligence: {
+          ranking: candidates.ranking.source === "ml_batch"
+            ? candidates.ranking
+            : experience.ranking,
+          candidateAdditions: candidates.signals
+            .filter((candidate) => !heldIds.has(candidate.id))
+            .slice(0, 3),
+          coolingHoldings: portfolio.holdings
+            .filter((holding) => holding.opportunityClassification === "lost_momentum")
+            .slice(0, 3)
+            .map((holding) => ({
+              ...holding,
+              ml: experience.scores[holding.cardId] ?? null,
+            })),
+        },
+      }),
       newToken,
     );
   } catch {
