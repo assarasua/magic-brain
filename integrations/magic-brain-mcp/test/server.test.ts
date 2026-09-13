@@ -72,15 +72,21 @@ describe("MagicBrainApiClient", () => {
       config,
       vi.fn<typeof fetch>(
         async () =>
-          new Response(JSON.stringify({ message: "Quota exceeded" }), {
+          new Response(
+            JSON.stringify({
+              error: { code: "rate_limited", message: "Quota exceeded" },
+            }),
+            {
             status: 429,
             headers: { "retry-after": "60", "x-request-id": "req-rate" },
-          }),
+            },
+          ),
       ),
     );
 
     await expect(client.request("sets")).rejects.toMatchObject({
       code: "UPSTREAM_ERROR",
+      message: "Magic Brain API returned 429: Quota exceeded",
       status: 429,
       retryAfter: "60",
       requestId: "req-rate",
@@ -89,7 +95,7 @@ describe("MagicBrainApiClient", () => {
 });
 
 describe("MCP contract", () => {
-  it("publishes only eleven read-only, well-described tools", async () => {
+  it("publishes only fifteen read-only, well-described tools", async () => {
     const fetchMock = vi.fn<typeof fetch>(
       async () => new Response(JSON.stringify({ data: [] })),
     );
@@ -108,12 +114,16 @@ describe("MCP contract", () => {
       [
         "ask_product_question",
         "ask_rules",
+        "build_portfolio_scenario",
         "get_card",
+        "get_latest_market_brief",
         "get_latest_prices",
         "get_latest_set_opportunities",
         "get_price_history",
         "get_product_context",
+        "list_market_briefs",
         "list_sets",
+        "predict_set_growth",
         "search_cards",
         "search_product_knowledge",
         "search_rules",
@@ -139,7 +149,111 @@ describe("MCP contract", () => {
           : true,
       );
       expect(tool.outputSchema).toBeTruthy();
+      if (
+        [
+          "build_portfolio_scenario",
+          "get_latest_market_brief",
+          "list_market_briefs",
+          "predict_set_growth",
+        ].includes(tool.name)
+      ) {
+        expect(tool.inputSchema.additionalProperties).toBe(false);
+      }
     }
+
+    await client.close();
+    await server.close();
+  });
+
+  it("routes prediction and news tools only to public v1 contracts", async () => {
+    const requests: Array<{ url: URL; init: RequestInit | undefined }> = [];
+    const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
+      requests.push({ url: new URL(String(input)), init });
+      return new Response(JSON.stringify({ data: { ok: true } }));
+    });
+    const server = createMagicBrainMcpServer(config, fetchMock);
+    const client = new Client({ name: "test-client", version: "1.0.0" });
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+    await client.listTools();
+    await client.callTool({
+      name: "predict_set_growth",
+      arguments: {
+        set_code: "fin",
+        target: "sp500",
+        horizon_months: 24,
+        demand: 4,
+        scarcity: 3,
+        reprint_resilience: 2,
+      },
+    });
+    await client.callTool({
+      name: "build_portfolio_scenario",
+      arguments: {
+        set_code: "fin",
+        budget_eur: 500,
+        risk: "balanced",
+        max_positions: 6,
+      },
+    });
+    await client.callTool({
+      name: "get_latest_market_brief",
+      arguments: {},
+    });
+    await client.callTool({
+      name: "list_market_briefs",
+      arguments: { limit: 5 },
+    });
+
+    expect(requests.map(({ url }) => url.pathname)).toEqual([
+      "/api/v1/predict/set",
+      "/api/v1/predict/portfolio",
+      "/api/v1/news/latest",
+      "/api/v1/news",
+    ]);
+    expect(requests[0]?.url.searchParams.get("reprints")).toBe("2");
+    expect(requests[1]?.init?.method).toBe("POST");
+    expect(JSON.parse(String(requests[1]?.init?.body))).toEqual({
+      setCode: "fin",
+      budget: 500,
+      risk: "balanced",
+      maxPositions: 6,
+    });
+    expect(requests[3]?.url.searchParams.get("limit")).toBe("5");
+
+    await client.close();
+    await server.close();
+  });
+
+  it("rejects unknown scenario fields before calling the API", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    const server = createMagicBrainMcpServer(config, fetchMock);
+    const client = new Client({ name: "test-client", version: "1.0.0" });
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+    await client.listTools();
+    const result = await client.callTool({
+      name: "build_portfolio_scenario",
+      arguments: {
+        set_code: "fin",
+        budget_eur: 500,
+        risk: "balanced",
+        save: true,
+      },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
 
     await client.close();
     await server.close();
@@ -214,6 +328,18 @@ describe("MCP contract", () => {
         }),
       ]),
     );
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    const invalidCalendarDate = await client.callTool({
+      name: "get_price_history",
+      arguments: {
+        card_id: "card-1",
+        start_date: "2026-02-30",
+        end_date: "2026-03-01",
+      },
+    });
+
+    expect(invalidCalendarDate.isError).toBe(true);
     expect(fetchMock).not.toHaveBeenCalled();
 
     await client.close();

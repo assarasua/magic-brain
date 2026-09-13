@@ -178,6 +178,16 @@ async function readBoundedBody(
 
 function extractUpstreamMessage(data: JsonValue, status: number): string {
   if (data && typeof data === "object" && !Array.isArray(data)) {
+    const nestedError = data.error;
+    if (
+      nestedError &&
+      typeof nestedError === "object" &&
+      !Array.isArray(nestedError) &&
+      typeof nestedError.message === "string" &&
+      nestedError.message.length > 0
+    ) {
+      return `Magic Brain API returned ${status}: ${nestedError.message.slice(0, 300)}`;
+    }
     for (const key of ["message", "error", "detail"]) {
       const value = data[key];
       if (typeof value === "string" && value.length > 0) {
