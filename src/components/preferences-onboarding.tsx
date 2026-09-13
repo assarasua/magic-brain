@@ -1,12 +1,19 @@
 "use client";
 
 import {
+  ArrowLeft,
+  ArrowRight,
+  BarChart3,
+  BrainCircuit,
   Check,
+  ChevronDown,
+  Eye,
   LoaderCircle,
   RefreshCw,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  WalletCards,
 } from "lucide-react";
 import {
   FormEvent,
@@ -42,6 +49,7 @@ const strategies: UserPreferences["strategy"][] = [
   "stability",
   "collectible",
 ];
+const onboardingStepCount = 6;
 const colours = CARD_COLORS.map((value) => ({
   value,
   label: { W: "White", U: "Blue", B: "Black", R: "Red", G: "Green" }[value],
@@ -60,12 +68,13 @@ function RequiredDialog({
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const [preferences, setPreferences] = useState(account.preferences);
+  const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
     titleRef.current?.focus();
-  }, []);
+  }, [step]);
 
   const update = <K extends keyof UserPreferences>(
     key: K,
@@ -112,8 +121,7 @@ function RequiredDialog({
     }
   };
 
-  const save = async (event: FormEvent) => {
-    event.preventDefault();
+  const save = async () => {
     if (saving) return;
     const validPreferences = parseUserPreferences(preferences);
     if (!validPreferences) {
@@ -131,7 +139,10 @@ function RequiredDialog({
       const response = await fetch("/api/account", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ preferences: validPreferences }),
+        body: JSON.stringify({
+          preferences: validPreferences,
+          productTourCompleted: true,
+        }),
       });
       const result = (await response.json().catch(() => null)) as
         | Partial<AccountOnboardingState> & { error?: string }
@@ -147,6 +158,7 @@ function RequiredDialog({
         ...account,
         preferences: result.preferences,
         preferencesOnboardingCompleted: true,
+        productTourCompleted: result.productTourCompleted === true,
       });
     } catch {
       setMessage(
@@ -178,6 +190,120 @@ function RequiredDialog({
           collectible: "Coleccionismo",
         }[value]
       : `${value[0].toUpperCase()}${value.slice(1)}`;
+  const horizonLabel = (value: UserPreferences["horizon"]) =>
+    es
+      ? { short: "Corto", medium: "Medio", long: "Largo" }[value]
+      : { short: "Short", medium: "Medium", long: "Long" }[value];
+
+  const stepCopy = es
+    ? [
+        {
+          eyebrow: "BIENVENIDO A MAGIC BRAIN",
+          title: "Invierte con contexto, no con intuición.",
+          description:
+            "Primero te enseñamos cómo funciona el producto. Después crearemos un perfil para adaptar cada señal, predicción y cartera a ti.",
+        },
+        {
+          eyebrow: "PASO 1 · PERFIL",
+          title: "¿Qué nivel de riesgo encaja contigo?",
+          description:
+            "Esto determina cuánto peso damos a estabilidad, volatilidad y potencial de crecimiento.",
+        },
+        {
+          eyebrow: "PASO 2 · OBJETIVO",
+          title: "Define cómo quieres invertir.",
+          description:
+            "El horizonte y la estrategia cambian qué oportunidades prioriza Magic Brain.",
+        },
+        {
+          eyebrow: "PASO 3 · PRESUPUESTO",
+          title: "Pon límites antes de buscar oportunidades.",
+          description:
+            "Usaremos estos números para construir carteras realistas y evitar posiciones desproporcionadas.",
+        },
+        {
+          eyebrow: "PASO 4 · MERCADO",
+          title: "Afina el universo de cartas.",
+          description:
+            "Estos filtros son opcionales. Déjalos abiertos si quieres que Brain explore todo el mercado.",
+        },
+        {
+          eyebrow: "PASO 5 · REVISIÓN",
+          title: "Tu perfil está listo.",
+          description:
+            "Magic Brain utilizará estas preferencias en Predict, Discover, Brain Pro y las carteras automáticas.",
+        },
+      ]
+    : [
+        {
+          eyebrow: "WELCOME TO MAGIC BRAIN",
+          title: "Invest with context, not instinct.",
+          description:
+            "First, see how the product works. Then we will build a profile that adapts every signal, prediction, and portfolio to you.",
+        },
+        {
+          eyebrow: "STEP 1 · PROFILE",
+          title: "How much risk feels right?",
+          description:
+            "This determines how much weight we give stability, volatility, and growth potential.",
+        },
+        {
+          eyebrow: "STEP 2 · GOAL",
+          title: "Define how you want to invest.",
+          description:
+            "Your horizon and strategy change which opportunities Magic Brain prioritises.",
+        },
+        {
+          eyebrow: "STEP 3 · BUDGET",
+          title: "Set limits before finding opportunities.",
+          description:
+            "We use these numbers to build realistic portfolios and avoid oversized positions.",
+        },
+        {
+          eyebrow: "STEP 4 · MARKET",
+          title: "Refine your card universe.",
+          description:
+            "These filters are optional. Leave them open if you want Brain to explore the entire market.",
+        },
+        {
+          eyebrow: "STEP 5 · REVIEW",
+          title: "Your profile is ready.",
+          description:
+            "Magic Brain will use these preferences across Predict, Discover, Brain Pro, and automatic portfolios.",
+        },
+      ];
+  const currentCopy = stepCopy[step];
+  const isLastStep = step === onboardingStepCount - 1;
+
+  const validateBudget = () => {
+    if (
+      preferences.defaultBudget < 25 ||
+      preferences.maxCardPrice < 2 ||
+      preferences.maxCardPrice > preferences.defaultBudget ||
+      preferences.positions < 3 ||
+      preferences.positions > 20
+    ) {
+      setMessage(
+        es
+          ? "Revisa los límites. El máximo por carta no puede superar el presupuesto."
+          : "Check the limits. Maximum card price cannot exceed the budget.",
+      );
+      return false;
+    }
+    return true;
+  };
+
+  const next = () => {
+    if (step === 3 && !validateBudget()) return;
+    setMessage("");
+    setStep((current) => Math.min(current + 1, onboardingStepCount - 1));
+  };
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (isLastStep) void save();
+    else next();
+  };
 
   return (
     <div className="preferences-onboarding-overlay">
@@ -190,23 +316,63 @@ function RequiredDialog({
         aria-describedby="preferences-onboarding-description preferences-onboarding-status"
         onKeyDown={handleDialogKeyDown}
       >
+        <div className="preferences-onboarding-progress" aria-label={`${step + 1} / ${onboardingStepCount}`}>
+          <span>{es ? "Tu configuración" : "Your setup"}</span>
+          <div>
+            {Array.from({ length: onboardingStepCount }, (_, index) => (
+              <i key={index} className={index <= step ? "active" : ""} />
+            ))}
+          </div>
+          <strong>{step + 1}/{onboardingStepCount}</strong>
+        </div>
         <header>
           <span><Sparkles size={19} /></span>
           <div>
-            <small>{es ? "CONFIGURACIÓN OBLIGATORIA" : "REQUIRED SETUP"}</small>
+            <small>{currentCopy.eyebrow}</small>
             <h1 id="preferences-onboarding-title" ref={titleRef} tabIndex={-1}>
-              {es ? "Personaliza tu experiencia." : "Personalise your experience."}
+              {currentCopy.title}
             </h1>
             <p id="preferences-onboarding-description">
-              {es
-                ? "Define tus límites y objetivos antes de entrar. Podrás cambiarlos más tarde en Ajustes."
-                : "Set your limits and goals before entering. You can change them later in Settings."}
+              {currentCopy.description}
             </p>
           </div>
         </header>
 
-        <form onSubmit={save}>
-          <div className="preferences-onboarding-grid">
+        <form onSubmit={submit}>
+          <div className="preferences-onboarding-step">
+            {step === 0 && (
+              <div className="onboarding-product-intro">
+                <article>
+                  <span><BarChart3 size={20} /></span>
+                  <div>
+                    <strong>{es ? "Entiende el mercado" : "Understand the market"}</strong>
+                    <p>{es ? "Compara movimientos, historial diario y riesgo antes de decidir." : "Compare movement, daily history, and risk before deciding."}</p>
+                  </div>
+                </article>
+                <article>
+                  <span><BrainCircuit size={20} /></span>
+                  <div>
+                    <strong>{es ? "Encuentra oportunidades" : "Find opportunities"}</strong>
+                    <p>{es ? "Brain conecta señales, predicciones y cartas similares con tu perfil." : "Brain connects signals, predictions, and similar cards to your profile."}</p>
+                  </div>
+                </article>
+                <article>
+                  <span><WalletCards size={20} /></span>
+                  <div>
+                    <strong>{es ? "Construye y controla" : "Build and monitor"}</strong>
+                    <p>{es ? "Crea carteras manuales o automáticas y mide rentabilidad y concentración." : "Create manual or automatic portfolios and track return and concentration."}</p>
+                  </div>
+                </article>
+                <p className="onboarding-product-note">
+                  <Eye size={15} />
+                  {es
+                    ? "Tus preferencias se guardan en tu cuenta y puedes cambiarlas en Ajustes."
+                    : "Your preferences are saved to your account and can be changed in Settings."}
+                </p>
+              </div>
+            )}
+
+            {step === 1 && (
             <fieldset>
               <legend><ShieldCheck size={16} /> {es ? "Perfil inversor" : "Investor profile"}</legend>
               <label>{es ? "Nivel de riesgo" : "Risk level"}</label>
@@ -223,7 +389,12 @@ function RequiredDialog({
                   </button>
                 ))}
               </div>
+            </fieldset>
+            )}
 
+            {step === 2 && (
+            <fieldset>
+              <legend><Sparkles size={16} /> {es ? "Objetivo de inversión" : "Investment goal"}</legend>
               <label>{es ? "Horizonte temporal" : "Time horizon"}</label>
               <div className="preference-choice three">
                 {(["short", "medium", "long"] as const).map((value) => (
@@ -234,13 +405,12 @@ function RequiredDialog({
                     aria-pressed={preferences.horizon === value}
                     onClick={() => update("horizon", value)}
                   >
-                    <strong>{es ? { short: "Corto", medium: "Medio", long: "Largo" }[value] : value}</strong>
+                    <strong>{horizonLabel(value)}</strong>
                     <small>{value === "short" ? "< 6m" : value === "medium" ? "6–18m" : "18m+"}</small>
                   </button>
                 ))}
               </div>
-
-              <label>{es ? "Estrategia" : "Strategy"}</label>
+              <label>{es ? "Estrategia principal" : "Primary strategy"}</label>
               <div className="preference-choice two">
                 {strategies.map((value) => (
                   <button
@@ -255,9 +425,11 @@ function RequiredDialog({
                 ))}
               </div>
             </fieldset>
+            )}
 
+            {step === 3 && (
             <fieldset>
-              <legend><SlidersHorizontal size={16} /> {es ? "Límites y mercado" : "Limits and market"}</legend>
+              <legend><SlidersHorizontal size={16} /> {es ? "Límites de cartera" : "Portfolio limits"}</legend>
               <div className="onboarding-number-grid">
                 <label>
                   {es ? "Presupuesto predeterminado" : "Default budget"}
@@ -272,26 +444,44 @@ function RequiredDialog({
                   <input type="number" min="3" max="20" step="1" required value={preferences.positions} onChange={(event) => update("positions", Number(event.target.value))} />
                 </label>
               </div>
-              <label htmlFor="onboarding-market-trend">{es ? "Tendencia objetivo" : "Target market trend"}</label>
-              <select id="onboarding-market-trend" value={preferences.marketTrend} onChange={(event) => update("marketTrend", event.target.value as UserPreferences["marketTrend"])}>
-                <option value="any">{es ? "Cualquier tendencia" : "Any trend"}</option>
-                <option value="rising">{es ? "Subida confirmada" : "Confirmed growth"}</option>
-                <option value="stable">{es ? "Precio estable" : "Stable pricing"}</option>
-                <option value="recovering">{es ? "En recuperación" : "Recovering"}</option>
-              </select>
-              <label htmlFor="onboarding-release-era">{es ? "Época de edición (opcional)" : "Release era (optional)"}</label>
-              <select id="onboarding-release-era" value={preferences.releaseEra} onChange={(event) => update("releaseEra", event.target.value as UserPreferences["releaseEra"])}>
-                <option value="any">{es ? "Todas las épocas" : "All eras"}</option>
-                <option value="classic">{es ? "Clásica · antes de 2004" : "Classic · before 2004"}</option>
-                <option value="established">{es ? "Consolidada · 2004–2018" : "Established · 2004–2018"}</option>
-                <option value="recent">{es ? "Reciente · 2019+" : "Recent · 2019+"}</option>
-              </select>
+              <p className="onboarding-field-help">
+                {es
+                  ? "Estos valores son el punto de partida de Predict y del generador automático. Nunca ejecutamos compras."
+                  : "These values seed Predict and the automatic builder. Magic Brain never executes purchases."}
+              </p>
             </fieldset>
-          </div>
+            )}
 
-          <fieldset className="onboarding-card-options">
-            <legend><Sparkles size={16} /> {es ? "Preferencias de cartas (opcionales)" : "Card preferences (optional)"}</legend>
-            <div>
+            {step === 4 && (
+            <fieldset className="onboarding-card-options">
+              <legend><Sparkles size={16} /> {es ? "Preferencias de mercado" : "Market preferences"}</legend>
+              <div className="onboarding-market-selects">
+                <section>
+                  <label htmlFor="onboarding-market-trend">{es ? "Tendencia objetivo" : "Target market trend"}</label>
+                  <div className="onboarding-select">
+                    <select id="onboarding-market-trend" value={preferences.marketTrend} onChange={(event) => update("marketTrend", event.target.value as UserPreferences["marketTrend"])}>
+                      <option value="any">{es ? "Cualquier tendencia" : "Any trend"}</option>
+                      <option value="rising">{es ? "Subida confirmada" : "Confirmed growth"}</option>
+                      <option value="stable">{es ? "Precio estable" : "Stable pricing"}</option>
+                      <option value="recovering">{es ? "En recuperación" : "Recovering"}</option>
+                    </select>
+                    <ChevronDown size={16} aria-hidden="true" />
+                  </div>
+                </section>
+                <section>
+                  <label htmlFor="onboarding-release-era">{es ? "Época de edición" : "Release era"}</label>
+                  <div className="onboarding-select">
+                    <select id="onboarding-release-era" value={preferences.releaseEra} onChange={(event) => update("releaseEra", event.target.value as UserPreferences["releaseEra"])}>
+                      <option value="any">{es ? "Todas las épocas" : "All eras"}</option>
+                      <option value="classic">{es ? "Clásica · antes de 2004" : "Classic · before 2004"}</option>
+                      <option value="established">{es ? "Consolidada · 2004–2018" : "Established · 2004–2018"}</option>
+                      <option value="recent">{es ? "Reciente · 2019+" : "Recent · 2019+"}</option>
+                    </select>
+                    <ChevronDown size={16} aria-hidden="true" />
+                  </div>
+                </section>
+              </div>
+              <div className="onboarding-card-preferences">
               <section>
                 <label>{es ? "Colores" : "Colours"}</label>
                 <div className="settings-colours">
@@ -312,19 +502,51 @@ function RequiredDialog({
                   {CARD_TYPES.map((value) => <button type="button" key={value} aria-pressed={preferences.cardTypes.includes(value)} className={preferences.cardTypes.includes(value) ? "active" : ""} onClick={() => toggle("cardTypes", value)}>{preferences.cardTypes.includes(value) && <Check size={12} />}{value}</button>)}
                 </div>
               </section>
-            </div>
+              </div>
             <button type="button" className={`settings-reserved ${preferences.reservedOnly ? "active" : ""}`} aria-pressed={preferences.reservedOnly} onClick={() => update("reservedOnly", !preferences.reservedOnly)}>
               <span><Check size={14} /></span>
               <div><strong>{es ? "Solo Reserved List" : "Reserved List only"}</strong><small>{es ? "Limita las recomendaciones a cartas de oferta fija." : "Limit recommendations to fixed-supply cards."}</small></div>
             </button>
           </fieldset>
+            )}
+
+            {step === 5 && (
+              <div className="onboarding-review">
+                <div><small>{es ? "RIESGO" : "RISK"}</small><strong>{riskLabel(preferences.risk)}</strong></div>
+                <div><small>{es ? "HORIZONTE" : "HORIZON"}</small><strong>{horizonLabel(preferences.horizon)}</strong></div>
+                <div><small>{es ? "ESTRATEGIA" : "STRATEGY"}</small><strong>{strategyLabel(preferences.strategy)}</strong></div>
+                <div><small>{es ? "PRESUPUESTO" : "BUDGET"}</small><strong>€{preferences.defaultBudget.toLocaleString()}</strong></div>
+                <div><small>{es ? "MÁXIMO / CARTA" : "MAX / CARD"}</small><strong>€{preferences.maxCardPrice.toLocaleString()}</strong></div>
+                <div><small>{es ? "POSICIONES" : "POSITIONS"}</small><strong>{preferences.positions}</strong></div>
+                <p>
+                  <Check size={16} />
+                  {es
+                    ? "Podrás modificar cualquier elección desde Ajustes."
+                    : "You can change every choice later from Settings."}
+                </p>
+              </div>
+            )}
+          </div>
 
           <footer>
             <p id="preferences-onboarding-status" role="status" aria-live="polite">{message}</p>
-            <button type="submit" disabled={saving}>
-              {saving ? <LoaderCircle className="spin" size={17} /> : <Check size={17} />}
-              {saving ? (es ? "Guardando…" : "Saving…") : (es ? "Guardar y continuar" : "Save and continue")}
-            </button>
+            <div className="preferences-onboarding-actions">
+              {step > 0 && (
+                <button type="button" className="secondary" onClick={() => { setMessage(""); setStep((current) => current - 1); }} disabled={saving}>
+                  <ArrowLeft size={16} /> {es ? "Atrás" : "Back"}
+                </button>
+              )}
+              <button type="submit" disabled={saving}>
+                {saving ? <LoaderCircle className="spin" size={17} /> : isLastStep ? <Check size={17} /> : <ArrowRight size={17} />}
+                {saving
+                  ? (es ? "Guardando…" : "Saving…")
+                  : isLastStep
+                    ? (es ? "Guardar y entrar" : "Save and enter")
+                    : step === 0
+                      ? (es ? "Crear mi perfil" : "Build my profile")
+                      : (es ? "Continuar" : "Continue")}
+              </button>
+            </div>
           </footer>
         </form>
       </div>
