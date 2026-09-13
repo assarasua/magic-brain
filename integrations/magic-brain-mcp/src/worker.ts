@@ -15,9 +15,16 @@ const config: MagicBrainMcpConfig = {
   allowedOrigins: [],
 };
 
+const allowedOrigins = new Set([
+  "https://magicbrain.es",
+  "https://claude.ai",
+  "https://www.claude.ai",
+  "https://claude.com",
+]);
+
 const handler = createMcpHandler(
   () =>
-    createMagicBrainMcpServer(config, fetch, {
+    createMagicBrainMcpServer(config, (input, init) => fetch(input, init), {
       index: rulesIndex as RulesIndex,
     }),
   {
@@ -43,14 +50,29 @@ const worker = {
       return json({ error: "Not found" }, 404);
     }
     const origin = request.headers.get("origin");
-    if (origin && !["https://magicbrain.es", "https://claude.ai"].includes(origin)) {
+    if (origin && !allowedOrigins.has(origin)) {
       return json({ error: "Origin is not allowed" }, 403);
     }
-    const response = await handler.fetch(request);
+
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: corsHeaders(origin),
+      });
+    }
+
+    // Some hosted connector probes omit one or both MCP response media types.
+    // Normalize them here so a transport-negotiation 406 is not mistaken for
+    // an OAuth challenge by the client.
+    const mcpRequest = normalizeAcceptHeader(request);
+    const response = await handler.fetch(mcpRequest);
     const headers = new Headers(response.headers);
     headers.set("Cache-Control", "no-store");
     headers.set("Referrer-Policy", "no-referrer");
     headers.set("X-Content-Type-Options", "nosniff");
+    for (const [name, value] of corsHeaders(origin)) {
+      headers.set(name, value);
+    }
     return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
@@ -60,6 +82,35 @@ const worker = {
 };
 
 export default worker;
+
+function normalizeAcceptHeader(request: Request): Request {
+  if (request.method !== "POST") return request;
+  const accept = request.headers.get("accept") ?? "";
+  if (
+    accept.includes("application/json") &&
+    accept.includes("text/event-stream")
+  ) {
+    return request;
+  }
+  const headers = new Headers(request.headers);
+  headers.set("Accept", "application/json, text/event-stream");
+  return new Request(request, { headers });
+}
+
+function corsHeaders(origin: string | null): Headers {
+  const headers = new Headers({
+    "Access-Control-Allow-Headers":
+      "content-type, authorization, mcp-protocol-version, mcp-session-id",
+    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+    "Access-Control-Expose-Headers": "mcp-session-id",
+    "Access-Control-Max-Age": "86400",
+    Vary: "Origin",
+  });
+  if (origin && allowedOrigins.has(origin)) {
+    headers.set("Access-Control-Allow-Origin", origin);
+  }
+  return headers;
+}
 
 function json(body: unknown, status = 200): Response {
   return Response.json(body, {
