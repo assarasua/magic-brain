@@ -22,6 +22,7 @@ import {
   Search,
   Settings,
   Sparkles,
+  TrendingDown,
   TrendingUp,
   WalletCards,
   X,
@@ -33,6 +34,7 @@ import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
 import { PortfolioOnboarding } from "@/components/portfolio-onboarding";
+import { useCardDetail } from "@/components/card-detail-provider";
 import {
   Card,
   formatCurrency,
@@ -50,6 +52,7 @@ const nav = [
   { label: "Portfolio", icon: WalletCards },
   { label: "Watchlist", icon: Eye },
   { label: "Brain Pro", icon: Sparkles },
+  { label: "Brain Signals", icon: TrendingUp },
   { label: "Ask Brain", icon: MessageCircleQuestion },
 ];
 
@@ -135,6 +138,7 @@ function CardRow({
   watched: boolean;
   onToggle: () => void;
 }) {
+  const { cardSurfaceProps } = useCardDetail();
   const cardmarketUrl = new URL(
     "https://www.cardmarket.com/en/Magic/Products/Search",
   );
@@ -143,7 +147,7 @@ function CardRow({
   if (referrer) cardmarketUrl.searchParams.set("referrer", referrer);
 
   return (
-    <div className="card-row">
+    <div className="card-row card-surface" {...cardSurfaceProps(card.id)}>
       <img src={card.image} alt="" className="card-thumb" />
       <div className="card-identity">
         <strong>{card.name}</strong>
@@ -180,14 +184,18 @@ function CardRow({
 
 export default function Home() {
   const router = useRouter();
+  const { openCard, cardSurfaceProps } = useCardDetail();
   const { locale, t } = useLanguage();
   const searchInput = useRef<HTMLInputElement>(null);
   const [activeNav, setActiveNav] = useState("Overview");
   const [timeframe, setTimeframe] = useState("30D");
   const [marketCards, setMarketCards] = useState<Card[]>(movers);
+  const [marketDirection, setMarketDirection] = useState<"gainers" | "losers">("gainers");
+  const [marketDays, setMarketDays] = useState<1 | 7 | 30>(7);
+  const [marketLoading, setMarketLoading] = useState(true);
   const [watchlist, setWatchlist] = useState<string[]>([
-    "rhystic-study",
-    "the-one-ring",
+    movers[0].id,
+    movers[1].id,
   ]);
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<CatalogCard[]>([]);
@@ -290,7 +298,10 @@ export default function Home() {
   }, [query]);
 
   useEffect(() => {
-    fetch("/api/market/movers")
+    const controller = new AbortController();
+    fetch(`/api/market/movers?direction=${marketDirection}&days=${marketDays}`, {
+      signal: controller.signal,
+    })
       .then(async (response) => {
         if (!response.ok) throw new Error("Market data unavailable");
         return (await response.json()) as { cards: CatalogCard[] };
@@ -321,10 +332,16 @@ export default function Home() {
           }),
         );
       })
-      .catch(() => {
-        // Keep the bundled fallback cards when live market data is unavailable.
+      .catch((error: Error) => {
+        if (error.name !== "AbortError") {
+          // Keep the previous cards when live market data is unavailable.
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setMarketLoading(false);
       });
-  }, []);
+    return () => controller.abort();
+  }, [marketDays, marketDirection]);
 
   const showToast = (message: string) => {
     setToast(message);
@@ -370,7 +387,13 @@ export default function Home() {
           {nav.map(({ label, icon: Icon }) => (
             <button
               key={label}
-              className={activeNav === label ? "nav-item active" : "nav-item"}
+              className={[
+                "nav-item",
+                activeNav === label ? "active" : "",
+                label === "Brain Pro" || label === "Brain Signals" || label === "Ask Brain"
+                  ? "premium-feature-link"
+                  : "",
+              ].filter(Boolean).join(" ")}
               onClick={() => {
                 const routes: Record<string, string> = {
                   Market: "/market",
@@ -380,6 +403,7 @@ export default function Home() {
                   Portfolio: "/portfolio",
                   Watchlist: "/watchlist",
                   "Brain Pro": "/brain",
+                "Brain Signals": "/signals",
                   "Ask Brain": "/analyst",
                 };
                 if (routes[label]) {
@@ -461,9 +485,8 @@ export default function Home() {
                   <button
                     key={card.id}
                     onClick={() => {
-                      router.push(
-                        `/inventory?q=${encodeURIComponent(card.name)}`,
-                      );
+                      openCard(card);
+                      setQuery("");
                     }}
                   >
                     {card.imageUrl ? <img src={card.imageUrl} alt="" /> : <span />}
@@ -550,22 +573,22 @@ export default function Home() {
               <span className="panel-kicker">{t("Brain signal")}</span>
               <h2>{locale === "es" ? "Las cartas básicas de Commander ganan impulso." : "Commander staples are gaining momentum."}</h2>
               <p>{locale === "es" ? "Los encantamientos azules subieron un 7,2% esta semana, impulsados por las ediciones premium." : "Blue enchantments rose 7.2% this week, led by renewed demand for premium printings."}</p>
-              <button onClick={() => router.push("/analyst")}>
+              <button onClick={() => router.push("/signals")}>
                 {locale === "es" ? "Ver análisis" : "View market insight"} <ArrowRight size={15} />
               </button>
               <div className="signal-bars"><i /><i /><i /><i /><i /><i /><i /></div>
             </section>
           </div>
 
-          <section className="panel movers-panel">
+          <section className={`panel movers-panel ${marketLoading ? "loading" : ""}`} aria-live="polite" aria-busy={marketLoading}>
             <div className="panel-head movers-head">
-              <div><span className="panel-kicker">{t("Market pulse")}</span><h2>{t("Cards making moves")}</h2></div>
-              <div className="market-tabs">
-                <button className="active">{locale === "es" ? "Tendencias" : "Trending"}</button>
-                <button onClick={() => showToast("Showing the current biggest winners")}>{locale === "es" ? "Subidas" : "Gainers"}</button>
-                <button onClick={() => showToast("Showing the current biggest losers")}>{locale === "es" ? "Bajadas" : "Losers"}</button>
+              <div><span className="panel-kicker">{t("Market pulse")} · {marketDays}D</span><h2>{marketDirection === "gainers" ? (locale === "es" ? "Mayores subidas" : "Top gainers") : (locale === "es" ? "Mayores bajadas" : "Top losers")}</h2></div>
+              <div className="market-tabs" aria-label={locale === "es" ? "Controles de tendencias" : "Market mover controls"}>
+                <button className={marketDirection === "gainers" ? "active" : ""} aria-pressed={marketDirection === "gainers"} onClick={() => { if (marketDirection !== "gainers") { setMarketLoading(true); setMarketDirection("gainers"); } }}><TrendingUp size={12} /> {locale === "es" ? "Subidas" : "Gainers"}</button>
+                <button className={marketDirection === "losers" ? "active" : ""} aria-pressed={marketDirection === "losers"} onClick={() => { if (marketDirection !== "losers") { setMarketLoading(true); setMarketDirection("losers"); } }}><TrendingDown size={12} /> {locale === "es" ? "Bajadas" : "Losers"}</button>
+                {[1, 7, 30].map((days) => <button key={days} className={marketDays === days ? "active period" : "period"} aria-pressed={marketDays === days} onClick={() => { if (marketDays !== days) { setMarketLoading(true); setMarketDays(days as 1 | 7 | 30); } }}>{days}D</button>)}
               </div>
-              <button className="text-button" onClick={() => router.push("/inventory")}>{t("View market")} <ArrowRight size={15} /></button>
+              <button className="text-button" onClick={() => router.push("/market")}>{t("View market")} <ArrowRight size={15} /></button>
             </div>
             <div className="rows">
               {filteredMovers.length ? (
@@ -590,7 +613,7 @@ export default function Home() {
                 <button className="text-button" onClick={() => router.push("/portfolio")}>{t("See all")} <ArrowRight size={15} /></button>
               </div>
               {portfolio.holdings.slice(0, 3).map((holding) => (
-                <div className="holding" key={holding.id}>
+                <div className="holding card-surface" key={holding.id} {...cardSurfaceProps(holding.cardId)}>
                   {holding.imageUrl && <img src={holding.imageUrl} alt="" />}
                   <div><strong>{holding.name}</strong><span>{holding.quantity} copies · {holding.setCode.toUpperCase()}</span></div>
                   <div><strong>{holding.currentValue === null ? "—" : formatCurrency(holding.currentValue)}</strong><Change value={holding.gainPercent ?? 0} /></div>

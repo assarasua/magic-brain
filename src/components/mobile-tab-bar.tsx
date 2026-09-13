@@ -2,26 +2,32 @@
 
 import {
   ChartNoAxesCombined,
-  Heart,
   House,
   LibraryBig,
+  Menu,
   WalletCards,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useCallback, useRef, useState } from "react";
 import { useLanguage } from "@/components/language-provider";
+import { MobileMoreSheet } from "@/components/mobile-more-sheet";
 
 const tabs = [
   { href: "/", label: "Overview", icon: House },
   { href: "/market", label: "Market", icon: ChartNoAxesCombined },
   { href: "/inventory", label: "Inventory", icon: LibraryBig },
   { href: "/portfolio", label: "Portfolio", icon: WalletCards },
-  { href: "/discover", label: "Discover", icon: Heart },
 ];
+
+const moreRoutes = ["/discover", "/watchlist", "/reserved", "/brain", "/signals", "/analyst", "/pro", "/settings"];
 
 export function MobileTabBar() {
   const pathname = usePathname();
   const { t } = useLanguage();
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
+  const closeMore = useCallback(() => setMoreOpen(false), []);
 
   if (pathname === "/login") return null;
 
@@ -31,15 +37,31 @@ export function MobileTabBar() {
         const active =
           href === "/"
             ? pathname === "/"
-            : pathname === href ||
-              (href === "/inventory" && pathname === "/reserved");
+            : pathname === href || pathname.startsWith(`${href}/`);
         return (
-          <Link href={href} className={active ? "active" : ""} key={href}>
+          <Link href={href} className={active ? "active" : ""} aria-current={active ? "page" : undefined} key={href}>
             <Icon size={20} strokeWidth={active ? 2.3 : 1.8} />
             <span>{t(label)}</span>
           </Link>
         );
       })}
+      <button
+        ref={moreButtonRef}
+        type="button"
+        className={moreOpen || moreRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`)) ? "active" : ""}
+        aria-haspopup="dialog"
+        aria-expanded={moreOpen}
+        onClick={() => setMoreOpen((current) => !current)}
+      >
+        <Menu size={20} strokeWidth={moreOpen ? 2.3 : 1.8} />
+        <span>{t("More")}</span>
+      </button>
+      <MobileMoreSheet
+        open={moreOpen}
+        pathname={pathname}
+        onClose={closeMore}
+        triggerRef={moreButtonRef}
+      />
     </nav>
   );
 }

@@ -7,10 +7,8 @@ import {
   BrainCircuit,
   ChevronLeft,
   ChevronRight,
-  ExternalLink,
   Filter,
   LoaderCircle,
-  Plus,
   Search,
   SlidersHorizontal,
   X,
@@ -20,6 +18,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
+import { useCardDetail } from "@/components/card-detail-provider";
 import type { CatalogCard } from "@/lib/catalog";
 import { formatCurrency } from "@/lib/data";
 
@@ -41,57 +40,13 @@ const initialData: CatalogResponse = {
 
 const rarityOptions = ["", "common", "uncommon", "rare", "mythic"];
 
-type PricePoint = { date: string; eur: number | null; eurFoil: number | null };
-
-function PriceHistoryChart({ history }: { history: PricePoint[] }) {
-  const values = history.filter((point) => point.eur !== null) as Array<
-    PricePoint & { eur: number }
-  >;
-  if (values.length < 2) {
-    return <div className="history-empty">No historical prices available.</div>;
-  }
-
-  const width = 520;
-  const height = 150;
-  const min = Math.min(...values.map((point) => point.eur));
-  const max = Math.max(...values.map((point) => point.eur));
-  const points = values
-    .map((point, index) => {
-      const x = (index / (values.length - 1)) * width;
-      const y =
-        height -
-        ((point.eur - min) / Math.max(max - min, 0.01)) * (height - 12) -
-        6;
-      return `${x},${y}`;
-    })
-    .join(" ");
-
-  return (
-    <div className="history-chart">
-      <div className="history-scale">
-        <span>{formatCurrency(max)}</span><span>{formatCurrency(min)}</span>
-      </div>
-      <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="historyFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#48b9ff" stopOpacity=".3" />
-            <stop offset="1" stopColor="#48b9ff" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <polygon points={`0,${height} ${points} ${width},${height}`} fill="url(#historyFill)" />
-        <polyline points={points} fill="none" stroke="#48b9ff" strokeWidth="3" vectorEffect="non-scaling-stroke" />
-      </svg>
-      <div className="history-dates"><span>{values[0].date}</span><span>{values.at(-1)?.date}</span></div>
-    </div>
-  );
-}
-
 export default function InventoryPage({
   defaultReserved = false,
 }: {
   defaultReserved?: boolean;
 }) {
   const { locale, t } = useLanguage();
+  const { openCard } = useCardDetail();
   const es = locale === "es";
   const [data, setData] = useState(initialData);
   const [query, setQuery] = useState("");
@@ -108,15 +63,26 @@ export default function InventoryPage({
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [selected, setSelected] = useState<CatalogCard | null>(null);
-  const [history, setHistory] = useState<PricePoint[]>([]);
-  const [historyDays, setHistoryDays] = useState(90);
-  const [notice, setNotice] = useState("");
   const [suggestions, setSuggestions] = useState<CatalogCard[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [activeSuggestion, setActiveSuggestion] = useState(-1);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
+  const filterButton = useRef<HTMLButtonElement>(null);
+  const filterClose = useRef<HTMLButtonElement>(null);
+  const filterSheet = useRef<HTMLElement>(null);
+  const [draftFilters, setDraftFilters] = useState({
+    rarity: "",
+    color: "",
+    language: "",
+    cardType: "",
+    minPrice: "",
+    maxPrice: "",
+    foilOnly: false,
+    reservedOnly: defaultReserved,
+    sort: "price_desc",
+  });
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -126,13 +92,14 @@ export default function InventoryPage({
   }, []);
 
   useEffect(() => {
+    if (query === debouncedQuery) return;
     const timer = window.setTimeout(() => {
       setLoading(true);
       setDebouncedQuery(query);
       setPage(1);
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [query]);
+  }, [query, debouncedQuery]);
 
   useEffect(() => {
     const normalized = query.trim();
@@ -215,18 +182,36 @@ export default function InventoryPage({
   ]);
 
   useEffect(() => {
-    if (!selected) return;
-    const controller = new AbortController();
-    fetch(`/api/cards/${selected.id}/history?days=${historyDays}`, {
-      signal: controller.signal,
-    })
-      .then((response) => response.json())
-      .then((result: { history?: PricePoint[] }) =>
-        setHistory(result.history ?? []),
-      )
-      .catch(() => setHistory([]));
-    return () => controller.abort();
-  }, [selected, historyDays]);
+    if (!filtersOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const trigger = filterButton.current;
+    document.body.style.overflow = "hidden";
+    filterClose.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFiltersOpen(false);
+      if (event.key === "Tab") {
+        const focusable = filterSheet.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        );
+        if (!focusable?.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+      trigger?.focus();
+    };
+  }, [filtersOpen]);
 
   const pageRange = useMemo(() => {
     const start = Math.max(1, page - 2);
@@ -234,30 +219,90 @@ export default function InventoryPage({
     return Array.from({ length: Math.max(0, end - start + 1) }, (_, index) => start + index);
   }, [page, data.totalPages]);
 
-  const cardmarketUrl = (card: CatalogCard) => {
-    const url = new URL("https://www.cardmarket.com/en/Magic/Products/Search");
-    url.searchParams.set("searchString", card.name);
-    const referrer = process.env.NEXT_PUBLIC_CARDMARKET_REFERRER;
-    if (referrer) url.searchParams.set("referrer", referrer);
-    return url.toString();
+  const openFilters = () => {
+    setDraftFilters({
+      rarity,
+      color,
+      language,
+      cardType,
+      minPrice,
+      maxPrice,
+      foilOnly,
+      reservedOnly,
+      sort,
+    });
+    setFiltersOpen(true);
   };
 
-  const addToWatchlist = async (card: CatalogCard) => {
-    const response = await fetch("/api/watchlist", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cardId: card.id }),
-    });
-    if (response.ok) {
-      setNotice(locale === "es" ? "Añadida a seguimiento" : "Added to watchlist");
-      window.setTimeout(() => setNotice(""), 2200);
-    }
+  const applyFilters = () => {
+    setLoading(true);
+    setRarity(draftFilters.rarity);
+    setColor(draftFilters.color);
+    setLanguage(draftFilters.language);
+    setCardType(draftFilters.cardType);
+    setMinPrice(draftFilters.minPrice);
+    setMaxPrice(draftFilters.maxPrice);
+    setFoilOnly(draftFilters.foilOnly);
+    setReservedOnly(draftFilters.reservedOnly);
+    setSort(draftFilters.sort);
+    setPage(1);
+    setFiltersOpen(false);
+  };
+
+  const clearFilters = () => {
+    const cleared = {
+      rarity: "",
+      color: "",
+      language: "",
+      cardType: "",
+      minPrice: "",
+      maxPrice: "",
+      foilOnly: false,
+      reservedOnly: false,
+      sort: "price_desc",
+    };
+    setDraftFilters(cleared);
+    setLoading(true);
+    setRarity("");
+    setColor("");
+    setLanguage("");
+    setCardType("");
+    setMinPrice("");
+    setMaxPrice("");
+    setFoilOnly(false);
+    setReservedOnly(false);
+    setSort("price_desc");
+    setPage(1);
+  };
+
+  const activeFilters = [
+    rarity && { key: "rarity", label: `${t("Rarity")}: ${rarity}` },
+    color && { key: "color", label: `${es ? "Color" : "Colour"}: ${color}` },
+    language && { key: "language", label: `${es ? "Idioma" : "Language"}: ${language.toUpperCase()}` },
+    cardType && { key: "cardType", label: `${es ? "Tipo" : "Type"}: ${cardType}` },
+    minPrice && { key: "minPrice", label: `Min €${minPrice}` },
+    maxPrice && { key: "maxPrice", label: `Max €${maxPrice}` },
+    foilOnly && { key: "foilOnly", label: "Foil" },
+    reservedOnly && { key: "reservedOnly", label: t("Reserved List") },
+  ].filter(Boolean) as Array<{ key: string; label: string }>;
+
+  const removeFilter = (key: string) => {
+    setLoading(true);
+    setPage(1);
+    if (key === "rarity") setRarity("");
+    if (key === "color") setColor("");
+    if (key === "language") setLanguage("");
+    if (key === "cardType") setCardType("");
+    if (key === "minPrice") setMinPrice("");
+    if (key === "maxPrice") setMaxPrice("");
+    if (key === "foilOnly") setFoilOnly(false);
+    if (key === "reservedOnly") setReservedOnly(false);
   };
 
   const selectSuggestion = (card: CatalogCard) => {
     setQuery(card.name);
     setDebouncedQuery(card.name);
-    setSelected(card);
+    openCard(card);
     setSuggestions([]);
     setSearchFocused(false);
     setActiveSuggestion(-1);
@@ -388,6 +433,25 @@ export default function InventoryPage({
           <div className="inventory-freshness"><span /> Live from Railway PostgreSQL</div>
         </div>
 
+        <div className="inventory-mobile-controls">
+          <button ref={filterButton} type="button" aria-haspopup="dialog" aria-expanded={filtersOpen} onClick={openFilters}>
+            <Filter size={17} />
+            {t("Filters")}
+            {activeFilters.length > 0 && <span>{activeFilters.length}</span>}
+          </button>
+          <span>{data.total.toLocaleString(locale === "es" ? "es-ES" : "en-GB")} {es ? "resultados" : "results"}</span>
+        </div>
+        {activeFilters.length > 0 && (
+          <div className="active-filter-chips" aria-label={es ? "Filtros activos" : "Active filters"}>
+            {activeFilters.map((filter) => (
+              <button key={filter.key} onClick={() => removeFilter(filter.key)}>
+                {filter.label}<X size={13} aria-hidden="true" />
+                <span className="sr-only">{es ? "Quitar filtro" : "Remove filter"}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="inventory-toolbar">
           <div className="filter-label"><Filter size={15} /> {t("Filters")}</div>
           <label>
@@ -456,7 +520,7 @@ export default function InventoryPage({
             {loading && !data.cards.length
               ? Array.from({ length: 16 }, (_, index) => <div className="card-skeleton" key={index} />)
               : data.cards.map((card) => (
-                  <button type="button" className="inventory-card" key={card.id} onClick={() => { setHistory([]); setHistoryDays(90); setSelected(card); }}>
+                  <button type="button" className="inventory-card" key={card.id} onClick={() => openCard(card)}>
                     <div className="inventory-image">
                       {card.imageUrl ? <img src={card.imageUrl} alt={card.name} loading="lazy" /> : <div className="image-missing"><BrainCircuit size={28} />No image</div>}
                       <span className={`rarity rarity-${card.rarity}`}>{card.rarity}</span>
@@ -495,44 +559,47 @@ export default function InventoryPage({
         )}
       </div>
 
-      {selected && (
-        <div className="card-detail-backdrop" onMouseDown={() => setSelected(null)}>
-          <article className="card-detail" onMouseDown={(event) => event.stopPropagation()}>
-            <button className="detail-close" onClick={() => setSelected(null)} aria-label="Close"><X size={18} /></button>
-            {selected.imageUrl && <img src={selected.imageUrl} alt={selected.name} />}
-            <div>
-              <span className="eyebrow">{selected.setName}</span>
-              <h2>{selected.name}</h2>
-              <p>{selected.typeLine}</p>
-              <dl>
-                <div><dt>{t("Market price")}</dt><dd>{selected.price === null ? "Unavailable" : formatCurrency(selected.price)}</dd></div>
-                <div><dt>{t("Foil price")}</dt><dd>{selected.foilPrice === null ? "Unavailable" : formatCurrency(selected.foilPrice)}</dd></div>
-                <div><dt>{t("7-day movement")}</dt><dd className={selected.change7d !== null && selected.change7d >= 0 ? "up" : "down"}>{selected.change7d === null ? "Unavailable" : `${selected.change7d >= 0 ? "+" : ""}${selected.change7d.toFixed(2)}%`}</dd></div>
-                <div><dt>{t("Printing")}</dt><dd>{selected.setCode.toUpperCase()} #{selected.collectorNumber}</dd></div>
-              </dl>
-              <div className="history-head">
-                <strong>{t("Daily price history")}</strong>
-                <div>
-                  {[30, 90, 180, 365].map((days) => (
-                    <button key={days} className={historyDays === days ? "active" : ""} onClick={() => setHistoryDays(days)}>
-                      {days === 365 ? "1Y" : `${days}D`}
-                    </button>
-                  ))}
-                </div>
+      {filtersOpen && (
+        <div className="mobile-sheet-backdrop inventory-filter-backdrop" onMouseDown={() => setFiltersOpen(false)}>
+          <section
+            ref={filterSheet}
+            className="inventory-filter-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="inventory-filter-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="mobile-sheet-handle" aria-hidden="true" />
+            <header>
+              <div>
+                <span>{data.total.toLocaleString(locale === "es" ? "es-ES" : "en-GB")} {es ? "resultados" : "results"}</span>
+                <h2 id="inventory-filter-title">{t("Filters")}</h2>
               </div>
-              <PriceHistoryChart history={history} />
-              <div className="detail-actions">
-                <Link href={`/portfolio?cardId=${selected.id}`}><Plus size={14} /> {t("Add holding")}</Link>
-                <button onClick={() => addToWatchlist(selected)}>{t("Watchlist")}</button>
-                <a href={cardmarketUrl(selected)} target="_blank" rel="noopener noreferrer sponsored">
-                  {t("View on Cardmarket")} <ExternalLink size={14} />
-                </a>
+              <button ref={filterClose} onClick={() => setFiltersOpen(false)} aria-label={es ? "Cerrar filtros" : "Close filters"}><X size={20} /></button>
+            </header>
+            <div className="inventory-filter-fields">
+              <label>{t("Rarity")}<select value={draftFilters.rarity} onChange={(event) => setDraftFilters((current) => ({ ...current, rarity: event.target.value }))}>{rarityOptions.map((option) => <option value={option} key={option}>{option ? `${option[0].toUpperCase()}${option.slice(1)}` : t("All rarities")}</option>)}</select></label>
+              <label>{es ? "Color" : "Colour"}<select value={draftFilters.color} onChange={(event) => setDraftFilters((current) => ({ ...current, color: event.target.value }))}><option value="">{es ? "Todos" : "All colours"}</option><option value="W">{es ? "Blanco" : "White"}</option><option value="U">{es ? "Azul" : "Blue"}</option><option value="B">{es ? "Negro" : "Black"}</option><option value="R">{es ? "Rojo" : "Red"}</option><option value="G">{es ? "Verde" : "Green"}</option></select></label>
+              <label>{es ? "Idioma" : "Language"}<select value={draftFilters.language} onChange={(event) => setDraftFilters((current) => ({ ...current, language: event.target.value }))}><option value="">{es ? "Todos" : "All languages"}</option><option value="en">English</option><option value="es">Español</option><option value="de">Deutsch</option><option value="fr">Français</option><option value="it">Italiano</option><option value="ja">日本語</option></select></label>
+              <label>{es ? "Tipo" : "Type"}<input value={draftFilters.cardType} onChange={(event) => setDraftFilters((current) => ({ ...current, cardType: event.target.value }))} placeholder="Creature…" /></label>
+              <div className="inventory-price-fields">
+                <label>Min €<input value={draftFilters.minPrice} onChange={(event) => setDraftFilters((current) => ({ ...current, minPrice: event.target.value }))} inputMode="decimal" placeholder="0" /></label>
+                <label>Max €<input value={draftFilters.maxPrice} onChange={(event) => setDraftFilters((current) => ({ ...current, maxPrice: event.target.value }))} inputMode="decimal" placeholder="∞" /></label>
+              </div>
+              <label>{t("Sort by")}<select value={draftFilters.sort} onChange={(event) => setDraftFilters((current) => ({ ...current, sort: event.target.value }))}><option value="price_desc">{t("Highest price")}</option><option value="price_asc">{t("Lowest price")}</option><option value="change_desc">{t("Biggest 7-day gain")}</option><option value="name_asc">{t("Card name")}</option><option value="release_desc">{t("Newest release")}</option></select></label>
+              <div className="inventory-filter-toggles">
+                <button className={draftFilters.foilOnly ? "active" : ""} onClick={() => setDraftFilters((current) => ({ ...current, foilOnly: !current.foilOnly }))}>Foil</button>
+                <button className={draftFilters.reservedOnly ? "active reserved" : "reserved"} onClick={() => setDraftFilters((current) => ({ ...current, reservedOnly: !current.reservedOnly }))}>{t("Reserved List")}</button>
               </div>
             </div>
-          </article>
+            <footer>
+              <button type="button" onClick={clearFilters}>{es ? "Limpiar" : "Clear all"}</button>
+              <button type="button" onClick={applyFilters}>{es ? "Aplicar filtros" : "Apply filters"}</button>
+            </footer>
+          </section>
         </div>
       )}
-      {notice && <div className="toast">{notice}</div>}
+
     </main>
   );
 }

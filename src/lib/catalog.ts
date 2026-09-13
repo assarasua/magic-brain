@@ -331,38 +331,56 @@ export async function getMarketMovers(
   direction: "gainers" | "losers" = "gainers",
   days = 7,
 ) {
+  const directionFilter = direction === "losers" ? "< 0" : "> 0";
   const order = direction === "losers" ? "asc" : "desc";
   const { rows } = await query<CatalogRow>(
     `
       with dates as (
-        select max(date) as latest_date from prices where source = 'mtgjson'
+        select
+          max(date) as latest_date,
+          (
+            select max(previous.date)
+            from prices previous
+            where previous.source = 'mtgjson'
+              and previous.date <= (
+                select max(current.date) from prices current where current.source = 'mtgjson'
+              ) - $2::integer
+          ) as previous_date
+        from prices
+        where source = 'mtgjson'
+      ),
+      movers as (
+        select
+          c.scryfall_id::text as id,
+          c.name,
+          c.set_code,
+          c.set_name,
+          c.collector_number,
+          c.rarity,
+          c.type_line,
+          coalesce(c.image_url, c.image_uris->>'normal') as image_url,
+          c.cardmarket_id,
+          current_price.eur as price,
+          current_price.eur_foil as foil_price,
+          current_price.date::text as price_date,
+          ((current_price.eur - previous_price.eur) / previous_price.eur) * 100 as change_7d
+        from dates
+        join prices current_price
+          on current_price.date = dates.latest_date
+          and current_price.source = 'mtgjson'
+        join prices previous_price
+          on previous_price.scryfall_id = current_price.scryfall_id
+          and previous_price.date = dates.previous_date
+          and previous_price.source = 'mtgjson'
+        join cards c on c.scryfall_id = current_price.scryfall_id
+        where current_price.eur between 2 and 5000
+          and previous_price.eur >= 2
       )
       select
-        c.scryfall_id::text as id,
-        c.name,
-        c.set_code,
-        c.set_name,
-        c.collector_number,
-        c.rarity,
-        c.type_line,
-        coalesce(c.image_url, c.image_uris->>'normal') as image_url,
-        c.cardmarket_id,
-        current_price.eur as price,
-        current_price.eur_foil as foil_price,
-        current_price.date::text as price_date,
-        ((current_price.eur - previous_price.eur) / previous_price.eur) * 100 as change_7d
-      from dates
-      join prices current_price
-        on current_price.date = dates.latest_date
-        and current_price.source = 'mtgjson'
-      join prices previous_price
-        on previous_price.scryfall_id = current_price.scryfall_id
-        and previous_price.date = dates.latest_date - $2::integer
-        and previous_price.source = 'mtgjson'
-      join cards c on c.scryfall_id = current_price.scryfall_id
-      where current_price.eur between 2 and 5000
-        and previous_price.eur >= 2
-        and ((current_price.eur - previous_price.eur) / previous_price.eur) * 100 between -80 and 200
+        *
+      from movers
+      where change_7d between -80 and 200
+        and change_7d ${directionFilter}
       order by change_7d ${order}
       limit $1
     `,

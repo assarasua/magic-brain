@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const days = [1, 7, 30].includes(requestedDays) ? requestedDays : 7;
     const cards = await getMarketMovers(12, direction, days);
     return NextResponse.json(
-      { cards },
+      { cards, direction, days },
       { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } },
     );
   } catch {

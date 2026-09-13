@@ -13,10 +13,11 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
+import { useCardDetail } from "@/components/card-detail-provider";
 import { PortfolioOnboarding } from "@/components/portfolio-onboarding";
 import type { CatalogCard } from "@/lib/catalog";
 import { formatCurrency } from "@/lib/data";
@@ -113,6 +114,7 @@ function PortfolioChart({
 
 export default function PortfolioPage() {
   const { locale, t } = useLanguage();
+  const { cardSurfaceProps } = useCardDetail();
   const [data, setData] = useState(emptyPortfolio);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -122,6 +124,8 @@ export default function PortfolioPage() {
   const [selectedCard, setSelectedCard] = useState<CatalogCard | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const addButtonRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   const loadPortfolio = () =>
     fetch("/api/portfolio")
@@ -178,6 +182,23 @@ export default function PortfolioPage() {
     }, 220);
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [cardQuery, selectedCard]);
+
+  useEffect(() => {
+    if (!showAdd) return;
+    const previousOverflow = document.body.style.overflow;
+    const trigger = addButtonRef.current;
+    document.body.style.overflow = "hidden";
+    closeButtonRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowAdd(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+      trigger?.focus();
+    };
+  }, [showAdd]);
 
   const allocation = useMemo(
     () => {
@@ -287,7 +308,7 @@ export default function PortfolioPage() {
       <div className="account-content">
         <div className="account-heading">
           <div><span className="eyebrow">{locale === "es" ? "Rendimiento personal" : "Personal performance"}</span><h1>{t("My portfolio")}</h1><p>{locale === "es" ? "Valoración en tiempo real según tus precios de compra." : "Real-time valuation based on your actual purchase prices."}</p></div>
-          <button className="primary-button" onClick={() => setShowAdd(true)}><Plus size={16} /> {t("Add holding")}</button>
+          <button ref={addButtonRef} className="primary-button" onClick={() => setShowAdd(true)}><Plus size={16} /> {t("Add holding")}</button>
         </div>
 
         {loading ? (
@@ -325,7 +346,7 @@ export default function PortfolioPage() {
             <section className="fintech-panel holdings-table">
               <div className="section-title"><div><span className="eyebrow">{t("Your collection")}</span><h2>{locale === "es" ? "Posiciones" : "Holdings"}</h2></div><span>{data.holdings.length} {locale === "es" ? "lotes" : "lots"}</span></div>
             <div className="holdings-list">
-              {data.holdings.map((holding) => <div className="portfolio-row" key={holding.id}>
+              {data.holdings.map((holding) => <div className="portfolio-row card-surface" key={holding.id} {...cardSurfaceProps(holding.cardId)}>
                 {holding.imageUrl && <img src={holding.imageUrl} alt="" />}
                 <div><strong>{holding.name}</strong><span>{holding.setCode.toUpperCase()} · {holding.condition.replace("_", " ")} · {holding.quantity}×</span></div>
                 <div><span>{locale === "es" ? "Coste" : "Cost"}</span><strong>{formatCurrency(holding.costBasis)}</strong></div>
@@ -342,9 +363,9 @@ export default function PortfolioPage() {
 
       {showAdd && (
         <div className="card-detail-backdrop" onMouseDown={() => setShowAdd(false)}>
-          <form className="holding-form" onSubmit={addHolding} onMouseDown={(event) => event.stopPropagation()}>
-            <button type="button" className="detail-close" onClick={() => setShowAdd(false)}><X size={18} /></button>
-            <span className="eyebrow">{t("Portfolio")}</span><h2>{t("Add holding")}</h2>
+          <form className="holding-form" role="dialog" aria-modal="true" aria-labelledby="holding-form-title" onSubmit={addHolding} onMouseDown={(event) => event.stopPropagation()}>
+            <button ref={closeButtonRef} type="button" className="detail-close" onClick={() => setShowAdd(false)} aria-label={locale === "es" ? "Cerrar" : "Close"}><X size={18} /></button>
+            <span className="eyebrow">{t("Portfolio")}</span><h2 id="holding-form-title">{t("Add holding")}</h2>
             <label>{t("Card name")}<div className="holding-card-search"><Search size={15} /><input value={cardQuery} onChange={(event) => { setCardQuery(event.target.value); setSelectedCard(null); }} placeholder="Black Lotus…" /></div></label>
             {!selectedCard && results.length > 0 && <div className="holding-results">{results.map((card) => <button type="button" key={card.id} onClick={() => { setSelectedCard(card); setCardQuery(`${card.name} · ${card.setCode.toUpperCase()}`); setResults([]); }}>{card.imageUrl && <img src={card.imageUrl} alt="" />}<span><strong>{card.name}</strong><small>{card.setName}</small></span><b>{card.price === null ? "—" : formatCurrency(card.price)}</b></button>)}</div>}
             <div className="form-grid"><label>Quantity<input name="quantity" type="number" min="1" defaultValue="1" required /></label><label>{locale === "es" ? "Precio de compra unitario" : "Unit purchase price"}<input key={selectedCard?.id ?? "no-card"} name="purchasePrice" type="number" min="0" step=".01" defaultValue={selectedCard?.price ?? ""} required /></label></div>

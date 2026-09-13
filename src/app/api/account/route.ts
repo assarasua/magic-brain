@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
       avatarUrl: user.avatarUrl,
       googleAuthConfigured,
       plan: isPro(user) ? "pro" : "basic",
+      hasBillingAccount: Boolean(user.stripeCustomerId),
       productTourCompleted: user.productTourCompleted,
       preferences: user.preferences,
     }),

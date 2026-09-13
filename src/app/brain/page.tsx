@@ -8,6 +8,7 @@ import {
   BrainCircuit,
   Check,
   Crown,
+  Lightbulb,
   LoaderCircle,
   Plus,
   ShieldCheck,
@@ -19,6 +20,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
+import { useCardDetail } from "@/components/card-detail-provider";
 import { ProGate } from "@/components/pro-gate";
 import type { BrainPreferences, BrainRecommendation } from "@/lib/brain";
 import { formatCurrency } from "@/lib/data";
@@ -44,6 +46,7 @@ const colorOptions = [
 
 export default function BrainPage() {
   const { locale, t } = useLanguage();
+  const { cardSurfaceProps } = useCardDetail();
   const [risk, setRisk] = useState<BrainPreferences["risk"]>("balanced");
   const [horizon, setHorizon] = useState<"short" | "medium" | "long">("medium");
   const [strategy, setStrategy] = useState<BrainPreferences["strategy"]>("diversified");
@@ -279,10 +282,18 @@ export default function BrainPage() {
               <div className="brain-result-head"><div><span className="eyebrow">Brain Pro strategy</span><h2>{result.name}</h2></div><div className="result-head-actions"><span className="confidence"><i /> {locale === "es" ? "Confianza alta" : "High confidence"}</span><button onClick={addAllRecommendations}><Plus size={13} /> {locale === "es" ? "Añadir todo" : "Add all"}</button></div></div>
               <div className="brain-stats"><div><span>{locale === "es" ? "Presupuesto" : "Budget"}</span><strong>{formatCurrency(result.budget)}</strong></div><div><span>{locale === "es" ? "Asignado" : "Allocated"}</span><strong>{formatCurrency(result.invested)}</strong></div><div><span>{locale === "es" ? "Valor proyectado*" : "Projected value*"}</span><strong className="up">{formatCurrency(result.expectedValue)}</strong></div></div>
               <div className="recommendations">
-                {result.recommendations.map((item, index) => <article key={item.cardId}>
+                {result.recommendations.map((item, index) => <article className="card-surface" key={item.cardId} {...cardSurfaceProps(item.cardId)}>
                   <span className="recommendation-rank">{String(index + 1).padStart(2, "0")}</span>
                   {item.imageUrl && <img src={item.imageUrl} alt="" />}
-                  <div className="recommendation-copy"><strong>{item.name}</strong><span>{item.setCode.toUpperCase()} · {item.quantity}× · {formatCurrency(item.allocation)}</span><p>{item.rationale}</p></div>
+                  <div className="recommendation-copy">
+                    <strong>{item.name}</strong>
+                    <span>{item.setCode.toUpperCase()} · {item.quantity}× · {formatCurrency(item.allocation)}</span>
+                    <p>{item.rationale}</p>
+                    <div className="buyer-tips">
+                      <b><Lightbulb size={13} /> {locale === "es" ? "Consejos de compra" : "Buyer tips"}</b>
+                      <ul>{item.buyerTips.map((tip) => <li key={tip}>{tip}</li>)}</ul>
+                    </div>
+                  </div>
                   <div className="recommendation-signal"><TrendingUp size={13} /><strong>+{item.change30d.toFixed(1)}%</strong><span>30D</span></div>
                   <button onClick={() => addRecommendation(item)} title={t("Add holding")}><Plus size={15} /></button>
                 </article>)}

@@ -4,8 +4,12 @@
 
 import {
   ArrowLeft,
+  ArrowDownToLine,
+  ArrowUpFromLine,
   Bell,
+  Check,
   Plus,
+  RotateCcw,
   Search,
   Trash2,
 } from "lucide-react";
@@ -14,13 +18,24 @@ import { useEffect, useState } from "react";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
+import { useCardDetail } from "@/components/card-detail-provider";
 import type { CatalogCard } from "@/lib/catalog";
 import { formatCurrency } from "@/lib/data";
 
-type WatchedCard = CatalogCard & { targetPrice: number | null };
+type WatchedCard = CatalogCard & {
+  targetPrice: number | null;
+  alertBelowEnabled: boolean;
+  alertAbovePrice: number | null;
+  alertAboveEnabled: boolean;
+  belowTriggeredAt: string | null;
+  belowReadAt: string | null;
+  aboveTriggeredAt: string | null;
+  aboveReadAt: string | null;
+};
 
 export default function WatchlistPage() {
   const { locale, t } = useLanguage();
+  const { cardSurfaceProps } = useCardDetail();
   const [cards, setCards] = useState<WatchedCard[]>([]);
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<CatalogCard[]>([]);
@@ -74,18 +89,47 @@ export default function WatchlistPage() {
     }
   };
 
-  const setTarget = async (card: WatchedCard, value: string) => {
-    const targetPrice = value ? Number(value) : null;
+  const updateAlerts = async (
+    card: WatchedCard,
+    updates: Partial<Pick<
+      WatchedCard,
+      "targetPrice" | "alertBelowEnabled" | "alertAbovePrice" | "alertAboveEnabled"
+    >>,
+  ) => {
     const response = await fetch("/api/watchlist", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cardId: card.id, targetPrice }),
+      body: JSON.stringify({ cardId: card.id, ...updates }),
     });
     if (response.ok) {
       const result = (await response.json()) as { cards: WatchedCard[] };
       setCards(result.cards);
     }
   };
+
+  const updateAlertState = async (
+    card: WatchedCard,
+    direction: "below" | "above",
+    action: "dismiss" | "reset",
+  ) => {
+    const response = await fetch("/api/watchlist", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cardId: card.id, direction, action }),
+    });
+    if (response.ok) {
+      const result = (await response.json()) as { cards: WatchedCard[] };
+      setCards(result.cards);
+    }
+  };
+
+  const triggeredCount = cards.reduce(
+    (count, card) =>
+      count +
+      Number(Boolean(card.belowTriggeredAt && !card.belowReadAt)) +
+      Number(Boolean(card.aboveTriggeredAt && !card.aboveReadAt)),
+    0,
+  );
 
   return (
     <main className="account-page">
@@ -109,19 +153,34 @@ export default function WatchlistPage() {
         <section className="watch-overview">
           <div className="fintech-panel"><Bell size={19} /><span>{locale === "es" ? "Cartas seguidas" : "Tracked cards"}</span><strong>{cards.length}</strong></div>
           <div className="fintech-panel"><span>{locale === "es" ? "Ganadores hoy" : "Positive signals"}</span><strong className="up">{cards.filter((card) => (card.change7d ?? 0) > 0).length}</strong><small>{locale === "es" ? "últimos 7 días" : "over 7 days"}</small></div>
-          <div className="fintech-panel"><span>{locale === "es" ? "Alertas alcanzadas" : "Targets reached"}</span><strong>{cards.filter((card) => card.targetPrice !== null && card.price !== null && card.price <= card.targetPrice).length}</strong><small>{locale === "es" ? "listas para revisar" : "ready to review"}</small></div>
+          <div className="fintech-panel"><span>{locale === "es" ? "Alertas nuevas" : "New alerts"}</span><strong>{triggeredCount}</strong><small>{locale === "es" ? "listas para revisar" : "ready to review"}</small></div>
         </section>
 
         <section className="fintech-panel watch-table">
           <div className="section-title"><div><span className="eyebrow">{locale === "es" ? "Seguimiento personal" : "Personal tracking"}</span><h2>{locale === "es" ? "Señales de precio" : "Price signals"}</h2></div></div>
           {loading ? <div className="table-empty">Loading…</div> : cards.length === 0 ? <div className="table-empty"><Bell size={27} /><strong>{locale === "es" ? "Tu lista está vacía" : "Your watchlist is empty"}</strong><p>{locale === "es" ? "Busca una carta arriba para empezar." : "Search for a card above to start tracking it."}</p></div> : cards.map((card) => (
-            <article className="watch-row" key={card.id}>
+            <article className="watch-row card-surface" key={card.id} {...cardSurfaceProps(card)}>
               {card.imageUrl && <img src={card.imageUrl} alt="" />}
               <div><strong>{card.name}</strong><span>{card.setCode.toUpperCase()} · {card.setName}</span></div>
               <div><span>{locale === "es" ? "Precio actual" : "Current price"}</span><strong>{card.price === null ? "—" : formatCurrency(card.price)}</strong></div>
               <div><span>7D</span><strong className={(card.change7d ?? 0) >= 0 ? "up" : "down"}>{card.change7d === null ? "—" : `${card.change7d >= 0 ? "+" : ""}${card.change7d.toFixed(2)}%`}</strong></div>
-              <label><span>{locale === "es" ? "Precio objetivo" : "Target price"}</span><div>€ <input type="number" step=".01" min="0" defaultValue={card.targetPrice ?? ""} onBlur={(event) => setTarget(card, event.target.value)} /></div></label>
-              <button onClick={() => removeCard(card.id)} aria-label={`Remove ${card.name}`}><Trash2 size={15} /></button>
+              <div className="watch-alerts">
+                <div className={`watch-alert ${card.belowTriggeredAt ? "triggered" : ""} ${card.belowReadAt ? "dismissed" : ""}`}>
+                  <button className={`alert-toggle ${card.alertBelowEnabled ? "active" : ""}`} onClick={() => updateAlerts(card, { alertBelowEnabled: !card.alertBelowEnabled })} aria-pressed={card.alertBelowEnabled} aria-label={`${card.alertBelowEnabled ? "Disable" : "Enable"} price drop alert`}>
+                    <ArrowDownToLine size={14} />{card.alertBelowEnabled && <Check size={10} />}
+                  </button>
+                  <label><span>{locale === "es" ? "Baja de" : "Drops below"}</span><div>€ <input type="number" step=".01" min="0" defaultValue={card.targetPrice ?? ""} onBlur={(event) => updateAlerts(card, { targetPrice: event.target.value ? Number(event.target.value) : null, alertBelowEnabled: Boolean(event.target.value) })} /></div></label>
+                  {card.belowTriggeredAt && <div className="alert-status"><strong>{card.belowReadAt ? (locale === "es" ? "Descartada" : "Dismissed") : (locale === "es" ? "Activada" : "Triggered")}</strong>{card.belowReadAt ? <button onClick={() => updateAlertState(card, "below", "reset")}><RotateCcw size={11} /> {locale === "es" ? "Reactivar" : "Reset"}</button> : <button onClick={() => updateAlertState(card, "below", "dismiss")}>{locale === "es" ? "Descartar" : "Dismiss"}</button>}</div>}
+                </div>
+                <div className={`watch-alert ${card.aboveTriggeredAt ? "triggered" : ""} ${card.aboveReadAt ? "dismissed" : ""}`}>
+                  <button className={`alert-toggle ${card.alertAboveEnabled ? "active" : ""}`} onClick={() => updateAlerts(card, { alertAboveEnabled: !card.alertAboveEnabled })} aria-pressed={card.alertAboveEnabled} aria-label={`${card.alertAboveEnabled ? "Disable" : "Enable"} price rise alert`}>
+                    <ArrowUpFromLine size={14} />{card.alertAboveEnabled && <Check size={10} />}
+                  </button>
+                  <label><span>{locale === "es" ? "Sube de" : "Rises above"}</span><div>€ <input type="number" step=".01" min="0" defaultValue={card.alertAbovePrice ?? ""} onBlur={(event) => updateAlerts(card, { alertAbovePrice: event.target.value ? Number(event.target.value) : null, alertAboveEnabled: Boolean(event.target.value) })} /></div></label>
+                  {card.aboveTriggeredAt && <div className="alert-status"><strong>{card.aboveReadAt ? (locale === "es" ? "Descartada" : "Dismissed") : (locale === "es" ? "Activada" : "Triggered")}</strong>{card.aboveReadAt ? <button onClick={() => updateAlertState(card, "above", "reset")}><RotateCcw size={11} /> {locale === "es" ? "Reactivar" : "Reset"}</button> : <button onClick={() => updateAlertState(card, "above", "dismiss")}>{locale === "es" ? "Descartar" : "Dismiss"}</button>}</div>}
+                </div>
+              </div>
+              <button className="watch-remove" onClick={() => removeCard(card.id)} aria-label={`Remove ${card.name}`}><Trash2 size={15} /></button>
             </article>
           ))}
         </section>

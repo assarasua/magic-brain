@@ -136,7 +136,7 @@ export default function AnalystPage() {
       <div className="analyst-content">
         <div className="analyst-hero">
           <span className="analyst-icon"><MessageCircleQuestion size={28} /></span>
-          <span className="eyebrow">Brain Market Analyst</span>
+          <span className="eyebrow premium-feature-badge"><Sparkles size={12} /> Ask Brain · Premium</span>
           <h1>{locale === "es" ? "Pregunta a tus datos." : "Ask your market data."}</h1>
           <p>{locale === "es" ? "Consulta subidas, fechas clave y movimientos diarios usando todo el historial de precios." : "Ask about rises, key dates, and daily movements using the complete price history."}</p>
           <form onSubmit={ask}>

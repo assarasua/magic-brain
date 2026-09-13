@@ -15,7 +15,7 @@ const scryfallImage = (name: string) =>
 
 export const movers: Card[] = [
   {
-    id: "rhystic-study",
+    id: "043b2d30-a40f-4d47-933b-80544512f9c2",
     name: "Rhystic Study",
     set: "Wilds of Eldraine: Enchanting Tales",
     setCode: "WOT",
@@ -26,7 +26,7 @@ export const movers: Card[] = [
     rarity: "Rare",
   },
   {
-    id: "the-one-ring",
+    id: "93de9042-cc62-4ade-8d8d-68fdbc84bfae",
     name: "The One Ring",
     set: "The Lord of the Rings",
     setCode: "LTR",
@@ -37,7 +37,7 @@ export const movers: Card[] = [
     rarity: "Mythic",
   },
   {
-    id: "sheoldred",
+    id: "d67be074-cdd4-41d9-ac89-0a0456c4e4b2",
     name: "Sheoldred, the Apocalypse",
     set: "Dominaria United",
     setCode: "DMU",
@@ -48,7 +48,7 @@ export const movers: Card[] = [
     rarity: "Mythic",
   },
   {
-    id: "orcish-bowmasters",
+    id: "7c024bae-5631-4e20-ac69-df392ac9e109",
     name: "Orcish Bowmasters",
     set: "The Lord of the Rings",
     setCode: "LTR",
@@ -59,7 +59,7 @@ export const movers: Card[] = [
     rarity: "Rare",
   },
   {
-    id: "ragavan",
+    id: "a9738cda-adb1-47fb-9f4c-ecd930228c4d",
     name: "Ragavan, Nimble Pilferer",
     set: "Modern Horizons 2",
     setCode: "MH2",
@@ -75,7 +75,7 @@ export const portfolioCards = [
   { ...movers[1], quantity: 2, costBasis: 126.0 },
   { ...movers[2], quantity: 3, costBasis: 171.3 },
   {
-    id: "force-of-will",
+    id: "9a879b60-4381-447d-8a5a-8e0b6a1d49ca",
     name: "Force of Will",
     set: "Alliances",
     setCode: "ALL",

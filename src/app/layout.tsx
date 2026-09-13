@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Manrope } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
+import { CardDetailProvider } from "@/components/card-detail-provider";
 import { LanguageProvider } from "@/components/language-provider";
 import "./globals.css";
 
@@ -28,7 +29,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.variable} ${manrope.variable}`}>
         <LanguageProvider>
-          <AppShell>{children}</AppShell>
+          <CardDetailProvider>
+            <AppShell>{children}</AppShell>
+          </CardDetailProvider>
         </LanguageProvider>
       </body>
     </html>

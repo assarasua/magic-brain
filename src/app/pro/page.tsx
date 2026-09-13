@@ -23,6 +23,7 @@ import { LanguageToggle, useLanguage } from "@/components/language-provider";
 type Account = {
   isPro: boolean;
   subscriptionStatus: string;
+  hasBillingAccount: boolean;
 };
 
 export default function ProPage() {
@@ -36,15 +37,25 @@ export default function ProPage() {
     fetch("/api/account")
       .then((response) => response.json())
       .then((result: Account) => setAccount(result))
-      .catch(() => setAccount({ isPro: false, subscriptionStatus: "free" }));
+      .catch(() => setAccount({
+        isPro: false,
+        subscriptionStatus: "free",
+        hasBillingAccount: false,
+      }));
   }, []);
+
+  const hasManagedSubscription =
+    account?.hasBillingAccount === true;
+  const hasGrantedProAccess =
+    account?.isPro === true && !account.hasBillingAccount;
 
   const continueWithPro = async () => {
     setLoading(true);
     setError("");
 
     try {
-      const endpoint = account?.isPro
+      if (hasGrantedProAccess) return;
+      const endpoint = hasManagedSubscription
         ? "/api/stripe/portal"
         : "/api/stripe/checkout";
       const response = await fetch(endpoint, { method: "POST" });
@@ -65,7 +76,11 @@ export default function ProPage() {
     }
   };
 
-  const cta = account?.isPro
+  const cta = hasGrantedProAccess
+    ? es
+      ? "Brain Pro activo"
+      : "Brain Pro active"
+    : hasManagedSubscription
     ? es
       ? "Gestionar suscripción"
       : "Manage subscription"
@@ -125,7 +140,7 @@ export default function ProPage() {
               : "Brain analyses historical prices and turns your preferences into a concrete, diversified, and explainable card portfolio."}
           </p>
           <div className="pro-hero-actions">
-            <button onClick={continueWithPro} disabled={loading || !account}>
+            <button onClick={continueWithPro} disabled={loading || !account || hasGrantedProAccess}>
               {loading ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
               {loading ? (es ? "Abriendo Stripe…" : "Opening Stripe…") : cta}
               {!loading && <ArrowRight size={17} />}
@@ -137,6 +152,12 @@ export default function ProPage() {
               <strong>€5</strong><span>/{es ? "mes" : "month"}</span>
               <i />
               <span>{es ? "14 días gratis · Cancela cuando quieras" : "14 days free · Cancel anytime"}</span>
+            </div>
+          )}
+          {hasGrantedProAccess && (
+            <div className="pro-price-line">
+              <ShieldCheck size={15} />
+              <span>{es ? "Tu acceso Pro está gestionado directamente por Magic Brain." : "Your Pro access is managed directly by Magic Brain."}</span>
             </div>
           )}
           {error && <div className="pro-error">{error}</div>}
@@ -228,7 +249,7 @@ export default function ProPage() {
               <li><Check size={15} /> {es ? "Añadir la cartera completa en un clic" : "Add the complete portfolio in one click"}</li>
               <li><Check size={15} /> {es ? "Gestión de suscripción autoservicio" : "Self-service subscription management"}</li>
             </ul>
-            <button onClick={continueWithPro} disabled={loading || !account}>
+            <button onClick={continueWithPro} disabled={loading || !account || hasGrantedProAccess}>
               {account?.isPro ? cta : es ? "Empezar 14 días gratis" : "Start 14 days free"}
               <ArrowRight size={16} />
             </button>
@@ -242,7 +263,7 @@ export default function ProPage() {
         <span className="eyebrow">MAGIC BRAIN AI PRO</span>
         <h2>{es ? "Invierte con una tesis, no con una corazonada." : "Invest with a thesis, not a hunch."}</h2>
         <p>{es ? "Construye tu primera estrategia completa en menos de dos minutos." : "Build your first complete strategy in under two minutes."}</p>
-        <button onClick={continueWithPro} disabled={loading || !account}>
+        <button onClick={continueWithPro} disabled={loading || !account || hasGrantedProAccess}>
           <WalletCards size={17} /> {cta} <ArrowRight size={16} />
         </button>
         {!account?.isPro && <span><ShieldCheck size={13} /> {es ? "14 días gratis · Después €5/mes · Cancela cuando quieras" : "14 days free · Then €5/month · Cancel anytime"}</span>}

@@ -46,6 +46,7 @@ export type BrainRecommendation = {
   allocation: number;
   score: number;
   rationale: string;
+  buyerTips: string[];
 };
 
 const rationaleFor = (
@@ -75,6 +76,41 @@ const rationaleFor = (
     aggressive: "strong price momentum",
   }[risk];
   return `${profile}; ${strategy} approach; ${change7d >= 0 ? "+" : ""}${change7d.toFixed(1)}% over 7 days and ${change30d >= 0 ? "+" : ""}${change30d.toFixed(1)}% over 30 days (${momentum} trend).`;
+};
+
+const buyerTipsFor = (
+  locale: "en" | "es",
+  price: number,
+  change7d: number,
+  change30d: number,
+  quantity: number,
+  horizon: BrainPreferences["horizon"],
+) => {
+  const stretched = change7d >= 12 || change30d >= 30;
+  const recovering = change7d > 0 && change30d < 0;
+  const entry = stretched
+    ? locale === "es"
+      ? `Evita perseguir la subida: empieza cerca de ${price.toFixed(2)} € y reserva capital para una corrección.`
+      : `Avoid chasing the move: start near €${price.toFixed(2)} and reserve capital for a pullback.`
+    : recovering
+      ? locale === "es"
+        ? `La recuperación aún necesita confirmación; usa una orden limitada cerca de ${price.toFixed(2)} €.`
+        : `The recovery still needs confirmation; use a limit order near €${price.toFixed(2)}.`
+      : locale === "es"
+        ? `Usa ${price.toFixed(2)} € como referencia y compara el coste total entre vendedores antes de comprar.`
+        : `Use €${price.toFixed(2)} as your reference and compare total seller costs before buying.`;
+  const execution = quantity > 1
+    ? locale === "es"
+      ? `Divide las ${quantity} copias en al menos dos compras para reducir el riesgo del precio de entrada.`
+      : `Split the ${quantity} copies across at least two purchases to reduce entry-price risk.`
+    : locale === "es"
+      ? "Prioriza Near Mint, idioma líquido y una edición fácil de revender."
+      : "Prioritise Near Mint condition, a liquid language, and an edition that is easy to resell.";
+  const monitoring = locale === "es"
+    ? `Configura una alerta y revisa la tesis en horizonte ${horizon === "short" ? "corto" : horizon === "long" ? "largo" : "medio"}; no compres solo por el rendimiento pasado.`
+    : `Set a price alert and review the thesis on a ${horizon}-term horizon; do not buy on past performance alone.`;
+
+  return [entry, execution, monitoring];
 };
 
 export async function generateBrainPortfolio(
@@ -262,6 +298,7 @@ export async function generateBrainPortfolio(
         : preferences.budget * (positiveScores[index] / scoreTotal);
     const quantity = Math.max(1, Math.floor(targetAllocation / price));
     const allocation = Math.min(quantity * price, remainingBudget);
+    const finalQuantity = Math.max(1, Math.floor(allocation / price));
     remainingBudget = Math.max(0, remainingBudget - allocation);
 
     return {
@@ -275,7 +312,7 @@ export async function generateBrainPortfolio(
       price,
       change7d: candidate.change7d,
       change30d: candidate.change30d,
-      quantity: Math.max(1, Math.floor(allocation / price)),
+      quantity: finalQuantity,
       allocation,
       score: candidate.score,
       rationale: rationaleFor(
@@ -284,6 +321,14 @@ export async function generateBrainPortfolio(
         preferences.strategy,
         candidate.change7d,
         candidate.change30d,
+      ),
+      buyerTips: buyerTipsFor(
+        preferences.locale,
+        price,
+        candidate.change7d,
+        candidate.change30d,
+        finalQuantity,
+        preferences.horizon,
       ),
     } satisfies BrainRecommendation;
   }).filter((item) => item.allocation >= item.price);

@@ -17,6 +17,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
+import { useCardDetail } from "@/components/card-detail-provider";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { ProGate } from "@/components/pro-gate";
 import type { DiscoveryCard } from "@/lib/discovery";
@@ -24,6 +25,7 @@ import { formatCurrency } from "@/lib/data";
 
 export default function DiscoverPage() {
   const { locale, t } = useLanguage();
+  const { openCard } = useCardDetail();
   const es = locale === "es";
   const [cards, setCards] = useState<DiscoveryCard[]>([]);
   const [index, setIndex] = useState(0);
@@ -169,45 +171,59 @@ export default function DiscoverPage() {
                 <div className="discovery-progress"><span style={{ width: `${Math.max(4, (index / cards.length) * 100)}%` }} /></div>
                 {index === 0 && <small><X size={11} /> {es ? "Desliza para pasar" : "Swipe to pass"} <Heart size={11} /> {es ? "Desliza para guardar" : "Swipe to save"}</small>}
               </div>
-              {cards[index + 1] && <div className="discovery-card behind" style={{ transform: `translateY(${12 - Math.min(Math.abs(dragX) / 30, 6)}px) scale(${0.96 + Math.min(Math.abs(dragX) / 6000, 0.025)})` }}><img src={cards[index + 1].imageUrl} alt="" /></div>}
-              <article
-                className={`discovery-card active ${dragStart !== null ? "dragging" : ""} ${dragX > 80 ? "liking" : dragX < -80 ? "passing" : ""}`}
-                style={{ transform: `translateX(${dragX}px) rotate(${dragX / 28}deg)` }}
-                onPointerDown={(event) => {
-                  setDragStart(event.clientX);
-                  event.currentTarget.setPointerCapture(event.pointerId);
-                }}
-                onPointerMove={(event) => {
-                  if (dragStart !== null && !saving) setDragX(event.clientX - dragStart);
-                }}
-                onPointerUp={() => {
-                  if (dragX > 100) void decide("liked");
-                  else if (dragX < -100) void decide("passed");
-                  else setDragX(0);
-                  setDragStart(null);
-                }}
-                onPointerCancel={() => {
-                  setDragStart(null);
-                  setDragX(0);
-                }}
-              >
-                <span className="swipe-stamp pass">{es ? "PASAR" : "PASS"}</span>
-                <span className="swipe-stamp like">{es ? "ME INTERESA" : "INTERESTED"}</span>
-                <img src={current.imageUrl} alt={current.name} draggable={false} />
-                <div className="discovery-card-info">
-                  <div className="discovery-match"><Sparkles size={13} /> {current.matchScore}% {es ? "compatible" : "match"}</div>
-                  <h2>{current.name}</h2>
-                  <p>{current.setName} · {current.setCode.toUpperCase()} · {current.rarity}</p>
-                  <div className="discovery-price"><strong>{formatCurrency(current.price)}</strong><span className={current.change7d >= 0 ? "up" : "down"}>{current.change7d >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}{current.change7d >= 0 ? "+" : ""}{current.change7d.toFixed(1)}% <small>7D</small></span></div>
-                  <div className="discovery-signal-grid">
-                    <span><small>30D</small><strong className={current.change30d >= 0 ? "up" : "down"}>{current.change30d >= 0 ? "+" : ""}{current.change30d.toFixed(1)}%</strong></span>
-                    <span><small>{es ? "AFINIDAD" : "MATCH"}</small><strong>{current.matchScore}/100</strong></span>
-                    <span><small>{es ? "RAREZA" : "RARITY"}</small><strong>{current.rarity}</strong></span>
+              <div className="discovery-deck">
+                {cards[index + 1] && <div className="discovery-card behind" style={{ transform: `translateY(${12 - Math.min(Math.abs(dragX) / 30, 6)}px) scale(${0.96 + Math.min(Math.abs(dragX) / 6000, 0.025)})` }}><img src={cards[index + 1].imageUrl} alt="" /></div>}
+                <article
+                  className={`discovery-card active ${dragStart !== null ? "dragging" : ""} ${dragX > 80 ? "liking" : dragX < -80 ? "passing" : ""}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${es ? "Ver detalles de" : "View details for"} ${current.name}`}
+                  style={{ transform: `translateX(${dragX}px) rotate(${dragX / 28}deg)` }}
+                  onPointerDown={(event) => {
+                    setDragStart(event.clientX);
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                  }}
+                  onPointerMove={(event) => {
+                    if (dragStart !== null && !saving) setDragX(event.clientX - dragStart);
+                  }}
+                  onPointerUp={() => {
+                    if (dragX > 100) void decide("liked");
+                    else if (dragX < -100) void decide("passed");
+                    else setDragX(0);
+                    setDragStart(null);
+                  }}
+                  onPointerCancel={() => {
+                    setDragStart(null);
+                    setDragX(0);
+                  }}
+                  onClick={() => {
+                    if (Math.abs(dragX) < 8 && !saving) openCard(current.id);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      openCard(current.id);
+                    }
+                  }}
+                >
+                  <span className="swipe-stamp pass">{es ? "PASAR" : "PASS"}</span>
+                  <span className="swipe-stamp like">{es ? "ME INTERESA" : "INTERESTED"}</span>
+                  <img src={current.imageUrl} alt={current.name} draggable={false} />
+                  <div className="discovery-card-info">
+                    <div className="discovery-match"><Sparkles size={13} /> {current.matchScore}% {es ? "compatible" : "match"}</div>
+                    <h2>{current.name}</h2>
+                    <p>{current.setName} · {current.setCode.toUpperCase()} · {current.rarity}</p>
+                    <div className="discovery-price"><strong>{formatCurrency(current.price)}</strong><span className={current.change7d >= 0 ? "up" : "down"}>{current.change7d >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}{current.change7d >= 0 ? "+" : ""}{current.change7d.toFixed(1)}% <small>7D</small></span></div>
+                    <div className="discovery-signal-grid">
+                      <span><small>30D</small><strong className={current.change30d >= 0 ? "up" : "down"}>{current.change30d >= 0 ? "+" : ""}{current.change30d.toFixed(1)}%</strong></span>
+                      <span><small>{es ? "AFINIDAD" : "MATCH"}</small><strong>{current.matchScore}/100</strong></span>
+                      <span><small>{es ? "RAREZA" : "RARITY"}</small><strong>{current.rarity}</strong></span>
+                    </div>
+                    <div className="discovery-reason">{current.rationale}</div>
+                    <div className="discovery-tags"><span>{current.typeLine}</span>{current.reserved && <b>Reserved List</b>}</div>
                   </div>
-                  <div className="discovery-reason">{current.rationale}</div>
-                  <div className="discovery-tags"><span>{current.typeLine}</span>{current.reserved && <b>Reserved List</b>}</div>
-                </div>
-              </article>
+                </article>
+              </div>
               <div className="discovery-controls">
                 <button className="undo" onClick={undo} disabled={saving || history.length === 0} aria-label={es ? "Deshacer última decisión" : "Undo last decision"}><RotateCcw size={18} /><small>{es ? "Deshacer" : "Undo"}</small></button>
                 <button className="pass" onClick={() => decide("passed")} disabled={saving} aria-label={es ? "Descartar carta" : "Pass card"}><X size={24} /><small>{es ? "Pasar" : "Pass"}</small></button>
