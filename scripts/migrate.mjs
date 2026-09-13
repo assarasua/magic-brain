@@ -38,6 +38,7 @@ try {
       "010_sets.sql",
       "011_public_api.sql",
       "012_market_briefs.sql",
+      "013_preferences_onboarding.sql",
   ];
   let applied = 0;
   for (const filename of filenames) {

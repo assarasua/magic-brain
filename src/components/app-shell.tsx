@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { MagicBrainLogo } from "@/components/brand-logo";
 import { MobileTabBar } from "@/components/mobile-tab-bar";
-import { ProductTour } from "@/components/product-tour";
+import { PreferencesOnboarding } from "@/components/preferences-onboarding";
 
 function SessionGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -39,8 +39,8 @@ function SessionGate({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      {children}
-      <ProductTour />
+      <div className="preferences-gated-content">{children}</div>
+      <PreferencesOnboarding />
       <MobileTabBar />
     </>
   );

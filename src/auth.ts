@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { cookies } from "next/headers";
-import { db } from "@/lib/db";
+import { db, query } from "@/lib/db";
 
 const PRODUCT_COOKIE = "magic_brain_session";
 const authSecret = process.env.AUTH_SECRET;
@@ -174,9 +174,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return token;
     },
-    session({ session, token }) {
+    async session({ session, token }) {
       if (session.user && typeof token.appUserId === "string") {
         session.user.id = token.appUserId;
+        const result = await query<{
+          preferences_onboarding_completed: boolean;
+        }>(
+          `select preferences_onboarding_completed from app_users where id = $1`,
+          [token.appUserId],
+        );
+        session.preferencesOnboardingCompleted =
+          result.rows[0]?.preferences_onboarding_completed ?? false;
       }
       return session;
     },

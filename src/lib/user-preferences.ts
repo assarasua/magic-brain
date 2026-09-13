@@ -2,6 +2,8 @@ import {
   CARD_COLORS,
   CARD_RARITIES,
   CARD_TYPES,
+  MAX_SELECTED_SETS,
+  SET_CODE_PATTERN,
   normalizeSetCodes,
 } from "@/lib/card-filters";
 
@@ -48,6 +50,22 @@ const allowed = {
   cardTypes: CARD_TYPES,
 } as const;
 
+const preferenceKeys = [
+  "defaultBudget",
+  "maxCardPrice",
+  "positions",
+  "risk",
+  "horizon",
+  "strategy",
+  "marketTrend",
+  "releaseEra",
+  "colors",
+  "rarities",
+  "cardTypes",
+  "setCodes",
+  "reservedOnly",
+] as const;
+
 const choice = <T extends string>(
   value: unknown,
   values: readonly T[],
@@ -91,4 +109,60 @@ export function normalizeUserPreferences(input: unknown): UserPreferences {
     setCodes: normalizeSetCodes(value.setCodes),
     reservedOnly: value.reservedOnly === true,
   };
+}
+
+const isUniqueAllowedArray = (
+  value: unknown,
+  values: readonly string[],
+  maximum = values.length,
+) =>
+  Array.isArray(value) &&
+  value.length <= maximum &&
+  value.every((item) => typeof item === "string" && values.includes(item)) &&
+  new Set(value).size === value.length;
+
+export function parseUserPreferences(input: unknown): UserPreferences | null {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+  const value = input as Record<string, unknown>;
+  const keys = Object.keys(value);
+  if (
+    keys.length !== preferenceKeys.length ||
+    !preferenceKeys.every((key) => Object.hasOwn(value, key))
+  ) {
+    return null;
+  }
+
+  if (
+    typeof value.defaultBudget !== "number" ||
+    !Number.isFinite(value.defaultBudget) ||
+    value.defaultBudget < 25 ||
+    value.defaultBudget > 1_000_000 ||
+    typeof value.maxCardPrice !== "number" ||
+    !Number.isFinite(value.maxCardPrice) ||
+    value.maxCardPrice < 2 ||
+    value.maxCardPrice > value.defaultBudget ||
+    typeof value.positions !== "number" ||
+    !Number.isInteger(value.positions) ||
+    value.positions < 3 ||
+    value.positions > 20 ||
+    typeof value.reservedOnly !== "boolean" ||
+    !allowed.risk.includes(value.risk as UserPreferences["risk"]) ||
+    !allowed.horizon.includes(value.horizon as UserPreferences["horizon"]) ||
+    !allowed.strategy.includes(value.strategy as UserPreferences["strategy"]) ||
+    !allowed.marketTrend.includes(value.marketTrend as UserPreferences["marketTrend"]) ||
+    !allowed.releaseEra.includes(value.releaseEra as UserPreferences["releaseEra"]) ||
+    !isUniqueAllowedArray(value.colors, allowed.colors) ||
+    !isUniqueAllowedArray(value.rarities, allowed.rarities) ||
+    !isUniqueAllowedArray(value.cardTypes, allowed.cardTypes) ||
+    !Array.isArray(value.setCodes) ||
+    value.setCodes.length > MAX_SELECTED_SETS ||
+    value.setCodes.some(
+      (code) => typeof code !== "string" || !SET_CODE_PATTERN.test(code),
+    ) ||
+    new Set(value.setCodes).size !== value.setCodes.length
+  ) {
+    return null;
+  }
+
+  return value as UserPreferences;
 }
