@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addPortfolioItem, getPortfolio } from "@/lib/portfolio";
+import { isCardLanguage } from "@/lib/card-languages";
 import { attachSessionCookie, getOrCreateUser } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -40,7 +41,8 @@ export async function POST(request: NextRequest) {
       !Number.isInteger(body.quantity) ||
       Number(body.quantity) < 1 ||
       !Number.isFinite(body.purchasePrice) ||
-      Number(body.purchasePrice) < 0
+      Number(body.purchasePrice) < 0 ||
+      (body.language !== undefined && !isCardLanguage(body.language))
     ) {
       return NextResponse.json(
         { error: "Invalid portfolio item" },
@@ -53,7 +55,7 @@ export async function POST(request: NextRequest) {
       quantity: Number(body.quantity),
       purchasePrice: Number(body.purchasePrice),
       condition: body.condition?.slice(0, 30) || "near_mint",
-      language: body.language?.slice(0, 10) || "en",
+      language: isCardLanguage(body.language) ? body.language : "en",
       acquiredAt: body.acquiredAt,
     });
 

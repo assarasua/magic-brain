@@ -19,6 +19,7 @@ import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
 import { useCardDetail } from "@/components/card-detail-provider";
 import { PortfolioOnboarding } from "@/components/portfolio-onboarding";
+import { CARD_LANGUAGES, type CardLanguage } from "@/lib/card-languages";
 import type { CatalogCard } from "@/lib/catalog";
 import { formatCurrency } from "@/lib/data";
 import { calculateSeriesMetrics } from "@/lib/financial-analytics";
@@ -124,6 +125,7 @@ export default function PortfolioPage() {
   const [results, setResults] = useState<CatalogCard[]>([]);
   const [selectedCard, setSelectedCard] = useState<CatalogCard | null>(null);
   const [saving, setSaving] = useState(false);
+  const [updatingHolding, setUpdatingHolding] = useState<number | null>(null);
   const [error, setError] = useState("");
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -326,6 +328,25 @@ export default function PortfolioPage() {
     if (response.ok) setData((await response.json()) as PortfolioData);
   };
 
+  const updateHoldingLanguage = async (
+    id: number,
+    language: CardLanguage,
+  ) => {
+    setUpdatingHolding(id);
+    setError("");
+    const response = await fetch(`/api/portfolio/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ language }),
+    });
+    if (response.ok) {
+      setData((await response.json()) as PortfolioData);
+    } else {
+      setError(locale === "es" ? "No se pudo actualizar el idioma" : "Unable to update language");
+    }
+    setUpdatingHolding(null);
+  };
+
   return (
     <main className="account-page">
       <header className="account-topbar">
@@ -392,7 +413,20 @@ export default function PortfolioPage() {
             <div className="holdings-list">
               {data.holdings.map((holding) => <div className="portfolio-row card-surface" key={holding.id} {...cardSurfaceProps(holding.cardId)}>
                 {holding.imageUrl && <img src={holding.imageUrl} alt="" />}
-                <div><strong>{holding.name}</strong><span>{holding.setCode.toUpperCase()} · {holding.condition.replace("_", " ")} · {holding.quantity}×</span></div>
+                <div className="holding-identity">
+                  <strong>{holding.name}</strong>
+                  <span>{holding.setCode.toUpperCase()} · {holding.condition.replace("_", " ")} · {holding.quantity}×</span>
+                  <label className="holding-language">
+                    <span>{locale === "es" ? "Idioma" : "Language"}</span>
+                    <select
+                      value={holding.language}
+                      disabled={updatingHolding === holding.id}
+                      onChange={(event) => void updateHoldingLanguage(holding.id, event.target.value as CardLanguage)}
+                    >
+                      {CARD_LANGUAGES.map((language) => <option key={language.code} value={language.code}>{language[locale]}</option>)}
+                    </select>
+                  </label>
+                </div>
                 <div><span>{locale === "es" ? "Coste" : "Cost"}</span><strong>{formatCurrency(holding.costBasis)}</strong></div>
                 <div><span>{locale === "es" ? "Valor" : "Value"}</span><strong>{holding.currentValue === null ? "—" : formatCurrency(holding.currentValue)}</strong></div>
                 <div><span>P&L</span><strong className={(holding.gain ?? 0) >= 0 ? "up" : "down"}>{holding.gain === null ? "—" : `${holding.gain >= 0 ? "+" : ""}${formatCurrency(holding.gain)}`}</strong></div>
@@ -413,7 +447,7 @@ export default function PortfolioPage() {
             <label>{t("Card name")}<div className="holding-card-search"><Search size={15} /><input value={cardQuery} onChange={(event) => { setCardQuery(event.target.value); setSelectedCard(null); }} placeholder="Black Lotus…" /></div></label>
             {!selectedCard && results.length > 0 && <div className="holding-results">{results.map((card) => <button type="button" key={card.id} onClick={() => { setSelectedCard(card); setCardQuery(`${card.name} · ${card.setCode.toUpperCase()}`); setResults([]); }}>{card.imageUrl && <img src={card.imageUrl} alt="" />}<span><strong>{card.name}</strong><small>{card.setName}</small></span><b>{card.price === null ? "—" : formatCurrency(card.price)}</b></button>)}</div>}
             <div className="form-grid"><label>Quantity<input name="quantity" type="number" min="1" defaultValue="1" required /></label><label>{locale === "es" ? "Precio de compra unitario" : "Unit purchase price"}<input key={selectedCard?.id ?? "no-card"} name="purchasePrice" type="number" min="0" step=".01" defaultValue={selectedCard?.price ?? ""} required /></label></div>
-            <div className="form-grid"><label>Condition<select name="condition"><option value="near_mint">Near Mint</option><option value="excellent">Excellent</option><option value="good">Good</option><option value="light_played">Light Played</option></select></label><label>{locale === "es" ? "Idioma" : "Language"}<select name="language"><option value="en">English</option><option value="es">Español</option><option value="de">Deutsch</option><option value="fr">Français</option></select></label></div>
+            <div className="form-grid"><label>Condition<select name="condition"><option value="near_mint">Near Mint</option><option value="excellent">Excellent</option><option value="good">Good</option><option value="light_played">Light Played</option></select></label><label>{locale === "es" ? "Idioma" : "Language"}<select name="language">{CARD_LANGUAGES.map((language) => <option key={language.code} value={language.code}>{language[locale]}</option>)}</select></label></div>
             <label>{locale === "es" ? "Fecha de compra" : "Purchase date"}<input name="acquiredAt" type="date" defaultValue={new Date().toISOString().slice(0, 10)} /></label>
             <button className="primary-button form-submit" disabled={!selectedCard || saving}>{saving ? "Saving…" : t("Add holding")}</button>
           </form>

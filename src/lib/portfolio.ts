@@ -184,3 +184,18 @@ export async function deletePortfolioItem(userId: string, itemId: number) {
     [itemId, userId],
   );
 }
+
+export async function updatePortfolioItemLanguage(
+  userId: string,
+  itemId: number,
+  language: string,
+) {
+  await query(
+    `
+      update app_portfolio_items
+      set language = $1, updated_at = now()
+      where id = $2 and user_id = $3
+    `,
+    [language, itemId, userId],
+  );
+}
