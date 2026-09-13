@@ -332,7 +332,7 @@ export default function SignalsPage() {
         <AuthControl compact />
         <Link href="/" className="back-dashboard"><ArrowLeft size={15} /> {locale === "es" ? "Panel" : "Dashboard"}</Link>
       </header>
-      <ProGate feature="brain"><SignalsContent /></ProGate>
+      <ProGate feature="signals"><SignalsContent /></ProGate>
     </main>
   );
 }

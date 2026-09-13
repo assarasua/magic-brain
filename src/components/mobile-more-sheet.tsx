@@ -20,23 +20,23 @@ const groups = [
   {
     label: "Explore",
     links: [
-      { href: "/discover", label: "Discover", icon: Compass },
-      { href: "/watchlist", label: "Watchlist", icon: Heart },
-      { href: "/reserved", label: "Reserved List", icon: ListChecks },
+      { href: "/discover", label: "Discover", icon: Compass, premium: true },
+      { href: "/watchlist", label: "Watchlist", icon: Heart, premium: false },
+      { href: "/reserved", label: "Reserved List", icon: ListChecks, premium: false },
     ],
   },
   {
     label: "Brain",
     links: [
-      { href: "/brain", label: "Brain Pro", icon: BrainCircuit },
-      { href: "/signals", label: "Brain Signals", icon: TrendingUp },
-      { href: "/analyst", label: "Ask Brain", icon: Sparkles },
-      { href: "/pro", label: "Pro plan", icon: Crown },
+      { href: "/brain", label: "Brain Pro", icon: BrainCircuit, premium: true },
+      { href: "/signals", label: "Brain Signals", icon: TrendingUp, premium: true },
+      { href: "/analyst", label: "Ask Brain", icon: Sparkles, premium: true },
+      { href: "/pro", label: "Pro plan", icon: Crown, premium: true },
     ],
   },
   {
     label: "Account",
-    links: [{ href: "/settings", label: "Settings", icon: Settings }],
+    links: [{ href: "/settings", label: "Settings", icon: Settings, premium: false }],
   },
 ];
 
@@ -115,12 +115,13 @@ export function MobileMoreSheet({
           {groups.map((group) => (
             <nav key={group.label} aria-label={group.label}>
               <span>{group.label}</span>
-              {group.links.map(({ href, label, icon: Icon }) => {
+              {group.links.map(({ href, label, icon: Icon, premium }) => {
                 const active = pathname === href || pathname.startsWith(`${href}/`);
                 return (
-                  <Link href={href} className={active ? "active" : ""} aria-current={active ? "page" : undefined} onNavigate={onClose} key={href}>
+                  <Link href={href} className={[active ? "active" : "", premium ? "premium-feature-link" : ""].filter(Boolean).join(" ")} aria-current={active ? "page" : undefined} onNavigate={onClose} key={href}>
                     <Icon size={19} />
                     <span>{t(label)}</span>
+                    {premium && <small className="nav-pro-label"><Crown size={10} /> PRO</small>}
                   </Link>
                 );
               })}

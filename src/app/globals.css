@@ -194,6 +194,21 @@ button {
   box-shadow: 0 0 9px var(--gold);
 }
 
+.nav-pro-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+  padding: 3px 6px;
+  border: 1px solid rgba(242, 198, 109, 0.2);
+  border-radius: 999px;
+  color: #f2c66d;
+  background: rgba(242, 198, 109, 0.08);
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
 .premium-feature-link,
 .account-topbar nav a[href="/brain"],
 .account-topbar nav a[href="/signals"],
@@ -7414,6 +7429,93 @@ button:active,
 
   .history-chart.investment-chart svg {
     height: 185px;
+  }
+}
+
+/* Premium preview gates */
+.pro-gate {
+  width: min(760px, calc(100% - 32px));
+  overflow: hidden;
+  border-color: rgba(242, 198, 109, 0.18);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(242, 198, 109, 0.1), transparent 48%),
+    rgba(20, 23, 30, 0.9);
+}
+
+.pro-gate > .pro-gate-preview {
+  width: min(100%, 580px);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 25px;
+}
+
+.pro-gate-preview > div {
+  min-height: 92px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 13px;
+  border: 1px solid rgba(242, 198, 109, 0.13);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(242, 198, 109, 0.07), rgba(255, 255, 255, 0.018));
+  text-align: left;
+}
+
+.pro-gate-preview span {
+  color: rgba(242, 198, 109, 0.52);
+  font-size: 8px;
+  font-weight: 750;
+}
+
+.pro-gate-preview strong {
+  color: #e6e9ee;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.pro-gate > .pro-gate-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 22px;
+}
+
+.pro-gate-actions a:first-child {
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 18px;
+  border: 1px solid rgba(242, 198, 109, 0.24);
+  border-radius: 12px;
+  color: #18130a;
+  background: linear-gradient(135deg, #f8dfa4, #d8a947);
+  box-shadow: 0 12px 30px rgba(216, 169, 71, 0.17);
+}
+
+.pro-gate-actions a:first-child:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+}
+
+@media (max-width: 600px) {
+  .pro-gate > .pro-gate-preview {
+    grid-template-columns: 1fr;
+  }
+
+  .pro-gate-preview > div {
+    min-height: 68px;
+  }
+
+  .pro-gate > .pro-gate-actions {
+    flex-direction: column;
+  }
+
+  .pro-gate-actions a:first-child {
+    width: 100%;
+    justify-content: center;
   }
 }
 

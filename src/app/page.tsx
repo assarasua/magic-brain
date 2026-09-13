@@ -390,7 +390,7 @@ export default function Home() {
               className={[
                 "nav-item",
                 activeNav === label ? "active" : "",
-                label === "Brain Pro" || label === "Brain Signals" || label === "Ask Brain"
+                label === "Discover" || label === "Brain Pro" || label === "Brain Signals" || label === "Ask Brain"
                   ? "premium-feature-link"
                   : "",
               ].filter(Boolean).join(" ")}
@@ -420,6 +420,9 @@ export default function Home() {
               <Icon size={18} />
               {t(label)}
               {label === "Watchlist" && <span className="nav-count">{watchlist.length}</span>}
+              {!account.isPro && ["Discover", "Brain Pro", "Brain Signals", "Ask Brain"].includes(label) && (
+                <span className="nav-pro-label"><Crown size={10} /> PRO</span>
+              )}
             </button>
           ))}
           <span className="nav-caption lower">{t("Account")}</span>

@@ -153,7 +153,7 @@ export default function DiscoverPage() {
         <Link href="/" className="back-dashboard"><ArrowLeft size={15} /> {t("Dashboard")}</Link>
       </header>
 
-      <ProGate feature="brain">
+      <ProGate feature="discover">
         <div className="discovery-content">
           <div className="discovery-heading">
             <span className="pro-badge"><Sparkles size={13} /> Brain Discovery</span>
