@@ -45,6 +45,14 @@ test("portfolio fallback serves rule-based insights instead of ML empty copy", a
   assert.match(page, /Holdings to review/);
   assert.match(page, /no current price/);
   assert.doesNotMatch(page, /No verified learned candidates are available/);
+  assert.doesNotMatch(
+    page,
+    /No hay candidatas aprendidas verificadas disponibles/,
+  );
+  assert.doesNotMatch(
+    page,
+    /Ninguna posición cruza el umbral descriptivo de enfriamiento/,
+  );
 });
 
 test("serving reads only promoted real-data models", async () => {
