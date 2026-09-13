@@ -4,6 +4,22 @@ An isolated, read-only remote MCP server for Magic Brain's versioned public
 Cards/Prices/Sets API. It exposes no resources, prompts, write tools, user
 accounts, portfolios, watchlists, authentication records, or Stripe data.
 
+## Install the live connector
+
+Use the hosted Streamable HTTP endpoint:
+
+```text
+https://magic-brain-mcp.assarasua.workers.dev/mcp
+```
+
+No Magic Brain account, OAuth sign-in, or user API key is currently required.
+See the canonical [MCP installation guide](../../docs/mcp-installation.md) for
+current Claude, Cursor, VS Code/GitHub Copilot, ChatGPT, and OpenAI Responses
+API instructions, requirements, and troubleshooting.
+
+The hosted URL is separate from local development and self-hosting. The steps
+below run your own server and do not install the live connector.
+
 ## Tools
 
 - `search_cards` — bounded catalogue search with set/card filters

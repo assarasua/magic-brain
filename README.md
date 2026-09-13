@@ -20,6 +20,17 @@ redistributing data.
 
 English and Spanish are available from the header language control.
 
+## Magic Brain MCP connector
+
+Connect Claude, Cursor, VS Code with GitHub Copilot, ChatGPT, or the OpenAI
+Responses API to the live read-only Magic Brain MCP endpoint. No Magic Brain
+user API key is currently required.
+
+Follow the [MCP installation guide](docs/mcp-installation.md) for current
+product requirements, exact configuration, and troubleshooting. Local
+self-hosting is documented separately in the
+[MCP package guide](integrations/magic-brain-mcp/PACKAGE.md#run-locally).
+
 ## Run locally
 
 ```bash

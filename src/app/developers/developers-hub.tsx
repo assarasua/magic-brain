@@ -82,10 +82,79 @@ cards = response.json()["data"]`,
 
 const navItems = [
   ["overview", "Overview"],
+  ["mcp", "MCP setup"],
   ["reference", "API reference"],
   ["examples", "Examples"],
   ["keys", "API keys"],
   ["policies", "Policies"],
+] as const;
+
+const mcpEndpoint = "https://magic-brain-mcp.assarasua.workers.dev/mcp";
+
+const mcpInstallers = [
+  {
+    id: "claude",
+    name: "Claude",
+    requirement: "Free, Pro, Max, Team, or Enterprise",
+    description:
+      "Add a custom connector in Customize > Connectors. Team and Enterprise require an Owner to add it first.",
+    snippet: mcpEndpoint,
+    source: "https://claude.com/docs/connectors/custom/remote-mcp",
+  },
+  {
+    id: "cursor",
+    name: "Cursor",
+    requirement: "Cursor with MCP support",
+    description:
+      "Save as .cursor/mcp.json for one project or ~/.cursor/mcp.json for all projects.",
+    snippet: `{
+  "mcpServers": {
+    "magic-brain": {
+      "url": "${mcpEndpoint}"
+    }
+  }
+}`,
+    source: "https://cursor.com/docs/mcp",
+  },
+  {
+    id: "vscode",
+    name: "VS Code + Copilot",
+    requirement: "VS Code 1.99+ and Copilot access",
+    description:
+      "Save as .vscode/mcp.json. Managed Copilot seats need the organization MCP policy enabled.",
+    snippet: `{
+  "servers": {
+    "magic-brain": {
+      "type": "http",
+      "url": "${mcpEndpoint}"
+    }
+  }
+}`,
+    source: "https://code.visualstudio.com/docs/copilot/customization/mcp-servers",
+  },
+  {
+    id: "chatgpt",
+    name: "ChatGPT",
+    requirement: "Pro read/fetch, or Business/Enterprise/Edu",
+    description:
+      "Enable Developer mode, choose Apps > Create, enter the endpoint without authentication, then Scan Tools.",
+    snippet: mcpEndpoint,
+    source: "https://help.openai.com/en/articles/12584461",
+  },
+  {
+    id: "openai",
+    name: "OpenAI API",
+    requirement: "Responses API access and an OpenAI API key",
+    description:
+      "Add this remote MCP tool to a Responses API request. The OpenAI key is not sent to Magic Brain.",
+    snippet: `{
+  "type": "mcp",
+  "server_label": "magic_brain",
+  "server_description": "Read-only Magic card, set, market price, and rules tools.",
+  "server_url": "${mcpEndpoint}"
+}`,
+    source: "https://developers.openai.com/api/docs/guides/tools-connectors-mcp",
+  },
 ] as const;
 
 function CodeSample() {
@@ -119,6 +188,74 @@ function CodeSample() {
       </div>
       <pre tabIndex={0}><code>{examples[language]}</code></pre>
     </div>
+  );
+}
+
+function McpInstall() {
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const copy = async (id: string, snippet: string) => {
+    await navigator.clipboard.writeText(snippet);
+    setCopied(id);
+    window.setTimeout(() => setCopied((current) => (current === id ? null : current)), 1600);
+  };
+
+  return (
+    <>
+      <div className={styles.mcpCallout}>
+        <ShieldCheck size={20} />
+        <div>
+          <strong>Live remote connector · no Magic Brain API key required</strong>
+          <p>
+            Use the exact HTTPS URL below. It is a hosted Streamable HTTP endpoint,
+            separate from local self-hosting.
+          </p>
+        </div>
+        <code>{mcpEndpoint}</code>
+        <button type="button" onClick={() => void copy("endpoint", mcpEndpoint)}>
+          {copied === "endpoint" ? <Check size={14} /> : <Clipboard size={14} />}
+          {copied === "endpoint" ? "Copied" : "Copy URL"}
+        </button>
+      </div>
+
+      <div className={styles.mcpGrid}>
+        {mcpInstallers.map((installer) => (
+          <article className={styles.mcpCard} key={installer.id}>
+            <div className={styles.mcpCardHeading}>
+              <div>
+                <h3>{installer.name}</h3>
+                <span>{installer.requirement}</span>
+              </div>
+              <a href={installer.source} target="_blank" rel="noreferrer" aria-label={`${installer.name} official MCP documentation`}>
+                Official docs <ExternalLink size={12} />
+              </a>
+            </div>
+            <p>{installer.description}</p>
+            <div className={styles.mcpSnippet}>
+              <pre tabIndex={0}><code>{installer.snippet}</code></pre>
+              <button
+                type="button"
+                aria-label={`Copy ${installer.name} configuration`}
+                onClick={() => void copy(installer.id, installer.snippet)}
+              >
+                {copied === installer.id ? <Check size={14} /> : <Clipboard size={14} />}
+                {copied === installer.id ? "Copied" : "Copy"}
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <div className={styles.mcpGuideLink}>
+        <div>
+          <strong>Need exact steps or troubleshooting?</strong>
+          <p>Plan requirements, admin restrictions, health checks, transports, and local setup are covered in the repository guide.</p>
+        </div>
+        <a href="https://github.com/assarasua/magic-brain/blob/main/docs/mcp-installation.md" target="_blank" rel="noreferrer">
+          Read the installation guide <ArrowRight size={14} />
+        </a>
+      </div>
+    </>
   );
 }
 
@@ -360,7 +497,7 @@ export function DevelopersHub({
       <header className={styles.header}>
         <Link href="/" aria-label="Magic Brain home"><MagicBrainLogo /></Link>
         <nav aria-label="Developer navigation">
-          {navItems.slice(0, 4).map(([id, label]) => <a href={`#${id}`} key={id}>{label}</a>)}
+          {navItems.slice(0, 5).map(([id, label]) => <a href={`#${id}`} key={id}>{label}</a>)}
         </nav>
         <div className={styles.headerActions}>
           <a href="/api/v1/openapi.json">OpenAPI</a>
@@ -405,6 +542,15 @@ export function DevelopersHub({
       </section>
 
       <div className={styles.content}>
+        <section className={`${styles.section} ${styles.mcpSection}`} id="mcp">
+          <div className={styles.sectionHeading}>
+            <span>Remote MCP</span>
+            <h2>Connect your AI client.</h2>
+            <p>Install the live read-only Magic Brain tools in the client you already use. No Magic Brain account, OAuth flow, or user API key is currently required.</p>
+          </div>
+          <McpInstall />
+        </section>
+
         <section className={styles.section} id="reference">
           <div className={styles.sectionHeading}>
             <span>Reference</span>

@@ -5,7 +5,7 @@ import { publicApiOpenApi } from "@/lib/public-api/openapi";
 export const metadata: Metadata = {
   title: "Developer Hub — Magic Brain",
   description:
-    "Build with Magic Brain card, set, and EUR price data using the public v1 API.",
+    "Install the Magic Brain MCP connector or build with the public card, set, and EUR price API.",
 };
 
 type OpenApiOperation = {
