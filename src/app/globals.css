@@ -7609,6 +7609,37 @@ button:active,
   font-size: 9px;
 }
 
+/* Dashboard Pro card uses the same real product model as the locked route. */
+.premium-panel {
+  grid-template-columns: minmax(220px, 0.8fr) minmax(260px, 1.2fr);
+  min-height: 290px;
+  border-color: rgba(242, 198, 109, 0.16);
+}
+
+.premium-visual {
+  display: grid;
+  min-width: 0;
+  padding: 16px 16px 16px 0;
+  color: inherit;
+}
+
+.premium-visual::after {
+  content: none;
+}
+
+.premium-visual .pro-product-preview {
+  width: 100%;
+}
+
+.pro-strategy-preview-label {
+  display: block;
+  margin-bottom: 11px;
+  color: #957b47;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
 @media (max-width: 600px) {
   .pro-gate {
     width: min(100% - 20px, 520px);
@@ -7683,6 +7714,14 @@ button:active,
 
   .brain-pro-tool-grid > article {
     padding: 18px;
+  }
+
+  .premium-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .premium-visual {
+    display: none;
   }
 }
 

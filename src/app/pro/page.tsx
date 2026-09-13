@@ -7,8 +7,9 @@ import {
   BrainCircuit,
   Check,
   Crown,
-  Gauge,
+  Heart,
   LoaderCircle,
+  MessageCircleQuestion,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
@@ -91,10 +92,10 @@ export default function ProPage() {
   const features = [
     {
       icon: SlidersHorizontal,
-      title: es ? "Una estrategia que encaja contigo" : "A strategy built around you",
+      title: es ? "Constructor de cartera" : "Portfolio Builder",
       copy: es
-        ? "Define presupuesto, riesgo, horizonte, colores, rareza y precio máximo. Brain adapta cada posición."
-        : "Set your budget, risk, horizon, colours, rarity, and maximum card price. Brain adapts every position.",
+        ? "Convierte presupuesto, riesgo y preferencias en hasta 20 posiciones explicadas."
+        : "Turn budget, risk, and preferences into up to 20 explained positions.",
     },
     {
       icon: Activity,
@@ -104,11 +105,18 @@ export default function ProPage() {
         : "Read market regime, breadth, volatility, index trends, and prioritised opportunities across 7, 30, and 90 days.",
     },
     {
-      icon: Gauge,
-      title: es ? "Hasta 20 posiciones explicadas" : "Up to 20 explained positions",
+      icon: MessageCircleQuestion,
+      title: "Ask Brain",
       copy: es
-        ? "Recibe una asignación diversificada con cantidad, capital asignado y la razón detrás de cada selección."
-        : "Get a diversified allocation with quantity, capital assigned, and the rationale behind every selection.",
+        ? "Pregunta por fechas, duración y grandes movimientos usando el historial completo."
+        : "Ask about dates, duration, and major moves using complete price history.",
+    },
+    {
+      icon: Heart,
+      title: "Brain Discovery",
+      copy: es
+        ? "Descubre cartas según tu perfil y guarda las mejores directamente en tu watchlist."
+        : "Discover cards matched to your profile and save the strongest directly to your watchlist.",
     },
   ];
 
@@ -165,6 +173,7 @@ export default function ProPage() {
         </div>
 
         <div className="pro-strategy-preview" aria-label={es ? "Vista previa de estrategia" : "Strategy preview"}>
+          <span className="pro-strategy-preview-label">{es ? "VISTA PREVIA DEL PRODUCTO · CONSTRUCTOR DE CARTERA" : "PRODUCT PREVIEW · PORTFOLIO BUILDER"}</span>
           <div className="strategy-preview-head">
             <span><MagicBrainMark size={31} /></span>
             <div><small>AI PORTFOLIO</small><strong>{es ? "Estrategia equilibrada" : "Balanced strategy"}</strong></div>
