@@ -2,7 +2,9 @@
 
 import {
   ArrowRight,
+  AtSign,
   BookOpen,
+  Building2,
   Check,
   ChevronRight,
   Clipboard,
@@ -24,6 +26,7 @@ import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { MagicBrainLogo } from "@/components/brand-logo";
+import { useLanguage } from "@/components/language-provider";
 import styles from "./developers.module.css";
 
 export type DeveloperEndpoint = {
@@ -543,6 +546,8 @@ export function DevelopersHub({
   apiVersion: string;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { locale } = useLanguage();
+  const es = locale === "es";
 
   return (
     <main className={styles.page}>
@@ -686,6 +691,36 @@ export function DevelopersHub({
           </div>
         </section>
 
+        <section className={styles.creatorSection} id="creator" aria-labelledby="creator-heading">
+          <div className={styles.creatorStory}>
+            <span>{es ? "Creador" : "Creator"}</span>
+            <h2 id="creator-heading">
+              {es ? "El padre de MagicBrain." : "The father of MagicBrain."}
+            </h2>
+            <p>
+              {es
+                ? "Asier Sarasua imaginó y construyó MagicBrain en BizkardoLab, uniendo diseño de producto, inteligencia de mercado e infraestructura abierta para la comunidad de Magic."
+                : "Asier Sarasua imagined and built MagicBrain at BizkardoLab, bringing product craft, market intelligence, and open infrastructure together for the Magic community."}
+            </p>
+          </div>
+          <aside className={styles.creatorCard} aria-label={es ? "Perfil del creador" : "Creator profile"}>
+            <div className={styles.creatorMonogram} aria-hidden="true">AS</div>
+            <div className={styles.creatorIdentity}>
+              <span>{es ? "Fundador y creador" : "Founder & creator"}</span>
+              <strong>Asier Sarasua</strong>
+              <small>BizkardoLab</small>
+            </div>
+            <div className={styles.creatorLinks}>
+              <a href="https://bizkardolab.eu/" target="_blank" rel="noopener noreferrer">
+                <Building2 size={15} /> BizkardoLab <ExternalLink size={12} />
+              </a>
+              <a href="https://x.com/assarasua" target="_blank" rel="noopener noreferrer">
+                <AtSign size={15} /> @assarasua <ExternalLink size={12} />
+              </a>
+            </div>
+          </aside>
+        </section>
+
         <aside className={styles.useNotice}>
           <strong>Attribution &amp; acceptable use</strong>
           <p>Credit Magic Brain and retain each record’s source metadata. Respect Scryfall, MTGJSON, Cardmarket, Wizards of the Coast, and other upstream terms. Do not use the API to reconstruct or bulk redistribute restricted datasets, evade quotas, degrade service, identify users, or present data as financial advice.</p>
@@ -697,7 +732,7 @@ export function DevelopersHub({
         <Link href="/"><MagicBrainLogo /></Link>
         <p>
           Created by{" "}
-          <a href="https://bizkardolab.com" target="_blank" rel="noreferrer">
+          <a href="https://bizkardolab.eu/" target="_blank" rel="noopener noreferrer">
             Asier Sarasua · BizkardoLab
           </a>
           . Unofficial Magic: The Gathering market intelligence.
