@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getMarketBrief } from "@/lib/market-news";
+import {
+  getMlExperienceForCards,
+  unavailableMlExperience,
+} from "@/lib/ml-serving";
 
 export const runtime = "nodejs";
 
@@ -41,7 +45,35 @@ export async function GET(
         { status: 404 },
       );
     }
-    return NextResponse.json({ brief }, {
+    const categories = brief.content.categories;
+    const items = [
+      ...categories.strongGrowth,
+      ...categories.recoveryOpportunities,
+      ...categories.lostMomentum,
+      ...categories.majorRepricing,
+    ];
+    const experience = await getMlExperienceForCards(
+      session.user.id,
+      items.map((item) => item.cardId),
+    ).catch(unavailableMlExperience);
+    const annotate = <T extends { cardId: string }>(values: T[]) =>
+      values.map((item) => ({
+        ...item,
+        ml: experience.scores[item.cardId] ?? null,
+      }));
+    return NextResponse.json({ brief: {
+      ...brief,
+      content: {
+        ...brief.content,
+        categories: {
+          strongGrowth: annotate(categories.strongGrowth),
+          recoveryOpportunities: annotate(categories.recoveryOpportunities),
+          lostMomentum: annotate(categories.lostMomentum),
+          majorRepricing: annotate(categories.majorRepricing),
+        },
+      },
+      ranking: experience.ranking,
+    } }, {
       headers: { "Cache-Control": "private, no-store" },
     });
   } catch (error) {

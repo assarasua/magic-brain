@@ -214,6 +214,10 @@
   display: grid;
 }
 
+.itemWrap > aside {
+  margin: -6px 0 10px;
+}
+
 .item {
   width: 100%;
   display: grid;

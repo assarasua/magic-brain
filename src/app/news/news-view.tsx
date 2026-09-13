@@ -15,11 +15,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useCardDetail } from "@/components/card-detail-provider";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
+import { MlInsight, trackMlFeedback } from "@/components/ml-insight";
 import type {
   MarketBrief,
   MarketBriefSummary,
 } from "@/lib/market-news";
 import type { MarketBriefItem } from "@/lib/market-news-model";
+import type { MlCardContext, MlRankingStatus } from "@/lib/ml-experience";
 import styles from "./news.module.css";
 
 type ArchivePayload = {
@@ -196,11 +198,13 @@ function Category({
   description,
   items,
   tone,
+  ranking,
 }: {
   title: string;
   description: string;
-  items: MarketBriefItem[];
+  items: Array<MarketBriefItem & { ml?: MlCardContext | null }>;
   tone: "up" | "down" | "neutral";
+  ranking: MlRankingStatus;
 }) {
   const { locale } = useLanguage();
   const { openCard } = useCardDetail();
@@ -221,30 +225,52 @@ function Category({
         </p>
       ) : (
         <div className={styles.items}>
-          {items.map((item) => (
-            <button
-              type="button"
-              className={styles.item}
-              key={`${item.cardId}-${title}`}
-              onClick={() => openCard(item.cardId)}
-              aria-label={`${locale === "es" ? "Abrir gráfico e histórico de" : "Open chart and history for"} ${item.name}`}
-            >
-              <div>
-                <strong>{item.name}</strong>
-                <span>{item.setCode.toUpperCase()} · {item.setName}</span>
-                <span className={styles.chartHint}>
-                  <BarChart3 size={11} />
-                  {locale === "es" ? "Ver gráfico" : "View chart"}
+          {items.map((item, index) => (
+            <div key={`${item.cardId}-${title}`} className={styles.itemWrap}>
+              <button
+                type="button"
+                className={styles.item}
+                onClick={() => {
+                  if (item.ml) {
+                    trackMlFeedback({
+                      eventType: "open_details",
+                      surface: "daily_news",
+                      cardId: item.cardId,
+                      context: item.ml,
+                      rankPosition: index + 1,
+                    });
+                  }
+                  openCard(item.cardId);
+                }}
+                aria-label={`${locale === "es" ? "Abrir gráfico e histórico de" : "Open chart and history for"} ${item.name}`}
+              >
+                <div>
+                  <strong>{item.name}</strong>
+                  <span>{item.setCode.toUpperCase()} · {item.setName}</span>
+                  <span className={styles.chartHint}>
+                    <BarChart3 size={11} />
+                    {locale === "es" ? "Ver gráfico" : "View chart"}
+                  </span>
+                </div>
+                <strong>{formatPrice(item.currentPrice, locale)}</strong>
+                <span className={tone === "up" ? styles.up : tone === "down" ? styles.down : ""}>
+                  7D {formatPercent(item.change7d)}
                 </span>
-              </div>
-              <strong>{formatPrice(item.currentPrice, locale)}</strong>
-              <span className={tone === "up" ? styles.up : tone === "down" ? styles.down : ""}>
-                7D {formatPercent(item.change7d)}
-              </span>
-              <span className={(item.change30d ?? 0) > 0 ? styles.up : (item.change30d ?? 0) < 0 ? styles.down : ""}>
-                30D {formatPercent(item.change30d)}
-              </span>
-            </button>
+                <span className={(item.change30d ?? 0) > 0 ? styles.up : (item.change30d ?? 0) < 0 ? styles.down : ""}>
+                  30D {formatPercent(item.change30d)}
+                </span>
+              </button>
+              {item.ml && (
+                <MlInsight
+                  locale={locale}
+                  ranking={ranking}
+                  context={item.ml}
+                  surface="daily_news"
+                  cardId={item.cardId}
+                  rankPosition={index + 1}
+                />
+              )}
+            </div>
           ))}
         </div>
       )}
@@ -255,7 +281,9 @@ function Category({
 export function NewsDetail({ marketDataDate }: { marketDataDate: string }) {
   const { locale } = useLanguage();
   const [attempt, setAttempt] = useState(0);
-  const [state, setState] = useState<LoadState<MarketBrief>>({
+  const [state, setState] = useState<LoadState<MarketBrief & {
+    ranking: MlRankingStatus;
+  }>>({
     status: "loading",
   });
 
@@ -270,7 +298,9 @@ export function NewsDetail({ marketDataDate }: { marketDataDate: string }) {
             ? locale === "es" ? "No existe un informe para esta fecha." : "No brief exists for this date."
             : locale === "es" ? "No se pudo cargar el informe." : "The brief could not be loaded.",
         );
-        const payload = await response.json() as { brief: MarketBrief };
+        const payload = await response.json() as {
+          brief: MarketBrief & { ranking: MlRankingStatus };
+        };
         return payload.brief;
       })
       .then((data) => setState({ status: "ready", data }))
@@ -318,6 +348,11 @@ export function NewsDetail({ marketDataDate }: { marketDataDate: string }) {
               </small>
             </div>
           </section>
+          <MlInsight
+            locale={locale}
+            ranking={brief.ranking}
+            surface="daily_news"
+          />
 
           <div className={styles.categoryGrid}>
             <Category
@@ -325,24 +360,28 @@ export function NewsDetail({ marketDataDate }: { marketDataDate: string }) {
               description={locale === "es" ? "Impulso positivo tanto a 7 como a 30 días." : "Positive momentum across both 7 and 30 days."}
               items={brief.content.categories.strongGrowth}
               tone="up"
+              ranking={brief.ranking}
             />
             <Category
               title={locale === "es" ? "Oportunidades de recuperación" : "Recovery opportunities"}
               description={locale === "es" ? "Rebote semanal tras seguir por debajo del nivel de 30 días." : "A weekly rebound while still below the 30-day level."}
               items={brief.content.categories.recoveryOpportunities}
               tone="up"
+              ranking={brief.ranking}
             />
             <Category
               title={locale === "es" ? "Impulso perdido" : "Lost momentum"}
               description={locale === "es" ? "Retroceso semanal pese a conservar una ganancia mensual." : "A weekly reversal despite retaining a monthly gain."}
               items={brief.content.categories.lostMomentum}
               tone="down"
+              ranking={brief.ranking}
             />
             <Category
               title={locale === "es" ? "Revaloración importante" : "Major repricing"}
               description={locale === "es" ? "Cambios absolutos de al menos 15% en 7D o 30% en 30D." : "Absolute moves of at least 15% over 7D or 30% over 30D."}
               items={brief.content.categories.majorRepricing}
               tone="neutral"
+              ranking={brief.ranking}
             />
           </div>
 

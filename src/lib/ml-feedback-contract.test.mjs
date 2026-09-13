@@ -67,3 +67,12 @@ test("alert actions require an explicit allowlisted action and surface", () => {
     null,
   );
 });
+
+test("customer ML surfaces are allowlisted without free-form context", () => {
+  for (const surface of ["daily_news", "opportunity_graph"]) {
+    assert.equal(
+      parseMlFeedbackEvent({ ...validEvent, surface }, now)?.surface,
+      surface,
+    );
+  }
+});

@@ -31,7 +31,9 @@ import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
 import { useCardDetail } from "@/components/card-detail-provider";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
+import { MlInsight, trackMlFeedback } from "@/components/ml-insight";
 import { formatCurrency } from "@/lib/data";
+import type { MlCardContext, MlRankingStatus } from "@/lib/ml-experience";
 import type {
   OpportunityClassification,
   OpportunityGraph,
@@ -39,9 +41,13 @@ import type {
 } from "@/lib/opportunity-graph-model";
 import styles from "./page.module.css";
 
-type GraphPayload = OpportunityGraph & {
+type MlGraphNode = OpportunityGraphNode & { ml?: MlCardContext | null };
+
+type GraphPayload = Omit<OpportunityGraph, "nodes"> & {
+  nodes: MlGraphNode[];
   focusId: string | null;
   asOf: string | null;
+  ranking: MlRankingStatus;
   methodology: {
     maximumNodes: number;
     neighboursPerNode: number;
@@ -160,7 +166,7 @@ export default function OpportunityGraphPage() {
       .slice(0, 5);
   }, [graph, query]);
 
-  const focusNode = (node: OpportunityGraphNode) => {
+  const focusNode = (node: MlGraphNode) => {
     setSelectedId(node.id);
     const bounds = viewportRef.current?.getBoundingClientRect();
     if (bounds && bounds.width >= 700) {
@@ -173,7 +179,7 @@ export default function OpportunityGraphPage() {
     }
   };
 
-  const activateNode = (node: OpportunityGraphNode) => {
+  const activateNode = (node: MlGraphNode) => {
     if (node.id === selectedId) {
       openCard(node.id);
       return;
@@ -221,7 +227,7 @@ export default function OpportunityGraphPage() {
   };
 
   const addCards = async (
-    cards: OpportunityGraphNode[],
+    cards: MlGraphNode[],
     destination: "portfolio" | "watchlist",
   ) => {
     if (!cards.length || saving) return;
@@ -246,6 +252,22 @@ export default function OpportunityGraphPage() {
       ),
     );
     const saved = responses.filter((response) => response.ok).length;
+    responses.forEach((response, index) => {
+      const card = cards[index];
+      if (!response.ok || !card.ml) return;
+      trackMlFeedback({
+        eventType: destination === "portfolio"
+          ? "add_to_portfolio"
+          : "save_to_watchlist",
+        surface: "opportunity_graph",
+        cardId: card.id,
+        context: card.ml,
+        rankPosition: Math.max(
+          1,
+          (graph?.nodes.findIndex((node) => node.id === card.id) ?? 0) + 1,
+        ),
+      });
+    });
     setNotice(
       saved === cards.length
         ? `${saved} ${saved === 1 ? "card" : "cards"} added to ${destination}`
@@ -253,6 +275,45 @@ export default function OpportunityGraphPage() {
     );
     window.setTimeout(() => setNotice(""), 2600);
     setSaving(false);
+  };
+
+  const createAlert = async (card: MlGraphNode) => {
+    const targetPrice = Number((card.price * 0.95).toFixed(2));
+    if (!window.confirm(
+      locale === "es"
+        ? `¿Guardar ${card.name} y avisarte si baja de ${formatCurrency(targetPrice)}?`
+        : `Save ${card.name} and alert if it falls below ${formatCurrency(targetPrice)}?`,
+    )) return;
+    if (!card.ml) return;
+    const [watchResponse, smartResponse] = await Promise.all([
+      fetch("/api/watchlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cardId: card.id,
+          targetPrice,
+          alertBelowEnabled: true,
+        }),
+      }),
+      fetch("/api/ml/alerts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cardId: card.id, scoreId: card.ml.scoreId }),
+      }),
+    ]);
+    if (watchResponse.ok && smartResponse.ok) {
+      trackMlFeedback({
+        eventType: "alert_action",
+        surface: "alert",
+        cardId: card.id,
+        context: card.ml,
+        rankPosition: Math.max(
+          1,
+          (graph?.nodes.findIndex((node) => node.id === card.id) ?? 0) + 1,
+        ),
+        alertAction: "save",
+      });
+    }
   };
 
   return (
@@ -296,6 +357,7 @@ export default function OpportunityGraphPage() {
               }}
               placeholder="Find a card or set…"
               aria-label="Find a card or set"
+              role="combobox"
               aria-autocomplete="list"
               aria-controls="graph-search-suggestions"
               aria-expanded={suggestionsOpen && suggestions.length > 0}
@@ -328,6 +390,13 @@ export default function OpportunityGraphPage() {
           financial advice.
           {graph?.asOf && <span>Prices as of {graph.asOf}</span>}
         </aside>
+        {graph && (
+          <MlInsight
+            locale={locale}
+            ranking={graph.ranking}
+            surface="opportunity_graph"
+          />
+        )}
 
         {loading ? (
           <div className={styles.state}><LoaderCircle className="spin" /> Building relationships…</div>
@@ -449,6 +518,15 @@ export default function OpportunityGraphPage() {
                 <button className={styles.fullDetails} onClick={() => openCard(selected.id)}>
                   Open price history and details <ExternalLink size={14} />
                 </button>
+                <MlInsight
+                  locale={locale}
+                  ranking={graph.ranking}
+                  context={selected.ml ?? undefined}
+                  surface="opportunity_graph"
+                  cardId={selected.id}
+                  rankPosition={graph.nodes.findIndex((node) => node.id === selected.id) + 1}
+                  onCreateAlert={() => void createAlert(selected)}
+                />
                 <div className={styles.actions}>
                   <button disabled={saving} onClick={() => addCards([selected], "portfolio")}><BriefcaseBusiness size={15} /> Add card to portfolio</button>
                   <button disabled={saving} onClick={() => addCards([selected], "watchlist")}><Star size={15} /> Add card to watchlist</button>

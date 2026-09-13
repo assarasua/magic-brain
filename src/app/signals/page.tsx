@@ -21,10 +21,15 @@ import { MagicBrainLogo } from "@/components/brand-logo";
 import { useCardDetail } from "@/components/card-detail-provider";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { ProBadge } from "@/components/magic-brain-pro";
+import { MlInsight, trackMlFeedback } from "@/components/ml-insight";
 import type { CatalogCard } from "@/lib/catalog";
 import { formatCurrency } from "@/lib/data";
+import type { MlCardContext, MlRankingStatus } from "@/lib/ml-experience";
 
-type Signal = CatalogCard & { direction: "up" | "down" };
+type Signal = CatalogCard & {
+  direction: "up" | "down";
+  ml?: MlCardContext;
+};
 
 type MarketAnalytics = {
   summary: {
@@ -112,13 +117,19 @@ function SignalsContent() {
   const [days, setDays] = useState<7 | 30 | 90>(30);
   const [filter, setFilter] = useState<"all" | "up" | "down">("all");
   const [loading, setLoading] = useState(true);
+  const [ranking, setRanking] = useState<MlRankingStatus>({
+    source: "deterministic",
+    reason: "scores_missing_or_stale",
+    modelVersion: null,
+    scoreDate: null,
+  });
 
   useEffect(() => {
     const controller = new AbortController();
     Promise.all([
       fetch(`/api/brain/signals?days=${days}`, { signal: controller.signal }).then((response) => {
         if (!response.ok) throw new Error("Signals unavailable");
-        return response.json() as Promise<{ signals: Signal[] }>;
+        return response.json() as Promise<{ signals: Signal[]; ranking: MlRankingStatus }>;
       }),
       fetch(`/api/market/analytics?days=${days}`, { signal: controller.signal }).then((response) => {
         if (!response.ok) throw new Error("Analytics unavailable");
@@ -127,6 +138,7 @@ function SignalsContent() {
     ])
       .then(([signalResult, analyticsResult]) => {
         setSignals(signalResult.signals);
+        setRanking(signalResult.ranking);
         setAnalytics(analyticsResult);
       })
       .catch((error: Error) => {
@@ -167,6 +179,48 @@ function SignalsContent() {
     : regimeScore <= 38
       ? es ? "Defensivo" : "Defensive"
       : es ? "Selectivo" : "Selective";
+
+  const createAlert = async (
+    signal: Signal,
+    targetPrice: number | null,
+    rankPosition: number,
+  ) => {
+    if (
+      targetPrice === null ||
+      !window.confirm(
+        es
+          ? `¿Añadir ${signal.name} a tu watchlist y avisarte por debajo de ${formatCurrency(targetPrice)}?`
+          : `Add ${signal.name} to your watchlist and alert below ${formatCurrency(targetPrice)}?`,
+      )
+    ) return;
+    if (!signal.ml) return;
+    const [watchResponse, smartResponse] = await Promise.all([
+      fetch("/api/watchlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cardId: signal.id,
+          targetPrice,
+          alertBelowEnabled: true,
+        }),
+      }),
+      fetch("/api/ml/alerts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cardId: signal.id, scoreId: signal.ml.scoreId }),
+      }),
+    ]);
+    if (watchResponse.ok && smartResponse.ok) {
+      trackMlFeedback({
+        eventType: "alert_action",
+        surface: "alert",
+        cardId: signal.id,
+        context: signal.ml,
+        rankPosition,
+        alertAction: "save",
+      });
+    }
+  };
 
   return (
     <div className="account-content signals-content">
@@ -249,9 +303,14 @@ function SignalsContent() {
             <div><span className="eyebrow">{es ? "OPORTUNIDADES PRIORIZADAS" : "PRIORITISED OPPORTUNITIES"}</span><h2>{es ? "Señales accionables" : "Actionable signals"}</h2></div>
             <p>{es ? "Abre cualquier carta para validar su histórico, riesgo y precio de entrada." : "Open any card to validate its history, risk, and entry price."}</p>
           </div>
+          <MlInsight
+            locale={locale}
+            ranking={ranking}
+            surface="brain_signals"
+          />
 
           {visible.length ? <div className="signals-grid">
-          {visible.map((signal) => {
+          {visible.map((signal, index) => {
             const change = signal.change7d ?? 0;
             const strong = Math.abs(change) >= 15;
             const breadthAligned =
@@ -297,11 +356,20 @@ function SignalsContent() {
                     </span>
                   </div>
                   <div className="signal-diagnostics">
-                    <span><small>{es ? "Puntuación" : "Signal score"}</small><b>{signalScore}/100</b></span>
+                    <span><small>{es ? "Señal por reglas" : "Rule signal"}</small><b>{signalScore}/100</b></span>
                     <span><small>{es ? "Riesgo" : "Risk"}</small><b className={highRisk ? "down" : ""}>{highRisk ? (es ? "Alto" : "High") : (es ? "Moderado" : "Moderate")}</b></span>
                     <span><small>{es ? "Zona de vigilancia" : "Watch zone"}</small><b>{watchPrice === null ? "—" : `≤ ${formatCurrency(watchPrice)}`}</b></span>
                   </div>
                   <div className="signal-tip"><Lightbulb size={15} /><span><b>{es ? "Consejo para compradores" : "Buyer tip"}</b>{buyerTip}</span></div>
+                  <MlInsight
+                    locale={locale}
+                    ranking={ranking}
+                    context={signal.ml}
+                    surface="brain_signals"
+                    cardId={signal.id}
+                    rankPosition={index + 1}
+                    onCreateAlert={() => void createAlert(signal, watchPrice, index + 1)}
+                  />
                 </div>
               </article>
             );

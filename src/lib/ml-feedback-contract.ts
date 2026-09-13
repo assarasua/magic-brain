@@ -13,6 +13,8 @@ export const ML_FEEDBACK_SURFACES = [
   "discover",
   "watchlist",
   "portfolio",
+  "daily_news",
+  "opportunity_graph",
   "alert",
 ] as const;
 

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rankByVerifiedScores } from "@/lib/ml-experience";
+import {
+  getMlExperienceForCards,
+  unavailableMlExperience,
+} from "@/lib/ml-serving";
 import { getSetPrediction, isGrowthTarget } from "@/lib/predict";
-import { getOrCreateUser } from "@/lib/session";
+import { attachSessionCookie, getOrCreateUser } from "@/lib/session";
 
 export const runtime = "nodejs";
 
@@ -13,7 +18,7 @@ const boundedScore = (value: string | null, fallback: number) => {
 
 export async function GET(request: NextRequest) {
   try {
-    await getOrCreateUser(request);
+    const { user, newToken } = await getOrCreateUser(request);
     const params = request.nextUrl.searchParams;
     const requestedTarget = params.get("target");
     const target = isGrowthTarget(requestedTarget) ? requestedTarget : "sp500";
@@ -36,9 +41,30 @@ export async function GET(request: NextRequest) {
         { status: 404 },
       );
     }
-    return NextResponse.json(result, {
-      headers: { "Cache-Control": "private, max-age=60" },
+    const experience = await getMlExperienceForCards(
+      user.id,
+      result.cardPredictions.map((pick) => pick.card.id),
+    ).catch(unavailableMlExperience);
+    const rankedCards = rankByVerifiedScores(
+      result.cardPredictions.map((pick) => ({ ...pick, id: pick.card.id })),
+      experience,
+    ).map((rankedPick) => {
+      const { id, ...pick } = rankedPick;
+      return {
+        ...pick,
+        ml: experience.scores[id] ?? null,
+      };
     });
+    return attachSessionCookie(
+      NextResponse.json({
+        ...result,
+        cardPredictions: rankedCards,
+        ranking: experience.ranking,
+      }, {
+        headers: { "Cache-Control": "private, max-age=60" },
+      }),
+      newToken,
+    );
   } catch {
     return NextResponse.json(
       { error: "Unable to calculate this prediction" },

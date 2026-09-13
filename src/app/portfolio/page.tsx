@@ -22,11 +22,13 @@ import { MagicBrainLogo } from "@/components/brand-logo";
 import { useCardDetail } from "@/components/card-detail-provider";
 import { PortfolioOnboarding } from "@/components/portfolio-onboarding";
 import { PortfolioImportModal } from "@/components/portfolio-import-modal";
+import { MlInsight, trackMlFeedback } from "@/components/ml-insight";
 import { CARD_LANGUAGES, type CardLanguage } from "@/lib/card-languages";
 import type { CatalogCard } from "@/lib/catalog";
 import { formatCurrency } from "@/lib/data";
 import { calculateSeriesMetrics } from "@/lib/financial-analytics";
 import type { PortfolioHolding } from "@/lib/portfolio";
+import type { MlCardContext, MlRankingStatus } from "@/lib/ml-experience";
 import {
   calculateOpportunityAnalytics,
   calculatePortfolioSummary,
@@ -35,7 +37,7 @@ import {
 import styles from "./portfolio.module.css";
 
 type PortfolioData = {
-  holdings: PortfolioHolding[];
+  holdings: Array<PortfolioHolding & { ml?: MlCardContext | null }>;
   summary: {
     invested: number;
     value: number;
@@ -57,6 +59,19 @@ type PortfolioData = {
       }
     >;
   };
+  mlIntelligence?: {
+    ranking: MlRankingStatus;
+    candidateAdditions: Array<{
+      id: string;
+      name: string;
+      setCode: string;
+      imageUrl: string | null;
+      price: number;
+      change7d: number | null;
+      ml: MlCardContext;
+    }>;
+    coolingHoldings: Array<PortfolioHolding & { ml?: MlCardContext | null }>;
+  };
 };
 
 const emptyOpportunity = {
@@ -64,6 +79,13 @@ const emptyOpportunity = {
   holdingsPercent: 0,
   marketValue: 0,
   exposurePercent: 0,
+};
+
+const fallbackRanking: MlRankingStatus = {
+  source: "deterministic",
+  reason: "scores_missing_or_stale",
+  modelVersion: null,
+  scoreDate: null,
 };
 
 const emptyPortfolio: PortfolioData = {
@@ -487,6 +509,38 @@ export default function PortfolioPage() {
     void patchHolding(id, { quantity, purchasePrice });
   };
 
+  const addCandidate = async (
+    candidate: NonNullable<PortfolioData["mlIntelligence"]>["candidateAdditions"][number],
+    rankPosition: number,
+  ) => {
+    if (!window.confirm(
+      locale === "es"
+        ? `¿Añadir 1× ${candidate.name} a ${formatCurrency(candidate.price)} a tu cartera?`
+        : `Add 1× ${candidate.name} at ${formatCurrency(candidate.price)} to your portfolio?`,
+    )) return;
+    const response = await fetch("/api/portfolio", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cardId: candidate.id,
+        quantity: 1,
+        purchasePrice: candidate.price,
+        condition: "near_mint",
+        language: "en",
+      }),
+    });
+    if (response.ok) {
+      trackMlFeedback({
+        eventType: "add_to_portfolio",
+        surface: "portfolio",
+        cardId: candidate.id,
+        context: candidate.ml,
+        rankPosition,
+      });
+      await loadPortfolio();
+    }
+  };
+
   return (
     <main className="account-page">
       <header className="account-topbar">
@@ -536,6 +590,68 @@ export default function PortfolioPage() {
               <article><span>{locale === "es" ? "Posiciones rentables" : "Profitable positions"}</span><strong>{analytics.profitableShare.toFixed(0)}%</strong><small>{locale === "es" ? "de activos valorados" : "of valued assets"}</small></article>
               <article><span>{locale === "es" ? "Mayor exposición" : "Top concentration"}</span><strong>{analytics.concentration.toFixed(1)}%</strong><small>{allocation[0]?.name ?? "—"}</small></article>
               <article><span>{locale === "es" ? "Posición media" : "Average position"}</span><strong>{formatCurrency(analytics.averagePosition)}</strong><small>{locale === "es" ? "valor por activo" : "value per asset"}</small></article>
+            </section>
+
+            <section className={`fintech-panel ${styles.intelligencePanel}`}>
+              <div className="section-title">
+                <div>
+                  <span className="eyebrow">{locale === "es" ? "INTELIGENCIA DE CARTERA" : "PORTFOLIO INTELLIGENCE"}</span>
+                  <h2>{locale === "es" ? "Siguientes decisiones para revisar" : "Next decisions to review"}</h2>
+                </div>
+                <small>{locale === "es" ? "Sin operaciones automáticas" : "No autonomous trades"}</small>
+              </div>
+              <MlInsight
+                locale={locale}
+                ranking={data.mlIntelligence?.ranking ?? fallbackRanking}
+                surface="portfolio"
+              />
+              {analytics.concentration > 35 && (
+                <p className={styles.constraint}>
+                  {locale === "es"
+                    ? `Restricción: ${allocation[0]?.name} concentra el ${analytics.concentration.toFixed(1)}% de la cartera. Revisa el downside antes de aumentar esa exposición.`
+                    : `Constraint: ${allocation[0]?.name} is ${analytics.concentration.toFixed(1)}% of the portfolio. Review downside before increasing that exposure.`}
+                </p>
+              )}
+              <div className={styles.intelligenceGrid}>
+                <div>
+                  <h3>{locale === "es" ? "Candidatas para añadir" : "Candidate additions"}</h3>
+                  {data.mlIntelligence?.candidateAdditions.length ? data.mlIntelligence.candidateAdditions.map((candidate, index) => (
+                    <article key={candidate.id} className={styles.intelligenceCard}>
+                      <div>
+                        <strong>{candidate.name}</strong>
+                        <span>{candidate.setCode.toUpperCase()} · {formatCurrency(candidate.price)}</span>
+                      </div>
+                      <button type="button" onClick={() => void addCandidate(candidate, index + 1)}>
+                        <Plus size={14} /> {locale === "es" ? "Revisar y añadir" : "Review and add"}
+                      </button>
+                      <MlInsight
+                        locale={locale}
+                        ranking={data.mlIntelligence!.ranking}
+                        context={candidate.ml}
+                        surface="portfolio"
+                        cardId={candidate.id}
+                        rankPosition={index + 1}
+                      />
+                    </article>
+                  )) : <p>{locale === "es" ? "No hay candidatas aprendidas verificadas disponibles." : "No verified learned candidates are available."}</p>}
+                </div>
+                <div>
+                  <h3>{locale === "es" ? "Posiciones enfriándose" : "Cooling holdings"}</h3>
+                  {data.mlIntelligence?.coolingHoldings.length ? data.mlIntelligence.coolingHoldings.map((holding, index) => (
+                    <article key={holding.id} className={styles.intelligenceCard}>
+                      <div><strong>{holding.name}</strong><span>7D {holding.change7d?.toFixed(1)}% · 30D {holding.change30d?.toFixed(1)}%</span></div>
+                      <MlInsight
+                        locale={locale}
+                        ranking={data.mlIntelligence!.ranking}
+                        context={holding.ml ?? undefined}
+                        surface="portfolio"
+                        cardId={holding.cardId}
+                        rankPosition={index + 1}
+                      />
+                    </article>
+                  )) : <p>{locale === "es" ? "Ninguna posición cruza el umbral descriptivo de enfriamiento." : "No holding crosses the descriptive cooling threshold."}</p>}
+                </div>
+              </div>
             </section>
 
             <section className={`fintech-panel ${styles.opportunityPanel}`}>
