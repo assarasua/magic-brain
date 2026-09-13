@@ -60,9 +60,9 @@ export const publicApiOpenApi = {
   openapi: "3.1.0",
   info: {
     title: "Magic Brain Data API",
-    version: "1.0.0",
+    version: "1.1.0",
     description:
-      "Public Magic card, set, and EUR price data. Price records always identify source, observation date, currency, and finish.",
+      "Public Magic card, set, EUR price, prediction, read-only portfolio-scenario, and deterministic market-brief data. Price records always identify source, observation date, currency, and finish.",
   },
   servers: [{ url: "/api/v1" }],
   security: [{ ApiKey: [] }, {}],
@@ -189,6 +189,144 @@ export const publicApiOpenApi = {
               "Research signals with source, observation date, currency, and finish",
           },
           "404": { description: "No eligible set found" },
+          ...commonErrors,
+        },
+      },
+    },
+    "/predict/set": {
+      get: {
+        operationId: "predictSetGrowth",
+        summary: "Calculate a transparent set-growth scenario",
+        parameters: [
+          { name: "set", in: "query", schema: { type: "string", maxLength: 8 } },
+          {
+            name: "target",
+            in: "query",
+            schema: {
+              type: "string",
+              enum: ["inflation", "sp500", "extreme"],
+              default: "sp500",
+            },
+          },
+          {
+            name: "horizon",
+            in: "query",
+            schema: { type: "integer", enum: [12, 24, 36], default: 24 },
+          },
+          ...["demand", "scarcity", "reprints"].map((name) => ({
+            name,
+            in: "query",
+            schema: { type: "integer", minimum: 1, maximum: 5, default: 3 },
+          })),
+        ],
+        responses: {
+          "200": {
+            description:
+              "Set scenario, observed evidence, bounded card predictions, and methodology",
+          },
+          "404": { description: "No eligible set found" },
+          ...commonErrors,
+        },
+      },
+    },
+    "/predict/portfolio": {
+      post: {
+        operationId: "buildPredictPortfolioScenario",
+        summary: "Build a read-only set portfolio scenario",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                additionalProperties: false,
+                required: ["setCode", "budget", "risk"],
+                properties: {
+                  setCode: { type: "string", minLength: 2, maxLength: 8 },
+                  budget: { type: "number", minimum: 25, maximum: 1_000_000 },
+                  risk: {
+                    type: "string",
+                    enum: [
+                      "preservation",
+                      "conservative",
+                      "balanced",
+                      "growth",
+                      "aggressive",
+                    ],
+                  },
+                  maxPositions: {
+                    type: "integer",
+                    minimum: 1,
+                    maximum: 20,
+                    default: 8,
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description:
+              "Unsaved model allocation derived from observed set opportunities",
+          },
+          "404": { description: "No eligible priced opportunities found" },
+          ...commonErrors,
+        },
+      },
+    },
+    "/news": {
+      get: {
+        operationId: "listMarketBriefs",
+        summary: "List immutable price-derived market briefs",
+        parameters: [
+          {
+            name: "limit",
+            in: "query",
+            schema: { type: "integer", minimum: 1, maximum: 30, default: 10 },
+          },
+        ],
+        responses: {
+          "200": {
+            description:
+              "A bounded reverse-chronological archive of market brief summaries",
+          },
+          ...commonErrors,
+        },
+      },
+    },
+    "/news/latest": {
+      get: {
+        operationId: "getLatestMarketBrief",
+        summary: "Get the latest immutable price-derived market brief",
+        responses: {
+          "200": {
+            description:
+              "Latest full brief with coverage, breadth, categories, and caveats",
+          },
+          "404": { description: "No market brief is available" },
+          ...commonErrors,
+        },
+      },
+    },
+    "/news/{date}": {
+      get: {
+        operationId: "getMarketBriefByDate",
+        summary: "Get an archived market brief by market-data date",
+        parameters: [
+          {
+            name: "date",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "date" },
+          },
+        ],
+        responses: {
+          "200": {
+            description:
+              "Immutable full brief for the requested market-data date",
+          },
+          "404": { description: "Market brief not found" },
           ...commonErrors,
         },
       },

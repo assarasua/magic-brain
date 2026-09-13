@@ -83,7 +83,12 @@ test("OpenAPI advertises every v1 data and key route", () => {
     "/cards/{id}",
     "/cards/{id}/prices",
     "/latest-set/opportunities",
+    "/news",
+    "/news/latest",
+    "/news/{date}",
     "/openapi.json",
+    "/predict/portfolio",
+    "/predict/set",
     "/prices/latest",
     "/sets",
   ]);
@@ -91,5 +96,15 @@ test("OpenAPI advertises every v1 data and key route", () => {
   assert.equal(
     publicApiOpenApi.components.schemas.Price.properties.currency.const,
     "EUR",
+  );
+  assert.equal(
+    publicApiOpenApi.paths["/predict/portfolio"].post.requestBody.content[
+      "application/json"
+    ].schema.additionalProperties,
+    false,
+  );
+  assert.equal(
+    publicApiOpenApi.paths["/news"].get.parameters[0].schema.maximum,
+    30,
   );
 });

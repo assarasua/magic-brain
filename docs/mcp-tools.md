@@ -1,6 +1,6 @@
 # Magic Brain MCP tool reference
 
-This is the canonical reference for the 11 read-only tools currently registered
+This is the canonical reference for the 15 read-only tools currently registered
 by the Magic Brain MCP server. For installation and client configuration, see
 the [MCP installation guide](mcp-installation.md). The live endpoint is:
 
@@ -40,6 +40,10 @@ tools and composes the final answer.
   Missing price values stay missing; they are not zero. A displayed price,
   score, confidence label, or entry range is not proof of liquidity, a profit
   probability, a price target, or financial advice.
+- Prediction and portfolio tools return unsaved research scenarios derived from
+  public data and caller-supplied assumptions. Market briefs are deterministic
+  summaries of stored prices, not external reporting. None of these tools read
+  or write a user's portfolio, watchlist, preferences, or account.
 
 All tools are read-only, non-destructive, and idempotent. Public-data tools may
 change as the public catalogue changes. Rules and product tools query pinned
@@ -241,6 +245,89 @@ The entry range is descriptive, not a target. Thin markets, reprints,
 condition, language, finish, stale observations, and unavailable liquidity can
 make a signal non-executable. An invalid code or confidence fails validation;
 an unknown or ineligible set returns not found.
+
+## Prediction scenarios & market briefs
+
+### `predict_set_growth`
+
+**Purpose.** Calculate a transparent set-growth scenario from observed public
+market evidence and bounded assumptions.
+
+**Inputs**
+
+- `set_code` — optional normalized set code, 2–8 lowercase letters or digits.
+- `target` — `inflation`, `sp500`, or `extreme`; default `sp500`.
+- `horizon_months` — `12`, `24`, or `36`; default `24`.
+- `demand`, `scarcity`, and `reprint_resilience` — integer assumption scores
+  from 1 through 5; each defaults to `3`.
+
+**Meaningful output.** `data.data` contains set metadata, the market-data
+`asOf` date, 90-day evidence coverage, the normalized inputs, a bounded forecast
+range, up to 12 card-level research signals, and methodology notes.
+
+**Caveats and errors.** Benchmarks are fixed illustrative comparisons, not live
+index forecasts. A forecast range is not a guaranteed return, probability of
+profit, recommendation, or executable price. Sparse or stale history, reprints,
+liquidity, condition, language, and fees can invalidate practical outcomes.
+Unknown fields and invalid enums or ranges are rejected.
+
+### `build_portfolio_scenario`
+
+**Purpose.** Build an unsaved model allocation from public opportunities in one
+set.
+
+**Inputs**
+
+- `set_code` — required normalized set code, 2–8 lowercase letters or digits.
+- `budget_eur` — required number from EUR 25 through EUR 1,000,000.
+- `risk` — `preservation`, `conservative`, `balanced`, `growth`, or
+  `aggressive`.
+- `max_positions` — integer from 1 through 20; default `8`.
+
+**Meaningful output.** `data.data` contains the selected set and observation
+date plus an unsaved scenario with budget, invested and unallocated amounts,
+positions, quantities, model weights, signal labels, rationale, and
+methodology.
+
+**Caveats and errors.** The tool neither loads nor saves account preferences,
+portfolios, holdings, or watchlists. It models allocations without checking
+seller inventory, liquidity, fees, taxes, shipping, card condition, language,
+or execution prices. It is not financial advice. Unknown fields are rejected.
+
+### `get_latest_market_brief`
+
+**Purpose.** Retrieve the latest immutable daily brief derived from stored
+market prices.
+
+**Inputs.** None; the input object is strict and must be empty.
+
+**Meaningful output.** `data.data` contains publication and market-data dates,
+comparison dates, coverage, market breadth, and bounded strong-growth,
+recovery-opportunity, lost-momentum, and major-repricing lists.
+
+**Caveats and errors.** The brief is generated from the newest available stored
+price date and nearest available comparison observations. It is not external
+news, a live quote, a recommendation, or a guarantee. Preserve methodology and
+freshness fields when summarizing it.
+
+### `list_market_briefs`
+
+**Purpose.** Retrieve a bounded reverse-chronological archive of immutable
+daily market briefs.
+
+**Inputs**
+
+- `limit` — integer from 1 through 30; default `10`.
+
+**Meaningful output.** `data.data` is the archived brief page. Each entry
+retains its stable identity, market-data and publication dates, methodology
+version, source, coverage, breadth, and category counts. Use
+`get_latest_market_brief` when the full latest category contents and caveats
+are needed.
+
+**Caveats and errors.** Archive entries are historical stored-price snapshots,
+not current quotes or journalism. Missing dates are not synthesized. The
+archive is bounded to the newest requested entries.
 
 ## Comprehensive Rules
 
@@ -454,8 +541,18 @@ public API errors.
    observation dates.
 4. Optionally call `get_latest_set_opportunities` for transparent comparative
    signals.
-5. Synthesize the evidence with liquidity, staleness, reprint, condition,
+5. Optionally call `predict_set_growth` or `build_portfolio_scenario`, treating
+   every output as an unsaved model scenario.
+6. Synthesize the evidence with liquidity, staleness, reprint, condition,
    language, finish, and non-financial-advice caveats.
+
+### Daily market brief
+
+1. Call `get_latest_market_brief` for the newest stored market-data date.
+2. Call `list_market_briefs` only when historical context is needed.
+3. Describe the output as deterministic price-derived research, not external
+   news, and retain comparison dates, coverage, freshness, and liquidity
+   caveats.
 
 ### Rules question
 
