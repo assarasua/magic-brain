@@ -342,6 +342,42 @@ export const PRODUCT_FACTS: ProductFact[] = [
     citations: [cite("docs/product-strategy-faq.md#adjacent-trading-card-games", "Adjacent TCGs")],
   },
   {
+    id: "platform-api-intelligence",
+    topic: "differentiation_and_moat",
+    status: "shipped_fact",
+    statement:
+      "The versioned API exposes public graph, prediction, and market-brief research plus scoped owner-only portfolio, preference-derived recommendation, and personalized signal reads with explicit model-versus-fallback status.",
+    keywords: ["api", "graph", "portfolio", "predict", "signals", "fallback", "oauth"],
+    citations: [
+      cite("src/lib/public-api/openapi.ts", "Public API contract"),
+      cite("docs/mcp-tools.md#personal-read-tools", "MCP personal tools"),
+    ],
+  },
+  {
+    id: "mcp-optional-oauth",
+    topic: "provenance_and_trust",
+    status: "shipped_fact",
+    statement:
+      "The remote MCP keeps public research anonymous and uses optional OAuth authorization code with PKCE, explicit scopes, short-lived access tokens, rotating refresh tokens, resource binding, and server-side ownership checks for personal reads.",
+    keywords: ["mcp", "oauth", "pkce", "scope", "login", "portfolio", "security"],
+    citations: [
+      cite("docs/mcp-installation.md#consent-scopes", "MCP authorization"),
+      cite("src/lib/oauth.ts", "OAuth implementation"),
+    ],
+  },
+  {
+    id: "developer-cli-and-mcp",
+    topic: "growth",
+    status: "shipped_fact",
+    statement:
+      "Contributors can use a typed CLI and a separate localhost-first development MCP for bounded API discovery, health, fixtures, migrations, model status, and contract suites; neither enables telemetry or arbitrary shell, filesystem, URL, database, or production mutation access.",
+    keywords: ["cli", "developer", "mcp", "local", "contracts", "doctor"],
+    citations: [
+      cite("tools/magic-brain-cli/README.md", "CLI guide"),
+      cite("integrations/magic-brain-dev-mcp/README.md", "Development MCP guide"),
+    ],
+  },
+  {
     id: "answer-discipline",
     topic: "provenance_and_trust",
     status: "operating_principle",

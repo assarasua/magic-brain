@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   ApiError,
@@ -22,6 +23,75 @@ test("cursor round trips and rejects malformed input", () => {
   assert.throws(
     () => decodeCursor("not-a-cursor", ["name", "id"]),
     (error) => error instanceof ApiError && error.code === "invalid_cursor",
+  );
+});
+
+test("account routes require scoped keys and preserve privacy boundaries", async () => {
+  for (const route of [
+    "src/app/api/v1/ml/opportunities/route.ts",
+    "src/app/api/v1/portfolio/route.ts",
+    "src/app/api/v1/predict/recommendation/route.ts",
+  ]) {
+    const source = await readFile(new URL(`../${route}`, import.meta.url), "utf8");
+    assert.match(source, /allowAnonymous: false/);
+    assert.match(source, /requiredScopes: \[(?:"portfolio:read", "profile:read"|"profile:read")\]/);
+  }
+  const accountData = await readFile(
+    new URL("../src/lib/public-api/account-data.ts", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(accountData, /\bemail\b|\bdisplayName\b/);
+  assert.match(accountData, /ownerIdentityIncluded: false/);
+  assert.match(accountData, /requestTimeTraining: false/);
+});
+
+test("account scope migration remains additive and requires data read", async () => {
+  const migration = await readFile(
+    new URL("../db/021_public_api_account_scope.sql", import.meta.url),
+    "utf8",
+  );
+  assert.match(migration, /'portfolio:read'/);
+  assert.match(migration, /scopes @> array\['data:read'\]/);
+  assert.doesNotMatch(migration, /drop table|truncate/i);
+});
+
+test("list and share mutations require scopes, confirmation, and idempotency", async () => {
+  const [lists, bulk, shares, mutationHelper, publicShare] = await Promise.all([
+    readFile(
+      new URL("../src/app/api/v1/portfolio/lists/route.ts", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL("../src/app/api/v1/portfolio/bulk/route.ts", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL(
+        "../src/app/api/v1/portfolio/lists/[id]/shares/route.ts",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+    readFile(
+      new URL("../src/lib/public-api/mutations.ts", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL("../src/lib/portfolio-share.ts", import.meta.url),
+      "utf8",
+    ),
+  ]);
+  assert.match(lists, /requiredScopes: \["lists:write"\]/);
+  assert.match(bulk, /"portfolio:write", "lists:write"/);
+  assert.match(shares, /requiredScopes: \["shares:manage"\]/);
+  assert.match(mutationHelper, /body\.confirm !== true/);
+  assert.match(mutationHelper, /idempotency-key/);
+  assert.match(mutationHelper, /request_hash/);
+  assert.match(publicShare, /createHmac\("sha256", secret\)/);
+  assert.match(publicShare, /idempotency_key_hash/);
+  assert.doesNotMatch(
+    publicShare.slice(publicShare.indexOf("type PublicHoldingRow")),
+    /purchase_price|owner_id|email/,
   );
 });
 
@@ -79,19 +149,30 @@ test("OpenAPI advertises every v1 data and key route", () => {
   assert.deepEqual(Object.keys(publicApiOpenApi.paths).sort(), [
     "/api-keys",
     "/api-keys/{id}",
+    "/alerts",
     "/cards",
     "/cards/{id}",
     "/cards/{id}/prices",
     "/latest-set/opportunities",
+    "/ml/opportunities",
     "/news",
     "/news/latest",
     "/news/{date}",
     "/openapi.json",
+    "/opportunity-graph",
+    "/portfolio",
+    "/portfolio/lists",
+    "/portfolio/lists/{id}",
+    "/portfolio/bulk",
+    "/portfolio/lists/{id}/shares",
+    "/portfolio/lists/{id}/shares/{shareId}",
+    "/shared/portfolio/{token}",
     "/predict/portfolio",
+    "/predict/recommendation",
     "/predict/set",
     "/prices/latest",
     "/sets",
-  ]);
+  ].sort());
   assert.equal(publicApiOpenApi.openapi, "3.1.0");
   assert.equal(
     publicApiOpenApi.components.schemas.Price.properties.currency.const,
@@ -106,5 +187,16 @@ test("OpenAPI advertises every v1 data and key route", () => {
   assert.equal(
     publicApiOpenApi.paths["/news"].get.parameters[0].schema.maximum,
     30,
+  );
+  assert.deepEqual(
+    publicApiOpenApi.paths["/portfolio"].get.security,
+    [
+      { OAuth2: ["portfolio:read", "profile:read"] },
+      { ApiKey: ["portfolio:read", "profile:read"] },
+    ],
+  );
+  assert.match(
+    publicApiOpenApi.paths["/ml/opportunities"].get.responses["200"].description,
+    /fallback/,
   );
 });

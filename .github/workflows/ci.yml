@@ -27,13 +27,15 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm ci --prefix integrations/magic-brain-mcp
+      - run: npm ci --prefix tools/magic-brain-cli
+      - run: npm ci --prefix integrations/magic-brain-dev-mcp
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-      - run: npm ci --prefix integrations/magic-brain-mcp
       - run: npm run rules:build --prefix integrations/magic-brain-mcp
-      - run: npm run check --prefix integrations/magic-brain-mcp
-      - run: npm test --prefix integrations/magic-brain-mcp
-      - run: npm run build --prefix integrations/magic-brain-mcp
+      - run: npm run check:packages
+      - run: npm run test:packages
+      - run: npm run build:packages
       - run: npm run metadata:validate --prefix integrations/magic-brain-mcp

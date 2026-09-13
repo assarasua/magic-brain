@@ -14,6 +14,18 @@ type ApiKeyRow = {
   revoked_at: string | null;
 };
 
+export const API_KEY_SCOPES = [
+  "data:read",
+  "portfolio:read",
+  "portfolio:write",
+  "lists:read",
+  "lists:write",
+  "alerts:manage",
+  "shares:manage",
+  "profile:read",
+] as const;
+export type ApiKeyScope = (typeof API_KEY_SCOPES)[number];
+
 const mapKey = (row: ApiKeyRow) => ({
   id: row.id,
   name: row.name,
@@ -54,7 +66,11 @@ export async function listApiKeys(ownerId: string) {
   return result.rows.map(mapKey);
 }
 
-export async function createApiKey(ownerId: string, name: string) {
+export async function createApiKey(
+  ownerId: string,
+  name: string,
+  scopes: ApiKeyScope[] = ["data:read"],
+) {
   const count = await query<{ count: number }>(
     `
       select count(*)::int as count
@@ -78,12 +94,12 @@ export async function createApiKey(ownerId: string, name: string) {
   try {
     const result = await query<ApiKeyRow>(
       `
-        insert into app_api_keys (owner_id, name, prefix, secret_hash)
-        values ($1, $2, $3, $4)
+        insert into app_api_keys (owner_id, name, prefix, secret_hash, scopes)
+        values ($1, $2, $3, $4, $5::text[])
         returning id::text, name, prefix, scopes, tier,
                   created_at::text, last_used_at::text, revoked_at::text
       `,
-      [ownerId, name, prefix, hash],
+      [ownerId, name, prefix, hash, scopes],
     );
     return { ...mapKey(result.rows[0]), secret };
   } catch (error) {

@@ -49,6 +49,8 @@ try {
       "018_ml_point_in_time_producer.sql",
       "019_portfolio_lists.sql",
       "020_portfolio_list_shares.sql",
+      "021_public_api_account_scope.sql",
+      "022_mcp_oauth.sql",
   ];
   let applied = 0;
   for (const filename of filenames) {

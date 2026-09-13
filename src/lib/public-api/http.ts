@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { authorizePublicRequest, type PublicApiAccess } from "./access";
+import {
+  authorizePublicRequest,
+  type PublicApiAccess,
+  type PublicApiAccessPolicy,
+} from "./access";
 import { ApiError } from "./core";
 
 type CacheProfile = "metadata" | "latest" | "history" | "none";
@@ -14,8 +18,9 @@ const cacheHeaders: Record<CacheProfile, string> = {
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Authorization, Content-Type, X-API-Key",
+  "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "Authorization, Content-Type, Idempotency-Key, X-API-Key",
   "Access-Control-Max-Age": "86400",
 };
 
@@ -63,6 +68,16 @@ function errorResponse(
       apiError.details?.retryAfter ?? 60,
     );
   }
+  if (apiError.status === 401 || apiError.status === 403) {
+    const origin = new URL(request.url).origin;
+    const scope =
+      apiError.details?.requiredScopes &&
+      Array.isArray(apiError.details.requiredScopes)
+        ? `, scope="${apiError.details.requiredScopes.join(" ")}"`
+        : "";
+    responseHeaders["WWW-Authenticate"] =
+      `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource/api/v1"${scope}`;
+  }
   return NextResponse.json(
     {
       error: {
@@ -83,10 +98,11 @@ export async function publicApiHandler(
     data: unknown;
     pagination?: Record<string, unknown>;
   }>,
+  policy: PublicApiAccessPolicy = {},
 ) {
   const id = requestId(request);
   try {
-    const access = await authorizePublicRequest(request);
+    const access = await authorizePublicRequest(request, policy);
     const result = await handler(access);
     return NextResponse.json(
       {

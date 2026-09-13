@@ -14,7 +14,8 @@ Use the hosted Streamable HTTP endpoint:
 https://magic-brain-mcp.assarasua.workers.dev/mcp
 ```
 
-No Magic Brain account, OAuth sign-in, or user API key is currently required.
+Public research requires no account or API key. Optional OAuth sign-in unlocks
+owner-scoped personal read tools in compatible remote MCP clients.
 See the canonical [MCP installation guide](../../docs/mcp-installation.md) for
 current Claude, Cursor, VS Code/GitHub Copilot, ChatGPT, and OpenAI Responses
 API instructions, requirements, and troubleshooting.
@@ -29,7 +30,7 @@ below run your own server and do not install the live connector.
 ## Tools
 
 The list below is a summary. The
-[canonical MCP tool reference](../../docs/mcp-tools.md) documents all 15 tools
+[canonical MCP tool reference](../../docs/mcp-tools.md) documents all 22 tools
 without duplicating their schemas here.
 
 - `search_cards` — bounded catalogue search with set/card filters

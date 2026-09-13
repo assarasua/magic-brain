@@ -1,0 +1,19 @@
+{
+  "name": "@magic-brain/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "magic-brain": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.2",
+    "typescript": "6.0.3",
+    "vitest": "5.0.0"
+  }
+}

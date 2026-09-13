@@ -15,6 +15,10 @@ const config: MagicBrainMcpConfig = {
   bindHost: "127.0.0.1",
   allowedHosts: ["localhost"],
   allowedOrigins: [],
+  oauthIssuerUrl: new URL("https://magicbrain.es"),
+  oauthResourceUrl: new URL("https://mcp.example.test/mcp"),
+  oauthIntrospectionUrl: new URL("https://magicbrain.es/oauth/introspect"),
+  allowPersonalApiKey: false,
 };
 
 afterEach(() => {
@@ -95,7 +99,7 @@ describe("MagicBrainApiClient", () => {
 });
 
 describe("MCP contract", () => {
-  it("publishes only fifteen read-only, well-described tools", async () => {
+  it("publishes twenty-two read-only, well-described tools", async () => {
     const fetchMock = vi.fn<typeof fetch>(
       async () => new Response(JSON.stringify({ data: [] })),
     );
@@ -119,12 +123,19 @@ describe("MCP contract", () => {
         "get_latest_market_brief",
         "get_latest_prices",
         "get_latest_set_opportunities",
+        "get_market_brief_by_date",
+        "get_personalized_opportunities",
+        "get_portfolio_intelligence",
+        "get_portfolio_list",
+        "get_predict_recommendation",
         "get_price_history",
         "get_product_context",
         "list_market_briefs",
+        "list_portfolio_lists",
         "list_sets",
         "predict_set_growth",
         "search_cards",
+        "search_opportunity_graph",
         "search_product_knowledge",
         "search_rules",
       ].sort(),
@@ -153,14 +164,81 @@ describe("MCP contract", () => {
         [
           "build_portfolio_scenario",
           "get_latest_market_brief",
+          "get_market_brief_by_date",
+          "get_personalized_opportunities",
+          "get_portfolio_intelligence",
+          "get_portfolio_list",
+          "get_predict_recommendation",
           "list_market_briefs",
+          "list_portfolio_lists",
           "predict_set_growth",
+          "search_opportunity_graph",
         ].includes(tool.name)
       ) {
         expect(tool.inputSchema.additionalProperties).toBe(false);
       }
     }
 
+    await client.close();
+    await server.close();
+  });
+
+  it("returns an explicit auth error for anonymous personal tools", async () => {
+    const server = createMagicBrainMcpServer(
+      config,
+      vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ data: [] }))),
+    );
+    const client = new Client({ name: "test-client", version: "1.0.0" });
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+    const response = await client.callTool({
+      name: "get_portfolio_intelligence",
+      arguments: {},
+    });
+    expect(response.isError).toBe(true);
+    expect(JSON.stringify(response)).toContain("AUTHENTICATION_REQUIRED");
+    await client.close();
+    await server.close();
+  });
+
+  it("delegates authenticated personal reads without forwarding OAuth tokens", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async (_input, init) => {
+      const headers = new Headers(init?.headers);
+      expect(headers.get("authorization")).toBeNull();
+      expect(headers.get("x-magic-brain-delegation")).toMatch(/^[^.]+\.[^.]+$/);
+      expect(JSON.stringify(init)).not.toContain("oauth-secret-token");
+      return new Response(JSON.stringify({ data: { summary: {} } }));
+    });
+    const server = createMagicBrainMcpServer(
+      { ...config, delegationSecret: "x".repeat(32) },
+      fetchMock,
+      undefined,
+      {
+        token: "oauth-secret-token",
+        clientId: "client-1",
+        scopes: ["portfolio:read", "profile:read"],
+        expiresAt: Math.floor(Date.now() / 1000) + 600,
+        resource: config.oauthResourceUrl,
+        extra: { subject: "00000000-0000-4000-8000-000000000001" },
+      },
+    );
+    const client = new Client({ name: "test-client", version: "1.0.0" });
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+    const response = await client.callTool({
+      name: "get_portfolio_intelligence",
+      arguments: {},
+    });
+    expect(response.isError).not.toBe(true);
+    expect(fetchMock).toHaveBeenCalledOnce();
     await client.close();
     await server.close();
   });
@@ -209,12 +287,22 @@ describe("MCP contract", () => {
       name: "list_market_briefs",
       arguments: { limit: 5 },
     });
+    await client.callTool({
+      name: "get_market_brief_by_date",
+      arguments: { date: "2026-09-13" },
+    });
+    await client.callTool({
+      name: "search_opportunity_graph",
+      arguments: { query: "lotus", limit: 12 },
+    });
 
     expect(requests.map(({ url }) => url.pathname)).toEqual([
       "/api/v1/predict/set",
       "/api/v1/predict/portfolio",
       "/api/v1/news/latest",
       "/api/v1/news",
+      "/api/v1/news/2026-09-13",
+      "/api/v1/opportunity-graph",
     ]);
     expect(requests[0]?.url.searchParams.get("reprints")).toBe("2");
     expect(requests[1]?.init?.method).toBe("POST");
@@ -225,6 +313,7 @@ describe("MCP contract", () => {
       maxPositions: 6,
     });
     expect(requests[3]?.url.searchParams.get("limit")).toBe("5");
+    expect(requests[5]?.url.searchParams.get("q")).toBe("lotus");
 
     await client.close();
     await server.close();

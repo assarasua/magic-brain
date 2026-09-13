@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import { db, query } from "@/lib/db";
 import {
   createShareToken,
@@ -60,7 +60,11 @@ export async function listPortfolioShares(userId: string, listId: string) {
   return result.rows.map(mapShare);
 }
 
-export async function createPortfolioShare(userId: string, listId: string) {
+export async function createPortfolioShare(
+  userId: string,
+  listId: string,
+  idempotencyKey?: string,
+) {
   const client = await db.connect();
   try {
     await client.query("begin");
@@ -74,6 +78,32 @@ export async function createPortfolioShare(userId: string, listId: string) {
     if (owned.rowCount !== 1) {
       await client.query("rollback");
       return { status: "missing" as const };
+    }
+    const idempotencyHash = idempotencyKey
+      ? hash(`share-idempotency:${idempotencyKey}`)
+      : null;
+    if (idempotencyKey && idempotencyHash) {
+      const replay = await client.query<ShareRow>(
+        `select id::text, list_id::text, created_at::text, expires_at::text,
+           revoked_at::text,
+           (revoked_at is null and expires_at > now()) as active
+         from app_portfolio_list_shares
+         where user_id = $1 and idempotency_key_hash = $2
+         limit 1`,
+        [userId, idempotencyHash],
+      );
+      if (replay.rows[0]) {
+        if (replay.rows[0].list_id !== listId) {
+          await client.query("rollback");
+          return { status: "conflict" as const };
+        }
+        await client.query("commit");
+        return {
+          status: "created" as const,
+          token: deterministicShareToken(userId, listId, idempotencyKey),
+          share: mapShare(replay.rows[0]),
+        };
+      }
     }
     const recent = await client.query<{ count: number }>(
       `
@@ -108,19 +138,22 @@ export async function createPortfolioShare(userId: string, listId: string) {
       await client.query("rollback");
       return { status: "limit" as const };
     }
-    const token = createShareToken();
+    const token = idempotencyKey
+      ? deterministicShareToken(userId, listId, idempotencyKey)
+      : createShareToken();
     const inserted = await client.query<ShareRow>(
       `
         with instant as (select clock_timestamp() as issued_at)
         insert into app_portfolio_list_shares (
-          user_id, list_id, token_hash, created_at, expires_at
+          user_id, list_id, token_hash, idempotency_key_hash,
+          created_at, expires_at
         )
-        select $1, $2, $3, issued_at, issued_at + interval '24 hours'
+        select $1, $2, $3, $4, issued_at, issued_at + interval '24 hours'
         from instant
         returning id::text, list_id::text, created_at::text, expires_at::text,
           revoked_at::text, true as active
       `,
-      [userId, listId, hash(token)],
+      [userId, listId, hash(token), idempotencyHash],
     );
     await client.query("commit");
     return {
@@ -134,6 +167,20 @@ export async function createPortfolioShare(userId: string, listId: string) {
   } finally {
     client.release();
   }
+}
+
+function deterministicShareToken(
+  userId: string,
+  listId: string,
+  idempotencyKey: string,
+) {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) {
+    throw new Error("AUTH_SECRET is required for idempotent share creation");
+  }
+  return createHmac("sha256", secret)
+    .update(`${userId}:${listId}:${idempotencyKey}`)
+    .digest("base64url");
 }
 
 export async function revokePortfolioShare(
