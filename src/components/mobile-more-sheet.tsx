@@ -1,59 +1,31 @@
 "use client";
 
-import {
-  BrainCircuit,
-  Code2,
-  Compass,
-  Heart,
-  HeartHandshake,
-  LibraryBig,
-  ListChecks,
-  Network,
-  Newspaper,
-  Radar,
-  Settings,
-  Sparkles,
-  Target,
-  TrendingUp,
-  X,
-} from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { AuthControl } from "@/components/auth-control";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { ProBadge } from "@/components/magic-brain-pro";
+import {
+  navigationGroups,
+  proNavigation,
+  routeIsActive,
+} from "@/components/product-navigation";
+
+const fixedMobileRoutes = new Set(["/", "/market", "/portfolio"]);
 
 const groups = [
   {
-    label: "Explore",
-    links: [
-      { href: "/news", label: "News", icon: Newspaper },
-      { href: "/graph", label: "Opportunity Graph", icon: Network },
-      { href: "/inventory", label: "Inventory", icon: LibraryBig },
-      { href: "/market/latest-set-watch", label: "Latest Set Watch", icon: Radar },
-      { href: "/watchlist", label: "Watchlist", icon: Heart },
-      { href: "/reserved", label: "Reserved List", icon: ListChecks },
-    ],
-  },
-  {
     label: "Magic Brain Pro",
-    links: [
-      { href: "/predict", label: "Predict", icon: Target, pro: true },
-      { href: "/brain", label: "Portfolio Builder", icon: BrainCircuit, pro: true },
-      { href: "/signals", label: "Brain Signals", icon: TrendingUp, pro: true },
-      { href: "/analyst", label: "Ask Brain", icon: Sparkles, pro: true },
-      { href: "/discover", label: "Discover", icon: Compass, pro: true },
-    ],
+    links: proNavigation,
+    pro: true,
   },
-  {
-    label: "Account",
-    links: [
-      { href: "/settings", label: "Settings", icon: Settings },
-      { href: "/donate", label: "Support", icon: HeartHandshake },
-      { href: "/developers", label: "Developers", icon: Code2 },
-    ],
-  },
+  ...navigationGroups.map((group) => ({
+    ...group,
+    links: group.links.filter(({ href }) => !fixedMobileRoutes.has(href)),
+    pro: false,
+  })),
 ];
 
 export function MobileMoreSheet({
@@ -129,17 +101,23 @@ export function MobileMoreSheet({
 
         <div className="mobile-more-groups">
           {groups.map((group) => (
-            <nav key={group.label} aria-label={t(group.label)}>
-              <span>{t(group.label)}</span>
+            <nav
+              className={group.pro ? "mobile-pro-group" : undefined}
+              key={group.label}
+              aria-label={t(group.label)}
+            >
+              <span>
+                {group.pro && <Sparkles size={13} />}
+                {t(group.label)}
+              </span>
               {group.links.map((link) => {
                 const { href, label, icon: Icon } = link;
-                const pro = "pro" in link && link.pro;
-                const active = pathname === href || pathname.startsWith(`${href}/`);
+                const active = routeIsActive(pathname, href);
                 return (
-                  <Link href={href} className={[active ? "active" : "", pro ? "premium-feature-link" : ""].filter(Boolean).join(" ")} aria-current={active ? "page" : undefined} onNavigate={onClose} key={href}>
+                  <Link href={href} className={[active ? "active" : "", group.pro ? "premium-feature-link" : ""].filter(Boolean).join(" ")} aria-current={active ? "page" : undefined} onNavigate={onClose} key={href}>
                     <Icon size={19} />
                     <span>{t(label)}</span>
-                    {pro && <ProBadge compact />}
+                    {group.pro && <ProBadge compact />}
                   </Link>
                 );
               })}

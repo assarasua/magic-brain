@@ -1,25 +1,8 @@
 "use client";
 
 import {
-  ArrowRight,
-  Bell,
-  BrainCircuit,
   ChevronDown,
-  CircleDollarSign,
-  Code2,
-  Crown,
-  Eye,
-  Heart,
-  LayoutDashboard,
-  LibraryBig,
-  MessageCircleQuestion,
-  Network,
-  Newspaper,
-  Settings,
   Sparkles,
-  Target,
-  TrendingUp,
-  WalletCards,
   LoaderCircle,
 } from "lucide-react";
 import { SessionProvider, useSession } from "next-auth/react";
@@ -32,41 +15,19 @@ import { useLanguage } from "@/components/language-provider";
 import { ProBadge } from "@/components/magic-brain-pro";
 import { MobileTabBar } from "@/components/mobile-tab-bar";
 import { PreferencesOnboarding } from "@/components/preferences-onboarding";
-
-const workspaceNav = [
-  { href: "/", label: "Overview", icon: LayoutDashboard },
-  { href: "/market", label: "Market", icon: TrendingUp },
-  { href: "/news", label: "News", icon: Newspaper },
-  { href: "/graph", label: "Opportunity Graph", icon: Network },
-  { href: "/inventory", label: "Inventory", icon: LibraryBig },
-  { href: "/reserved", label: "Reserved List", icon: Crown },
-  { href: "/portfolio", label: "Portfolio", icon: WalletCards },
-  { href: "/watchlist", label: "Watchlist", icon: Eye },
-  { href: "/donate", label: "Support", icon: CircleDollarSign },
-  { href: "/developers", label: "Developers", icon: Code2 },
-];
-
-const brainNav = [
-  { label: "Predict", href: "/predict", icon: Target },
-  { label: "Portfolio Builder", href: "/brain", icon: BrainCircuit },
-  { label: "Brain Signals", href: "/signals", icon: TrendingUp },
-  { label: "Ask Brain", href: "/analyst", icon: MessageCircleQuestion },
-  { label: "Discover", href: "/discover", icon: Heart },
-];
-
-function routeIsActive(pathname: string, href: string) {
-  return href === "/"
-    ? pathname === href
-    : pathname === href || pathname.startsWith(`${href}/`);
-}
+import {
+  navigationGroups,
+  proNavigation,
+  routeIsActive,
+} from "@/components/product-navigation";
 
 function DesktopSidebar() {
   const pathname = usePathname();
   const { locale, t } = useLanguage();
-  const brainRouteActive = brainNav.some(({ href }) =>
+  const brainRouteActive = proNavigation.some(({ href }) =>
     routeIsActive(pathname, href),
   );
-  const [brainExpanded, setBrainExpanded] = useState(brainRouteActive);
+  const [brainExpanded, setBrainExpanded] = useState(true);
   const [watchlistCount, setWatchlistCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -80,7 +41,7 @@ function DesktopSidebar() {
     return () => controller.abort();
   }, []);
 
-  const showBrainNav = brainExpanded || brainRouteActive;
+  const showBrainNav = brainExpanded;
 
   return (
     <aside className="sidebar desktop-sidebar">
@@ -90,38 +51,29 @@ function DesktopSidebar() {
         </Link>
       </div>
       <nav aria-label={locale === "es" ? "Navegación principal" : "Primary navigation"}>
-        <span className="nav-caption">{t("Workspace")}</span>
-        {workspaceNav.map(({ href, label, icon: Icon }) => {
-          const active = routeIsActive(pathname, href);
-          return (
-            <Link
-              href={href}
-              className={`nav-item${active ? " active" : ""}`}
-              aria-current={active ? "page" : undefined}
-              key={href}
-            >
-              <Icon size={18} />
-              {t(label)}
-              {label === "Watchlist" && watchlistCount !== null && (
-                <span className="nav-count">{watchlistCount}</span>
-              )}
-            </Link>
-          );
-        })}
         <div className={`sidebar-section-group ${showBrainNav ? "open" : ""}`}>
-          <button
-            type="button"
-            className={`nav-item sidebar-section-trigger${brainRouteActive ? " active" : ""}`}
-            aria-expanded={showBrainNav}
-            onClick={() => setBrainExpanded((current) => !current)}
-          >
-            <Sparkles size={18} />
-            Magic Brain Pro
-            <ChevronDown className="sidebar-section-chevron" size={14} />
-          </button>
+          <div className={`sidebar-section-header${brainRouteActive ? " active" : ""}`}>
+            <span>
+              <Sparkles size={14} />
+              Magic Brain Pro
+            </span>
+            <button
+              type="button"
+              aria-label={
+                locale === "es"
+                  ? `${showBrainNav ? "Contraer" : "Expandir"} Magic Brain Pro`
+                  : `${showBrainNav ? "Collapse" : "Expand"} Magic Brain Pro`
+              }
+              aria-expanded={showBrainNav}
+              aria-controls="desktop-pro-navigation"
+              onClick={() => setBrainExpanded((current) => !current)}
+            >
+              <ChevronDown className="sidebar-section-chevron" size={14} />
+            </button>
+          </div>
           {showBrainNav && (
-            <div className="sidebar-subnav">
-              {brainNav.map(({ label, href, icon: Icon }) => {
+            <div className="sidebar-subnav" id="desktop-pro-navigation">
+              {proNavigation.map(({ label, href, icon: Icon }) => {
                 const active = routeIsActive(pathname, href);
                 return (
                   <Link
@@ -139,38 +91,30 @@ function DesktopSidebar() {
             </div>
           )}
         </div>
-        <span className="nav-caption lower">{t("Account")}</span>
-        <button type="button" className="nav-item">
-          <Bell size={18} />
-          {t("Alerts")}
-        </button>
-        <Link
-          href="/settings"
-          className={`nav-item${routeIsActive(pathname, "/settings") ? " active" : ""}`}
-          aria-current={routeIsActive(pathname, "/settings") ? "page" : undefined}
-        >
-          <Settings size={18} />
-          {t("Settings")}
-        </Link>
+        {navigationGroups.map((group) => (
+          <div className="sidebar-nav-group" key={group.label}>
+            <span className="nav-caption">{t(group.label)}</span>
+            {group.links.map(({ href, label, icon: Icon }) => {
+              const active = routeIsActive(pathname, href);
+              return (
+                <Link
+                  href={href}
+                  className={`nav-item${active ? " active" : ""}`}
+                  aria-current={active ? "page" : undefined}
+                  key={href}
+                >
+                  <Icon size={18} />
+                  {t(label)}
+                  {label === "Watchlist" && watchlistCount !== null && (
+                    <span className="nav-count">{watchlistCount}</span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
       <div className="sidebar-bottom">
-        <div className="mini-upgrade">
-          <span className="crown">
-            <CircleDollarSign size={16} />
-          </span>
-          <strong>
-            {locale === "es" ? "Apoya Magic Brain" : "Support Magic Brain"}
-          </strong>
-          <p>
-            {locale === "es"
-              ? "Ayuda a mantener el proyecto abierto."
-              : "Help keep the project open."}
-          </p>
-          <Link href="/donate">
-            {locale === "es" ? "Hacer una donación" : "Make a donation"}{" "}
-            <ArrowRight size={14} />
-          </Link>
-        </div>
         <AuthControl />
       </div>
     </aside>
