@@ -1,4 +1,15 @@
 import { query } from "@/lib/db";
+import {
+  allocateCandidateQuantities,
+  classifyBrainCandidate,
+  selectInvestableCandidates,
+  type BrainMarketClassification,
+} from "@/lib/brain-classification";
+
+export {
+  classifyBrainCandidate,
+  type BrainMarketClassification,
+} from "@/lib/brain-classification";
 
 export type BrainPreferences = {
   budget: number;
@@ -46,9 +57,15 @@ export type BrainRecommendation = {
   quantity: number;
   allocation: number;
   score: number;
+  classification: BrainMarketClassification;
   rationale: string;
   buyerTips: string[];
 };
+
+export type BrainMarketInsight = Omit<
+  BrainRecommendation,
+  "quantity" | "allocation" | "buyerTips"
+>;
 
 const rationaleFor = (
   locale: "en" | "es",
@@ -174,13 +191,6 @@ export async function generateBrainPortfolio(
       `exists (select 1 from app_reserved_cards reserved where reserved.oracle_id = priced.oracle_id)`,
     );
   }
-  if (preferences.marketTrend === "rising") {
-    conditions.push("priced.return_7d > 0 and priced.return_30d > 0");
-  } else if (preferences.marketTrend === "stable") {
-    conditions.push("abs(priced.return_7d) <= 8 and abs(priced.return_30d) <= 20");
-  } else if (preferences.marketTrend === "recovering") {
-    conditions.push("priced.return_7d > 0 and priced.return_30d < 0");
-  }
   if (preferences.releaseEra === "classic") {
     conditions.push("priced.released_at < date '2004-01-01'");
   } else if (preferences.releaseEra === "established") {
@@ -268,41 +278,49 @@ export async function generateBrainPortfolio(
         stability: 1 + Math.max(0, 15 - volatility) / 100,
         collectible: 1 + (row.is_reserved ? 0.32 : 0) + Math.min(ageYears, 30) / 150,
       }[preferences.strategy];
+      const classification = classifyBrainCandidate(change7d, change30d);
+      const trendPreferenceAdjustment = {
+        any: 1,
+        rising:
+          classification === "strong_growth"
+            ? 1.18
+            : classification === "recovery_opportunity"
+              ? 0.92
+              : 0.65,
+        stable: 1 + Math.max(0, 18 - volatility) / 100,
+        recovering:
+          classification === "recovery_opportunity"
+            ? 1.25
+            : classification === "strong_growth"
+              ? 0.88
+              : 0.62,
+      }[preferences.marketTrend];
 
       return {
         row,
         change7d,
         change30d,
-        score: score * horizonMultiplier * strategyAdjustment,
+        classification,
+        score:
+          score *
+          horizonMultiplier *
+          strategyAdjustment *
+          trendPreferenceAdjustment,
       };
     })
     .sort((a, b) => b.score - a.score);
 
   const positionLimit = Math.min(preferences.positions, 20);
-  const uniqueNames = new Set<string>();
-  const selected = scored.filter(({ row }) => {
-    const key = row.name.toLowerCase();
-    if (uniqueNames.has(key)) return false;
-    uniqueNames.add(key);
-    return true;
-  }).slice(0, positionLimit);
-
-  const positiveScores = selected.map((candidate) =>
-    Math.max(candidate.score, 1),
+  const selected = selectInvestableCandidates(
+    scored,
+    preferences.budget,
+    positionLimit,
   );
-  const scoreTotal = positiveScores.reduce((sum, score) => sum + score, 0);
-  let remainingBudget = preferences.budget;
+  const allocation = allocateCandidateQuantities(selected, preferences.budget);
 
-  const recommendations = selected.map((candidate, index) => {
+  const recommendations = allocation.positions.map((position) => {
+    const { candidate, quantity } = position;
     const price = Number(candidate.row.price);
-    const targetAllocation =
-      index === selected.length - 1
-        ? remainingBudget
-        : preferences.budget * (positiveScores[index] / scoreTotal);
-    const quantity = Math.max(1, Math.floor(targetAllocation / price));
-    const allocation = Math.min(quantity * price, remainingBudget);
-    const finalQuantity = Math.max(1, Math.floor(allocation / price));
-    remainingBudget = Math.max(0, remainingBudget - allocation);
 
     return {
       cardId: candidate.row.id,
@@ -315,9 +333,10 @@ export async function generateBrainPortfolio(
       price,
       change7d: candidate.change7d,
       change30d: candidate.change30d,
-      quantity: finalQuantity,
-      allocation,
+      quantity,
+      allocation: position.allocation,
       score: candidate.score,
+      classification: candidate.classification,
       rationale: rationaleFor(
         preferences.locale,
         preferences.risk,
@@ -330,11 +349,40 @@ export async function generateBrainPortfolio(
         price,
         candidate.change7d,
         candidate.change30d,
-        finalQuantity,
+        quantity,
         preferences.horizon,
       ),
     } satisfies BrainRecommendation;
-  }).filter((item) => item.allocation >= item.price);
+  });
+
+  const lostNames = new Set<string>();
+  const lostMomentum = scored
+    .filter((candidate) => {
+      if (candidate.classification !== "lost_momentum") return false;
+      const key = candidate.row.name.toLowerCase();
+      if (lostNames.has(key)) return false;
+      lostNames.add(key);
+      return true;
+    })
+    .slice(0, Math.min(positionLimit, 8))
+    .map((candidate) => ({
+      cardId: candidate.row.id,
+      name: candidate.row.name,
+      setCode: candidate.row.set_code,
+      setName: candidate.row.set_name,
+      imageUrl: candidate.row.image_url,
+      rarity: candidate.row.rarity,
+      typeLine: candidate.row.type_line,
+      price: Number(candidate.row.price),
+      change7d: candidate.change7d,
+      change30d: candidate.change30d,
+      score: candidate.score,
+      classification: candidate.classification,
+      rationale:
+        preferences.locale === "es"
+          ? `Momentum perdido: ${candidate.change7d >= 0 ? "+" : ""}${candidate.change7d.toFixed(1)}% en 7 días y ${candidate.change30d >= 0 ? "+" : ""}${candidate.change30d.toFixed(1)}% en 30 días. No se asigna capital hasta que la tendencia mejore.`
+          : `Lost momentum: ${candidate.change7d >= 0 ? "+" : ""}${candidate.change7d.toFixed(1)}% over 7 days and ${candidate.change30d >= 0 ? "+" : ""}${candidate.change30d.toFixed(1)}% over 30 days. No capital is allocated until the trend improves.`,
+    } satisfies BrainMarketInsight));
 
   const expectedValue = recommendations.reduce(
     (total, item) =>
@@ -407,8 +455,10 @@ export async function generateBrainPortfolio(
     name,
     isPreview: false,
     budget: preferences.budget,
-    invested: recommendations.reduce((sum, item) => sum + item.allocation, 0),
+    invested: allocation.invested,
+    unallocated: allocation.unallocated,
     expectedValue,
     recommendations,
+    lostMomentum,
   };
 }
