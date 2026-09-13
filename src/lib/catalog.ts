@@ -109,12 +109,34 @@ export async function getCatalogCard(cardId: string) {
 export async function getCatalog(filters: CatalogFilters) {
   const conditions: string[] = [];
   const values: unknown[] = [];
+  let searchOrder = "";
 
   if (filters.search) {
-    values.push(`%${filters.search.trim()}%`);
+    const normalized = filters.search.trim().toLowerCase();
+    values.push(normalized, `%${normalized}%`);
+    const exactPosition = values.length - 1;
+    const containsPosition = values.length;
     conditions.push(
-      `(c.name ilike $${values.length} or c.set_name ilike $${values.length} or c.set_code ilike $${values.length})`,
+      `(
+        lower(c.name) like $${containsPosition}
+        or lower(c.set_name) like $${containsPosition}
+        or lower(c.set_code) = $${exactPosition}
+        ${normalized.length >= 3
+          ? `or lower(c.name) % $${exactPosition} or lower(c.set_name) % $${exactPosition}`
+          : ""}
+      )`,
     );
+    searchOrder = `
+      case
+        when lower(c.name) = $${exactPosition} then 0
+        when lower(c.set_code) = $${exactPosition} then 1
+        when lower(c.name) like $${exactPosition} || '%' then 2
+        when lower(c.name) like $${containsPosition} then 3
+        when lower(c.set_name) like $${containsPosition} then 4
+        else 5
+      end,
+      similarity(lower(c.name), $${exactPosition}) desc,
+    `;
   }
 
   if (filters.rarity) {
@@ -209,7 +231,7 @@ export async function getCatalog(filters: CatalogFilters) {
       and previous_price.date = dates.latest_date - interval '7 days'
       and previous_price.source = 'mtgjson'
     ${where}
-    order by ${orderBy}
+    order by ${searchOrder} ${orderBy}
     limit $${limitPosition} offset $${offsetPosition}
   `;
 
@@ -248,11 +270,17 @@ export async function getCatalog(filters: CatalogFilters) {
 }
 
 export async function searchCatalog(search: string, limit = 8) {
-  const normalized = search.trim();
+  const normalized = search.trim().toLowerCase();
   if (normalized.length < 2) return [];
+  const fuzzyClause = normalized.length >= 3
+    ? "or lower(c.name) % $1 or lower(c.set_name) % $1"
+    : "";
 
   const { rows } = await query<CatalogRow>(
     `
+      with dates as (
+        select max(date) as latest_date from prices where source = 'mtgjson'
+      )
       select
         c.scryfall_id::text as id,
         c.name,
@@ -268,21 +296,31 @@ export async function searchCatalog(search: string, limit = 8) {
         latest.date::text as price_date,
         null::numeric as change_7d
       from cards c
-      left join lateral (
-        select eur, eur_foil, date
-        from prices
-        where scryfall_id = c.scryfall_id and source = 'mtgjson'
-        order by date desc
-        limit 1
-      ) latest on true
-      where c.name ilike $1 or c.set_code ilike $2
+      cross join dates
+      left join prices latest
+        on latest.scryfall_id = c.scryfall_id
+        and latest.source = 'mtgjson'
+        and latest.date = dates.latest_date
+      where
+        lower(c.name) like $2
+        or lower(c.set_name) like $2
+        or lower(c.set_code) = $1
+        ${fuzzyClause}
       order by
-        case when c.name ilike $2 then 0 else 1 end,
-        c.name asc,
-        c.released_at desc
+        case
+          when lower(c.name) = $1 then 0
+          when lower(c.set_code) = $1 then 1
+          when lower(c.name) like $1 || '%' then 2
+          when lower(c.name) like $2 then 3
+          when lower(c.set_name) like $2 then 4
+          else 5
+        end,
+        similarity(lower(c.name), $1) desc,
+        latest.eur desc nulls last,
+        c.released_at desc nulls last
       limit $3
     `,
-    [`%${normalized}%`, `${normalized}%`, limit],
+    [normalized, `%${normalized}%`, limit],
   );
 
   return rows.map(mapCard);

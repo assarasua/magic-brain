@@ -23,6 +23,7 @@ try {
       "004_user_plan_tier.sql",
       "005_card_discovery.sql",
       "006_product_tour.sql",
+      "007_catalog_search.sql",
     ].map((file) =>
       readFile(new URL(`../db/${file}`, import.meta.url), "utf8"),
     ),

@@ -9,13 +9,14 @@ import {
   ChevronRight,
   ExternalLink,
   Filter,
+  LoaderCircle,
   Plus,
   Search,
   SlidersHorizontal,
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
@@ -91,6 +92,7 @@ export default function InventoryPage({
   defaultReserved?: boolean;
 }) {
   const { locale, t } = useLanguage();
+  const es = locale === "es";
   const [data, setData] = useState(initialData);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -110,6 +112,11 @@ export default function InventoryPage({
   const [history, setHistory] = useState<PricePoint[]>([]);
   const [historyDays, setHistoryDays] = useState(90);
   const [notice, setNotice] = useState("");
+  const [suggestions, setSuggestions] = useState<CatalogCard[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [activeSuggestion, setActiveSuggestion] = useState(-1);
+  const searchInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -125,6 +132,38 @@ export default function InventoryPage({
       setPage(1);
     }, 300);
     return () => window.clearTimeout(timer);
+  }, [query]);
+
+  useEffect(() => {
+    const normalized = query.trim();
+    if (normalized.length < 2) return;
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setSuggestionsLoading(true);
+      fetch(`/api/cards/search?q=${encodeURIComponent(normalized)}`, {
+        signal: controller.signal,
+      })
+        .then(async (response) => {
+          if (!response.ok) throw new Error("Search unavailable");
+          return response.json() as Promise<{ cards: CatalogCard[] }>;
+        })
+        .then((result) => {
+          setSuggestions(result.cards);
+          setActiveSuggestion(-1);
+        })
+        .catch((suggestionError: Error) => {
+          if (suggestionError.name !== "AbortError") setSuggestions([]);
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setSuggestionsLoading(false);
+        });
+    }, 140);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
   }, [query]);
 
   useEffect(() => {
@@ -215,6 +254,15 @@ export default function InventoryPage({
     }
   };
 
+  const selectSuggestion = (card: CatalogCard) => {
+    setQuery(card.name);
+    setDebouncedQuery(card.name);
+    setSelected(card);
+    setSuggestions([]);
+    setSearchFocused(false);
+    setActiveSuggestion(-1);
+  };
+
   return (
     <main className="inventory-page">
       <header className="inventory-topbar">
@@ -224,12 +272,100 @@ export default function InventoryPage({
         <div className="inventory-search">
           <Search size={17} />
           <input
+            ref={searchInput}
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              const value = event.target.value;
+              setQuery(value);
+              setSearchFocused(true);
+              if (value.trim().length < 2) {
+                setSuggestions([]);
+                setActiveSuggestion(-1);
+              }
+            }}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowDown" && suggestions.length) {
+                event.preventDefault();
+                setActiveSuggestion((value) =>
+                  Math.min(value + 1, suggestions.length - 1),
+                );
+              }
+              if (event.key === "ArrowUp" && suggestions.length) {
+                event.preventDefault();
+                setActiveSuggestion((value) => Math.max(value - 1, 0));
+              }
+              if (event.key === "Enter" && activeSuggestion >= 0) {
+                event.preventDefault();
+                selectSuggestion(suggestions[activeSuggestion]);
+              }
+              if (event.key === "Escape") {
+                setSearchFocused(false);
+                setActiveSuggestion(-1);
+                searchInput.current?.blur();
+              }
+            }}
             placeholder={t("Search all 117,000+ cards, sets, or set codes...")}
+            role="combobox"
+            aria-expanded={searchFocused && query.trim().length >= 2}
+            aria-controls="inventory-search-results"
+            aria-autocomplete="list"
             autoFocus
           />
-          {query && <button onClick={() => setQuery("")} aria-label="Clear search"><X size={15} /></button>}
+          {suggestionsLoading
+            ? <LoaderCircle className="spin" size={15} />
+            : query && <button onClick={() => {
+              setQuery("");
+              setSuggestions([]);
+              searchInput.current?.focus();
+            }} aria-label="Clear search"><X size={15} /></button>}
+          {searchFocused && query.trim().length >= 2 && (
+            <div
+              className="inventory-search-results"
+              id="inventory-search-results"
+              role="listbox"
+            >
+              <span className="search-results-label">
+                {suggestionsLoading
+                  ? es ? "Buscando en todo el catálogo…" : "Searching the full catalogue…"
+                  : suggestions.length
+                    ? es ? "Mejores coincidencias" : "Best matches"
+                    : es ? "Sin coincidencias" : "No matching cards"}
+              </span>
+              {suggestions.map((card, suggestionIndex) => (
+                <button
+                  key={card.id}
+                  className={suggestionIndex === activeSuggestion ? "active" : ""}
+                  role="option"
+                  aria-selected={suggestionIndex === activeSuggestion}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onMouseEnter={() => setActiveSuggestion(suggestionIndex)}
+                  onClick={() => selectSuggestion(card)}
+                >
+                  {card.imageUrl ? <img src={card.imageUrl} alt="" /> : <span className="search-image-placeholder" />}
+                  <span>
+                    <strong>{card.name}</strong>
+                    <small>{card.setCode.toUpperCase()} · {card.setName}</small>
+                  </span>
+                  <b>{card.price === null ? "—" : formatCurrency(card.price)}</b>
+                </button>
+              ))}
+              {!suggestionsLoading && (
+                <button
+                  className="search-all-results"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    setSearchFocused(false);
+                    setActiveSuggestion(-1);
+                  }}
+                >
+                  <Search size={13} />
+                  {es ? `Ver todos los resultados para “${query.trim()}”` : `See all results for “${query.trim()}”`}
+                </button>
+              )}
+            </div>
+          )}
         </div>
         <div className="inventory-actions">
           <LanguageToggle />
