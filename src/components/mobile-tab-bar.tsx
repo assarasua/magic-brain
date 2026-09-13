@@ -11,6 +11,11 @@ import { usePathname } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import { useLanguage } from "@/components/language-provider";
 import { MobileMoreSheet } from "@/components/mobile-more-sheet";
+import {
+  navigationGroups,
+  proNavigation,
+  routeIsActive,
+} from "@/components/product-navigation";
 
 const tabs = [
   { href: "/", label: "Overview", icon: House },
@@ -18,11 +23,22 @@ const tabs = [
   { href: "/portfolio", label: "Portfolio", icon: WalletCards },
 ];
 
-const moreRoutes = ["/news", "/graph", "/inventory", "/discover", "/watchlist", "/reserved", "/brain-pro", "/brain", "/signals", "/analyst", "/predict", "/pro", "/settings", "/donate", "/developers"];
+const primaryRoutes = new Set<string>(tabs.map(({ href }) => href));
+const moreRoutes = [
+  ...proNavigation.map(({ href }) => href),
+  ...navigationGroups.reduce<string[]>(
+    (routes, { links }) => [
+      ...routes,
+      ...links.map(({ href }) => href),
+    ],
+    [],
+  ),
+]
+  .filter((href) => !primaryRoutes.has(href));
 
 export function MobileTabBar() {
   const pathname = usePathname();
-  const { t } = useLanguage();
+  const { locale, t } = useLanguage();
   const [moreOpen, setMoreOpen] = useState(false);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const closeMore = useCallback(() => setMoreOpen(false), []);
@@ -30,12 +46,12 @@ export function MobileTabBar() {
   if (pathname === "/login") return null;
 
   return (
-    <nav className="mobile-tab-bar" aria-label="Primary navigation">
+    <nav
+      className="mobile-tab-bar"
+      aria-label={locale === "es" ? "Navegación principal" : "Primary navigation"}
+    >
       {tabs.map(({ href, label, icon: Icon }) => {
-        const active =
-          href === "/"
-            ? pathname === "/"
-            : pathname === href || pathname.startsWith(`${href}/`);
+        const active = pathname === href;
         return (
           <Link href={href} className={active ? "active" : undefined} aria-current={active ? "page" : undefined} key={href}>
             <Icon size={20} strokeWidth={active ? 2.3 : 1.8} />
@@ -46,7 +62,7 @@ export function MobileTabBar() {
       <button
         ref={moreButtonRef}
         type="button"
-        className={moreOpen || moreRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`)) ? "active" : ""}
+        className={moreOpen || moreRoutes.some((route) => routeIsActive(pathname, route)) ? "active" : ""}
         aria-haspopup="dialog"
         aria-expanded={moreOpen}
         onClick={() => setMoreOpen((current) => !current)}
