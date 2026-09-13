@@ -78,6 +78,12 @@ export default function LoginPage() {
           <small className="auth-terms">{es ? "Al continuar aceptas crear una cuenta de Magic Brain." : "By continuing, you agree to create a Magic Brain account."}</small>
         </div>
       </section>
+      <footer className="creator-credit">
+        {es ? "Creado por " : "Created by "}
+        <a href="https://bizkardolab.com" target="_blank" rel="noreferrer">
+          Asier Sarasua · BizkardoLab
+        </a>
+      </footer>
     </main>
   );
 }

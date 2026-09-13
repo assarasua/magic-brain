@@ -156,3 +156,8 @@ npm run build
 Privacy and service templates are in [PRIVACY.md](PRIVACY.md) and
 [TERMS.md](TERMS.md). Each deployment operator must customize them for its
 identity, jurisdiction, subprocessors, retention, and actual data practices.
+
+## Creator
+
+Magic Brain was created by
+[Asier Sarasua at BizkardoLab](https://bizkardolab.com).

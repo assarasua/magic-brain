@@ -20,6 +20,9 @@ export const metadata: Metadata = {
   title: "Magic Brain AI Pro — Invest smarter in Magic",
   description:
     "Track card prices, follow market signals and manage your Magic: The Gathering portfolio.",
+  authors: [{ name: "Asier Sarasua", url: "https://bizkardolab.com" }],
+  creator: "Asier Sarasua",
+  publisher: "BizkardoLab",
 };
 
 export default function RootLayout({

@@ -283,6 +283,12 @@ export default function ProPage() {
       <footer className="pro-footer">
         <MagicBrainLogo />
         <p>{es ? "Análisis de mercado, no asesoramiento financiero." : "Market analysis, not financial advice."}</p>
+        <p className="creator-credit">
+          {es ? "Creado por " : "Created by "}
+          <a href="https://bizkardolab.com" target="_blank" rel="noreferrer">
+            Asier Sarasua · BizkardoLab
+          </a>
+        </p>
       </footer>
     </main>
   );
