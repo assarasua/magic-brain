@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   MAX_BULK_HOLDINGS,
+  normalizeDatabaseHoldingId,
   parseHoldingIds,
   parseListName,
   parsePortfolioBulkRequest,
@@ -26,6 +27,25 @@ test("portfolio list migration safely backfills existing holdings", async () => 
   assert.ok(
     runner.indexOf('"019_portfolio_lists.sql"') >
       runner.indexOf('"018_ml_point_in_time_producer.sql"'),
+  );
+});
+
+test("serializes PostgreSQL bigint holding IDs as API-safe numbers", () => {
+  assert.equal(normalizeDatabaseHoldingId("42"), 42);
+  assert.equal(normalizeDatabaseHoldingId(42), 42);
+  assert.throws(() => normalizeDatabaseHoldingId("not-a-number"));
+  assert.throws(() =>
+    normalizeDatabaseHoldingId(String(Number.MAX_SAFE_INTEGER + 1)),
+  );
+  assert.equal(
+    parsePortfolioBulkRequest({
+      action: "delete",
+      holdingIds: ["42"],
+      sourceListId,
+      requestId,
+    }),
+    null,
+    "the production payload failed because the unnormalized pg int8 reached this strict boundary",
   );
 });
 
@@ -80,4 +100,69 @@ test("delete requests reject destination ambiguity", () => {
     }),
     null,
   );
+});
+
+test("bulk requests reject empty, duplicate, and same-list targets", () => {
+  assert.equal(
+    parsePortfolioBulkRequest({
+      action: "delete",
+      holdingIds: [],
+      sourceListId,
+      requestId,
+    }),
+    null,
+  );
+  assert.equal(
+    parsePortfolioBulkRequest({
+      action: "move",
+      holdingIds: [1, 1],
+      sourceListId,
+      destinationListId,
+      requestId,
+    }),
+    null,
+  );
+  assert.equal(
+    parsePortfolioBulkRequest({
+      action: "copy",
+      holdingIds: [1],
+      sourceListId,
+      destinationListId: sourceListId,
+      requestId,
+    }),
+    null,
+  );
+});
+
+test("bulk SQL is atomic, set-based, ownership-scoped, and idempotent", async () => {
+  const implementation = await readFile(
+    new URL("src/lib/portfolio.ts", root),
+    "utf8",
+  );
+  const bulk = implementation.slice(
+    implementation.indexOf("export async function bulkManagePortfolio"),
+  );
+  assert.match(bulk, /await client\.query\("begin"\)/);
+  assert.match(bulk, /await client\.query\("rollback"\)/);
+  assert.match(bulk, /await client\.query\("commit"\)/);
+  assert.match(bulk, /where user_id = \$1 and list_id = \$2/);
+  assert.match(bulk, /id = any\(\$3::bigint\[\]\)/);
+  assert.match(bulk, /app_portfolio_bulk_operations/);
+  assert.doesNotMatch(bulk, /for \(const .*holdingIds/);
+});
+
+test("bulk API distinguishes stale targets and atomic selection conflicts", async () => {
+  const route = await readFile(
+    new URL("src/app/api/portfolio/bulk/route.ts", root),
+    "utf8",
+  );
+  for (const code of [
+    "source_list_missing",
+    "destination_missing",
+    "invalid_destination",
+    "holdings_missing",
+    "idempotency_conflict",
+  ]) {
+    assert.match(route, new RegExp(code));
+  }
 });
