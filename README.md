@@ -135,6 +135,28 @@ variable checklist.
 `npm run deploy` changes external infrastructure and is intended only for
 authorized maintainers.
 
+Workers Builds must use the following separate commands:
+
+- Build command (all branches): `npm run build:cloudflare`
+- Production deploy command: `npm run deploy:production`
+- Non-production branch deploy command: `npm run deploy:preview`
+
+The production command applies migrations before publishing the Worker and
+stops if migrations fail. The preview command only uploads the already-built
+Worker, so pull request builds never connect to or mutate the production
+database. The maintainer-facing `npm run deploy` alias also fails closed in
+Workers Builds and uses Cloudflare's documented `WORKERS_CI_BRANCH` value to
+keep non-`main` branches on the preview path, but the explicit trigger commands
+above are the canonical configuration.
+
+Keep `DATABASE_URL` as a secret on the production build trigger only;
+because Workers Builds runs outside Railway, it must use Railway's external TCP
+proxy URL (the database service's `DATABASE_PUBLIC_URL`), not a
+`.railway.internal` address. See the official
+[Workers Builds configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/)
+and [Railway PostgreSQL connection](https://docs.railway.com/databases/postgresql#connecting-externally)
+guides.
+
 ## Contributing and policies
 
 Before contributing, read [CONTRIBUTING.md](CONTRIBUTING.md), the
