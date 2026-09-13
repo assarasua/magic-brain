@@ -17,10 +17,12 @@ import { useEffect, useState } from "react";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo, MagicBrainMark } from "@/components/brand-logo";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
+import { ProFeaturePreview, type ProFeature } from "@/components/pro-feature-preview";
 
 const tools = [
   {
     href: "/brain",
+    feature: "brain" as ProFeature,
     icon: BrainCircuit,
     name: "Portfolio Builder",
     title: {
@@ -38,6 +40,7 @@ const tools = [
   },
   {
     href: "/signals",
+    feature: "signals" as ProFeature,
     icon: TrendingUp,
     name: "Brain Signals",
     title: {
@@ -55,6 +58,7 @@ const tools = [
   },
   {
     href: "/analyst",
+    feature: "analyst" as ProFeature,
     icon: MessageCircleQuestion,
     name: "Ask Brain",
     title: {
@@ -72,6 +76,7 @@ const tools = [
   },
   {
     href: "/discover",
+    feature: "discover" as ProFeature,
     icon: Heart,
     name: "Brain Discovery",
     title: {
@@ -128,7 +133,7 @@ export default function BrainProHubPage() {
         </section>
 
         <section className="brain-pro-tool-grid">
-          {tools.map(({ href, icon: Icon, name, title, copy, features }, index) => (
+          {tools.map(({ href, feature, icon: Icon, name, title, copy, features }, index) => (
             <article key={href}>
               <header>
                 <span className="brain-pro-tool-number">0{index + 1}</span>
@@ -138,18 +143,22 @@ export default function BrainProHubPage() {
               <span className="eyebrow">{name}</span>
               <h2>{title[locale]}</h2>
               <p>{copy[locale]}</p>
+              <ProFeaturePreview feature={feature} locale={locale} compact />
               <ul>{features[locale].map((feature) => <li key={feature}><Check size={13} /> {feature}</li>)}</ul>
-              <Link href={href}>
-                {isPro ? (es ? "Abrir herramienta" : "Open tool") : (es ? "Ver vista previa" : "Preview feature")}
-                <ArrowRight size={15} />
-              </Link>
+              <div className="brain-pro-tool-actions">
+                <Link href={isPro ? href : "/pro"}>
+                  {isPro ? (es ? "Abrir herramienta" : "Open tool") : (es ? "Desbloquear con Pro" : "Unlock with Pro")}
+                  <ArrowRight size={15} />
+                </Link>
+                {!isPro && <Link href={href}>{es ? "Ver página" : "View feature"}</Link>}
+              </div>
             </article>
           ))}
         </section>
 
         {!isPro && (
           <section className="brain-pro-hub-upgrade">
-            <div><Sparkles size={22} /><span><strong>{es ? "Desbloquea todo Brain Pro" : "Unlock the complete Brain Pro suite"}</strong><small>{es ? "14 días gratis · Después 5 €/mes · Cancela cuando quieras" : "14 days free · Then €5/month · Cancel anytime"}</small></span></div>
+            <div><Sparkles size={22} /><span><strong>{es ? "Basic sigue cubriendo tu cartera. Pro añade decisión e inteligencia." : "Basic keeps your portfolio covered. Pro adds decision intelligence."}</strong><small>{es ? "Las 4 herramientas · 14 días gratis · Después 5 €/mes · Cancela cuando quieras" : "All 4 tools · 14 days free · Then €5/month · Cancel anytime"}</small></span></div>
             <Link href="/pro">{es ? "Ver plan y empezar" : "View plan and start"} <ArrowRight size={16} /></Link>
           </section>
         )}

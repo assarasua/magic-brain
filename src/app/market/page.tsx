@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ExternalLink,
+  Sparkles,
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
@@ -15,6 +16,7 @@ import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
 import { useCardDetail } from "@/components/card-detail-provider";
+import { SetSelector } from "@/components/set-selector";
 import type { CatalogCard } from "@/lib/catalog";
 import { formatCurrency } from "@/lib/data";
 
@@ -46,6 +48,7 @@ function MoverList({
 export default function MarketPage() {
   const { locale, t } = useLanguage();
   const [days, setDays] = useState(7);
+  const [setCodes, setSetCodes] = useState<string[]>([]);
   const [gainers, setGainers] = useState<CatalogCard[]>([]);
   const [losers, setLosers] = useState<CatalogCard[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,11 +56,11 @@ export default function MarketPage() {
   useEffect(() => {
     const controller = new AbortController();
     Promise.all([
-      fetch(`/api/market/movers?direction=gainers&days=${days}`, { signal: controller.signal }).then((response) => {
+      fetch(`/api/market/movers?direction=gainers&days=${days}${setCodes[0] ? `&set=${encodeURIComponent(setCodes[0])}` : ""}`, { signal: controller.signal }).then((response) => {
         if (!response.ok) throw new Error("Unable to load gainers");
         return response.json() as Promise<{ cards: CatalogCard[] }>;
       }),
-      fetch(`/api/market/movers?direction=losers&days=${days}`, { signal: controller.signal }).then((response) => {
+      fetch(`/api/market/movers?direction=losers&days=${days}${setCodes[0] ? `&set=${encodeURIComponent(setCodes[0])}` : ""}`, { signal: controller.signal }).then((response) => {
         if (!response.ok) throw new Error("Unable to load losers");
         return response.json() as Promise<{ cards: CatalogCard[] }>;
       }),
@@ -76,13 +79,13 @@ export default function MarketPage() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [days]);
+  }, [days, setCodes]);
 
   return (
     <main className="account-page">
       <header className="account-topbar">
         <Link href="/" className="inventory-brand"><MagicBrainLogo /></Link>
-        <nav><Link href="/inventory">{t("Inventory")}</Link><Link href="/reserved">{t("Reserved List")}</Link><Link href="/brain-pro">Brain Pro</Link></nav>
+        <nav><Link href="/market/latest-set-watch">Latest Set Watch</Link><Link href="/inventory">{t("Inventory")}</Link><Link href="/reserved">{t("Reserved List")}</Link><Link href="/brain-pro">Brain Pro</Link></nav>
         <LanguageToggle />
         <AuthControl compact />
         <Link href="/" className="back-dashboard"><ArrowLeft size={15} /> {t("Dashboard")}</Link>
@@ -90,12 +93,24 @@ export default function MarketPage() {
       <div className="account-content market-page-content">
         <div className="account-heading">
           <div><span className="eyebrow">{locale === "es" ? "Inteligencia diaria" : "Daily intelligence"}</span><h1>{locale === "es" ? "Pulso del mercado" : "Market pulse"}</h1><p>{locale === "es" ? "Movimientos de precio calculados con tu histórico real." : "Price movement calculated from your live historical dataset."}</p></div>
-          <div className="market-period" aria-label={locale === "es" ? "Periodo de mercado" : "Market period"}>{[1, 7, 30].map((value) => <button className={days === value ? "active" : ""} aria-pressed={days === value} key={value} onClick={() => { if (days !== value) { setLoading(true); setDays(value); } }}>{value}D</button>)}</div>
+          <div className="market-heading-filters">
+            <SetSelector
+              value={setCodes}
+              onChange={(codes) => {
+                setLoading(true);
+                setSetCodes(codes);
+              }}
+              label={locale === "es" ? "Edición" : "Set"}
+              allLabel={locale === "es" ? "Todas" : "All sets"}
+            />
+            <div className="market-period" aria-label={locale === "es" ? "Periodo de mercado" : "Market period"}>{[1, 7, 30].map((value) => <button className={days === value ? "active" : ""} aria-pressed={days === value} key={value} onClick={() => { if (days !== value) { setLoading(true); setDays(value); } }}>{value}D</button>)}</div>
+          </div>
         </div>
         <section className="market-summary" aria-live="polite" aria-busy={loading}>
-          <div className="fintech-panel"><span>{locale === "es" ? "Universo analizado" : "Analysed universe"}</span><strong>117,923</strong><small>{locale === "es" ? "impresiones" : "printings"}</small></div>
+          <div className="fintech-panel"><span>{locale === "es" ? "Universo analizado" : "Analysed universe"}</span><strong>{setCodes[0]?.toUpperCase() ?? "117,923"}</strong><small>{setCodes[0] ? (locale === "es" ? "edición seleccionada" : "selected set") : (locale === "es" ? "impresiones" : "printings")}</small></div>
           <div className="fintech-panel"><TrendingUp size={18} /><span>{locale === "es" ? `Mayor subida · ${days}D` : `Top gain · ${days}D`}</span><strong className="up">{gainers[0]?.change7d != null ? `+${gainers[0].change7d.toFixed(1)}%` : "—"}</strong></div>
           <div className="fintech-panel"><TrendingDown size={18} /><span>{locale === "es" ? `Mayor bajada · ${days}D` : `Top decline · ${days}D`}</span><strong className="down">{losers[0]?.change7d != null ? `${losers[0].change7d.toFixed(1)}%` : "—"}</strong></div>
+          <Link className="fintech-panel latest-set-market-card" href="/market/latest-set-watch"><span>{locale === "es" ? "Radar de edición" : "Latest Set Watch"}</span><strong>{locale === "es" ? "Clasificación" : "Pick ranking"}</strong><small>{locale === "es" ? "señales explicables" : "explainable signals"}</small><Sparkles size={14} /></Link>
           <Link className="fintech-panel reserved-market-card" href="/reserved"><span>{t("Reserved List")}</span><strong>571</strong><small>{locale === "es" ? "cartas únicas" : "unique cards"}</small><ExternalLink size={14} /></Link>
         </section>
         <div className={`market-columns ${loading ? "loading" : ""}`}>

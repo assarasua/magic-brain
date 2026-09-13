@@ -5,11 +5,18 @@ import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 
 const PRODUCT_COOKIE = "magic_brain_session";
+const authSecret = process.env.AUTH_SECRET;
+
+if (process.env.NODE_ENV === "production" && !authSecret) {
+  throw new Error(
+    "AUTH_SECRET is required in production; refusing to start with insecure auth configuration",
+  );
+}
 
 export const googleAuthConfigured = Boolean(
   process.env.AUTH_GOOGLE_ID &&
     process.env.AUTH_GOOGLE_SECRET &&
-    process.env.AUTH_SECRET,
+    authSecret,
 );
 
 const providers = googleAuthConfigured
@@ -168,9 +175,7 @@ async function resolveAppUser(profile: {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  secret:
-    process.env.AUTH_SECRET ??
-    "development-only-secret-configure-auth-secret-before-launch",
+  secret: authSecret,
   trustHost: true,
   providers,
   pages: { signIn: "/login" },

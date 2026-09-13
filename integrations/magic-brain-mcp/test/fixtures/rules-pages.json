@@ -1,0 +1,27 @@
+{
+  "source": {
+    "sourceUrl": "https://media.wizards.com/2026/downloads/MagicCompRules%2020260807.pdf",
+    "rulesPageUrl": "https://magic.wizards.com/en/rules",
+    "version": "2026-08-07",
+    "effectiveDate": "2026-08-07",
+    "sha256": "9e2268a0ed58f229c5b974a3ae7986c5f91a5a052c4af1a9e672906a427c044c",
+    "fetchedAt": "2026-09-13T12:00:00.000Z",
+    "pageCount": 312,
+    "contentLength": 2524708,
+    "extractor": "test-fixture"
+  },
+  "pages": [
+    {
+      "page": 6,
+      "text": "1. Game Concepts  100. General  100.1. These rules apply to any Magic game with two or more players.  100.1a A two-player game begins with only two players."
+    },
+    {
+      "page": 7,
+      "text": "100.2. Each player needs their own deck.  This continuation belongs to rule 100.2."
+    },
+    {
+      "page": 256,
+      "text": "Glossary  Active Player The player whose turn it is. See rule 102.1.  Flying A keyword ability that restricts blocking. See rule 702.9, “Flying.”"
+    }
+  ]
+}

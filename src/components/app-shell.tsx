@@ -13,18 +13,20 @@ function SessionGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { status } = useSession();
   const isLogin = pathname === "/login";
+  const isPublic = pathname === "/developers" || pathname.startsWith("/developers/");
 
   useEffect(() => {
-    if (status === "unauthenticated" && !isLogin) {
+    if (status === "unauthenticated" && !isLogin && !isPublic) {
       const callbackUrl = `${window.location.pathname}${window.location.search}`;
       router.replace(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
     }
     if (status === "authenticated" && isLogin) {
       router.replace("/");
     }
-  }, [isLogin, router, status]);
+  }, [isLogin, isPublic, router, status]);
 
   if (isLogin && status !== "authenticated") return children;
+  if (isPublic) return children;
 
   if (status !== "authenticated") {
     return (

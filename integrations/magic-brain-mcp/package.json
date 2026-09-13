@@ -1,0 +1,44 @@
+{
+  "name": "@magic-brain/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Read-only remote MCP server for Magic Brain public card and price data.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:deployment": "npm run rules:build && npm run build",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsx watch src/index.ts",
+    "deploy": "npm run rules:build && npx --no-install wrangler deploy --config wrangler.jsonc",
+    "metadata:validate": "node scripts/validate-metadata.mjs",
+    "rules:build": "node scripts/rules/build.mjs",
+    "rules:fetch": "node scripts/rules/fetch.mjs",
+    "rules:index": "tsx scripts/rules/build-index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run --exclude 'dist/**'",
+    "test:watch": "vitest --exclude 'dist/**'"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/node": "2.0.0",
+    "@modelcontextprotocol/server": "2.0.0",
+    "zod": "4.6.4"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.0.0",
+    "@types/node": "22.20.2",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "tsx": "4.20.5",
+    "typescript": "6.0.3",
+    "vitest": "5.0.0"
+  },
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/assarasua/magic-brain.git",
+    "directory": "integrations/magic-brain-mcp"
+  }
+}

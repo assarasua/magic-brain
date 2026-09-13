@@ -3,6 +3,19 @@
   "version": "1.0.0",
   "description": "Magic Brain — intelligence for Magic: The Gathering collectors and investors.",
   "private": true,
+  "type": "module",
+  "homepage": "https://github.com/assarasua/magic-brain#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assarasua/magic-brain.git"
+  },
+  "bugs": {
+    "url": "https://github.com/assarasua/magic-brain/issues"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "npm@10.9.4",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -12,16 +25,18 @@
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.mjs src/lib/*.test.mjs",
     "db:migrate": "node --env-file=.env.local scripts/migrate.mjs",
-    "db:sync-reserved": "node --env-file=.env.local scripts/sync-reserved-list.mjs"
+    "db:sync-reserved": "node --env-file=.env.local scripts/sync-reserved-list.mjs",
+    "db:sync-sets": "node --env-file=.env.local scripts/sync-sets.mjs"
   },
   "keywords": [
     "magic-the-gathering",
     "portfolio",
     "card-prices"
   ],
-  "author": "",
-  "license": "ISC",
+  "license": "AGPL-3.0-only",
   "dependencies": {
     "@opennextjs/cloudflare": "^1.20.6",
     "lucide-react": "^1.45.0",

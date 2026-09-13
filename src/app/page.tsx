@@ -11,6 +11,7 @@ import {
   BrainCircuit,
   ChevronDown,
   CircleDollarSign,
+  Code2,
   Crown,
   ExternalLink,
   Eye,
@@ -35,6 +36,7 @@ import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
 import { PortfolioOnboarding } from "@/components/portfolio-onboarding";
+import { ProFeaturePreview } from "@/components/pro-feature-preview";
 import { useCardDetail } from "@/components/card-detail-provider";
 import {
   Card,
@@ -52,6 +54,7 @@ const nav = [
   { label: "Portfolio", icon: WalletCards },
   { label: "Watchlist", icon: Eye },
   { label: "Support", icon: CircleDollarSign },
+  { label: "Developers", icon: Code2 },
 ];
 
 const brainNav = [
@@ -406,6 +409,7 @@ export default function Home() {
                   Portfolio: "/portfolio",
                   Watchlist: "/watchlist",
                   Support: "/donate",
+                  Developers: "/developers",
                 };
                 if (routes[label]) {
                   router.push(routes[label]);
@@ -649,23 +653,25 @@ export default function Home() {
               <div className="premium-copy">
                 <span className="pro-pill"><Crown size={13} /> Brain Pro</span>
                 <h2>{locale === "es" ? "Convierte el movimiento del mercado en tu ventaja." : "Turn market movement into your advantage."}</h2>
-                <p>{locale === "es" ? "Carteras de hasta 20 posiciones, ajustadas a tu presupuesto, riesgo y horizonte por 5 €/mes." : "Up to 20-position portfolios tailored to your budget, risk, and horizon for €5/month."}</p>
+                <p>{locale === "es" ? "Convierte presupuesto, riesgo y horizonte en hasta 20 posiciones con asignación, tesis y guía de compra." : "Turn budget, risk, and horizon into up to 20 positions with allocation, rationale, and buyer guidance."}</p>
                 <button onClick={() => router.push("/pro")}>
                   {locale === "es" ? "Descubrir Brain Pro" : "Explore Brain Pro"} <ArrowRight size={15} />
                 </button>
-                <span className="no-card">No charge today · Cancel anytime</span>
+                <span className="no-card">{locale === "es" ? "Basic: seguimiento · Pro: estrategia · Sin cargo hoy" : "Basic: tracking · Pro: strategy · No charge today"}</span>
               </div>
               <div className="premium-visual">
-                <BrainCircuit size={84} strokeWidth={1.1} />
-                <span className="orbit one" />
-                <span className="orbit two" />
+                <ProFeaturePreview feature="brain" locale={locale} compact />
               </div>
             </div>
           </section>
 
           <footer>
             <span>Market data for information only. Not financial advice.</span>
-            <span>Magic Brain is not affiliated with Wizards of the Coast.</span>
+            <span className="community-footer-links">
+              <Link href="/developers">Developers</Link>
+              <a href="https://github.com/assarasua/magic-brain">GitHub</a>
+              <span>Magic Brain is not affiliated with Wizards of the Coast.</span>
+            </span>
           </footer>
         </div>
       </section>

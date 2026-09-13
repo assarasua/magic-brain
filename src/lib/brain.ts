@@ -10,6 +10,7 @@ export type BrainPreferences = {
   colors: string[];
   rarities: string[];
   cardTypes: string[];
+  setCodes: string[];
   maxCardPrice: number;
   positions: number;
   reservedOnly: boolean;
@@ -163,6 +164,10 @@ export async function generateBrainPortfolio(
   if (preferences.cardTypes.length) {
     values.push(preferences.cardTypes.map((type) => `%${type}%`));
     conditions.push(`priced.type_line ilike any($${values.length}::text[])`);
+  }
+  if (preferences.setCodes.length) {
+    values.push(preferences.setCodes);
+    conditions.push(`priced.set_code = any($${values.length}::text[])`);
   }
   if (preferences.reservedOnly) {
     conditions.push(

@@ -19,6 +19,7 @@ import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
 import { useCardDetail } from "@/components/card-detail-provider";
+import { SetSelector } from "@/components/set-selector";
 import type { CatalogCard } from "@/lib/catalog";
 import { formatCurrency } from "@/lib/data";
 
@@ -38,6 +39,7 @@ export default function WatchlistPage() {
   const { cardSurfaceProps } = useCardDetail();
   const [cards, setCards] = useState<WatchedCard[]>([]);
   const [search, setSearch] = useState("");
+  const [setCodes, setSetCodes] = useState<string[]>([]);
   const [results, setResults] = useState<CatalogCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingAlertId, setEditingAlertId] = useState<string | null>(null);
@@ -53,7 +55,7 @@ export default function WatchlistPage() {
     if (search.trim().length < 2) return;
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
-      fetch(`/api/cards/search?q=${encodeURIComponent(search)}`, {
+      fetch(`/api/cards/search?q=${encodeURIComponent(search)}${setCodes[0] ? `&set=${encodeURIComponent(setCodes[0])}` : ""}`, {
         signal: controller.signal,
       })
         .then((response) => response.json())
@@ -64,7 +66,7 @@ export default function WatchlistPage() {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [search]);
+  }, [search, setCodes]);
 
   const addCard = async (card: CatalogCard) => {
     const response = await fetch("/api/watchlist", {
@@ -125,14 +127,16 @@ export default function WatchlistPage() {
     }
   };
 
-  const triggeredCount = cards.reduce(
+  const visibleCards = setCodes[0]
+    ? cards.filter((card) => card.setCode.toLowerCase() === setCodes[0])
+    : cards;
+  const triggeredCount = visibleCards.reduce(
     (count, card) =>
       count +
       Number(Boolean(card.belowTriggeredAt && !card.belowReadAt)) +
       Number(Boolean(card.aboveTriggeredAt && !card.aboveReadAt)),
     0,
   );
-
   return (
     <main className="account-page">
       <header className="account-topbar">
@@ -146,21 +150,29 @@ export default function WatchlistPage() {
       <div className="account-content watchlist-content">
         <div className="account-heading">
           <div><span className="eyebrow">{locale === "es" ? "Radar de mercado" : "Market radar"}</span><h1>{t("Watchlist")}</h1><p>{locale === "es" ? "Sigue precios y configura tus puntos de entrada." : "Monitor prices and define your ideal entry points."}</p></div>
-          <div className="watch-search">
-            <Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={locale === "es" ? "Añadir una carta…" : "Add a card…"} />
-            {search.trim().length >= 2 && results.length > 0 && <div>{results.map((card) => <button key={card.id} onClick={() => addCard(card)}>{card.imageUrl && <img src={card.imageUrl} alt="" />}<span><strong>{card.name}</strong><small>{card.setCode.toUpperCase()} · {card.setName}</small></span><Plus size={15} /></button>)}</div>}
+          <div className="watchlist-tools">
+            <SetSelector
+              value={setCodes}
+              onChange={setSetCodes}
+              label={locale === "es" ? "Edición" : "Set"}
+              allLabel={locale === "es" ? "Todas" : "All sets"}
+            />
+            <div className="watch-search">
+              <Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={locale === "es" ? "Añadir una carta…" : "Add a card…"} />
+              {search.trim().length >= 2 && results.length > 0 && <div>{results.map((card) => <button key={card.id} onClick={() => addCard(card)}>{card.imageUrl && <img src={card.imageUrl} alt="" />}<span><strong>{card.name}</strong><small>{card.setCode.toUpperCase()} · {card.setName}</small></span><Plus size={15} /></button>)}</div>}
+            </div>
           </div>
         </div>
 
         <section className="watch-overview">
-          <div className="fintech-panel"><Bell size={19} /><span>{locale === "es" ? "Cartas seguidas" : "Tracked cards"}</span><strong>{cards.length}</strong></div>
-          <div className="fintech-panel"><span>{locale === "es" ? "Ganadores hoy" : "Positive signals"}</span><strong className="up">{cards.filter((card) => (card.change7d ?? 0) > 0).length}</strong><small>{locale === "es" ? "últimos 7 días" : "over 7 days"}</small></div>
+          <div className="fintech-panel"><Bell size={19} /><span>{locale === "es" ? "Cartas seguidas" : "Tracked cards"}</span><strong>{visibleCards.length}</strong></div>
+          <div className="fintech-panel"><span>{locale === "es" ? "Ganadores hoy" : "Positive signals"}</span><strong className="up">{visibleCards.filter((card) => (card.change7d ?? 0) > 0).length}</strong><small>{locale === "es" ? "últimos 7 días" : "over 7 days"}</small></div>
           <div className="fintech-panel"><span>{locale === "es" ? "Alertas nuevas" : "New alerts"}</span><strong>{triggeredCount}</strong><small>{locale === "es" ? "listas para revisar" : "ready to review"}</small></div>
         </section>
 
         <section className="fintech-panel watch-table">
           <div className="section-title"><div><span className="eyebrow">{locale === "es" ? "Seguimiento personal" : "Personal tracking"}</span><h2>{locale === "es" ? "Señales de precio" : "Price signals"}</h2></div></div>
-          {loading ? <div className="table-empty">Loading…</div> : cards.length === 0 ? <div className="table-empty"><Bell size={27} /><strong>{locale === "es" ? "Tu lista está vacía" : "Your watchlist is empty"}</strong><p>{locale === "es" ? "Busca una carta arriba para empezar." : "Search for a card above to start tracking it."}</p></div> : cards.map((card) => (
+          {loading ? <div className="table-empty">Loading…</div> : visibleCards.length === 0 ? <div className="table-empty"><Bell size={27} /><strong>{setCodes[0] ? (locale === "es" ? "No hay cartas de esta edición" : "No cards from this set") : (locale === "es" ? "Tu lista está vacía" : "Your watchlist is empty")}</strong><p>{locale === "es" ? "Busca una carta arriba para empezar." : "Search for a card above to start tracking it."}</p></div> : visibleCards.map((card) => (
             <article className="watch-row card-surface" key={card.id} {...cardSurfaceProps(card)}>
               {card.imageUrl && <img src={card.imageUrl} alt="" />}
               <div><strong>{card.name}</strong><span>{card.setCode.toUpperCase()} · {card.setName}</span></div>

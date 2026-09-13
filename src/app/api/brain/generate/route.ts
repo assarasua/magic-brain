@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { BrainPreferences, generateBrainPortfolio } from "@/lib/brain";
+import { normalizeSetCodes } from "@/lib/card-filters";
 import { attachSessionCookie, getOrCreateUser, isPro } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -92,6 +93,7 @@ export async function POST(request: NextRequest) {
         cardTypes: Array.isArray(body.cardTypes)
           ? body.cardTypes.slice(0, 8)
           : [],
+        setCodes: normalizeSetCodes(body.setCodes),
         maxCardPrice,
         positions,
         reservedOnly: body.reservedOnly === true,

@@ -1,7 +1,12 @@
 # Magic Brain
 
-An investor-focused dashboard for Magic: The Gathering cards, backed by the
-Railway PostgreSQL market dataset.
+An open-source, investor-focused dashboard for Magic: The Gathering cards,
+backed by PostgreSQL.
+
+The software is licensed under [AGPL-3.0-only](LICENSE). Card records, prices,
+artwork, names, symbols, and provider data are third-party material and are not
+licensed by this repository; read [NOTICE](NOTICE.md) before importing or
+redistributing data.
 
 ## Product areas
 
@@ -18,8 +23,10 @@ English and Spanish are available from the header language control.
 ## Run locally
 
 ```bash
-npm install
+npm ci
 cp .env.example .env.local
+psql postgresql://postgres:postgres@localhost:5432/magic_brain \
+  -f db/000_base_data_schema.sql
 npm run db:migrate
 npm run db:sync-reserved
 npm run dev
@@ -82,8 +89,8 @@ self-service billing.
 
 ## Production data connection
 
-The app expects `cards` and `prices` tables matching the connected Railway
-database. Product migrations add `app_users`, `app_portfolio_items`,
+The base migration creates the `cards` and `prices` tables used by the app.
+Product migrations add `app_users`, `app_portfolio_items`,
 `app_watchlist_items`, `app_brain_portfolios`,
 `app_brain_portfolio_items`, and `app_reserved_cards`.
 
@@ -92,3 +99,44 @@ only token hashes are persisted. A production identity provider can later link
 these records to verified user accounts.
 
 Never commit `.env.local` or put a Stripe secret/restricted key in browser code.
+
+## Contributor data setup
+
+Use Node.js 22 or newer, npm 10, and PostgreSQL 15 or newer. The migrations
+create empty base `cards` and `prices` tables plus product-owned tables. They do
+not download or grant rights to any third-party dataset. After setting
+`DATABASE_URL`, apply `db/000_base_data_schema.sql`, run `npm run db:migrate`,
+then follow the
+[data import guide](docs/data-import.md).
+
+`AUTH_SECRET` is mandatory in production and should also be set locally for
+stable sessions. Generate it with `openssl rand -base64 32`. Google OAuth and
+Stripe are optional for local development.
+
+## Cloudflare deployment
+
+The checked-in `wrangler.jsonc` preserves the project's `magicbrain.es` route
+and Hyperdrive ID. These are public deployment coordinates, not credentials.
+Forks must replace `name`, `routes`, and `hyperdrive[].id` with their own
+Cloudflare resources. Keep database, Auth.js, OAuth, and Stripe secrets in the
+deployment provider's secret manager. Use `.env.production.example` only as a
+variable checklist.
+
+`npm run preview` provides a local Cloudflare-compatible preview.
+`npm run deploy` changes external infrastructure and is intended only for
+authorized maintainers.
+
+## Contributing and policies
+
+Before contributing, read [CONTRIBUTING.md](CONTRIBUTING.md), the
+[Code of Conduct](CODE_OF_CONDUCT.md), and [SECURITY.md](SECURITY.md). Run:
+
+```bash
+npm run lint
+npx tsc --noEmit
+npm run build
+```
+
+Privacy and service templates are in [PRIVACY.md](PRIVACY.md) and
+[TERMS.md](TERMS.md). Each deployment operator must customize them for its
+identity, jurisdiction, subprocessors, retention, and actual data practices.

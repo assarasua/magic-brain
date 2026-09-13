@@ -2,12 +2,14 @@
 
 import {
   BrainCircuit,
+  Code2,
   Compass,
   Crown,
   Heart,
   HeartHandshake,
   LibraryBig,
   ListChecks,
+  Radar,
   Settings,
   Sparkles,
   TrendingUp,
@@ -25,6 +27,7 @@ const groups = [
     links: [
       { href: "/inventory", label: "Inventory", icon: LibraryBig, premium: false },
       { href: "/discover", label: "Discover", icon: Compass, premium: true },
+      { href: "/market/latest-set-watch", label: "Latest Set Watch", icon: Radar, premium: false },
       { href: "/watchlist", label: "Watchlist", icon: Heart, premium: false },
       { href: "/reserved", label: "Reserved List", icon: ListChecks, premium: false },
     ],
@@ -44,6 +47,7 @@ const groups = [
     links: [
       { href: "/settings", label: "Settings", icon: Settings, premium: false },
       { href: "/donate", label: "Support", icon: HeartHandshake, premium: false },
+      { href: "/developers", label: "Developers", icon: Code2, premium: false },
     ],
   },
 ];

@@ -11,7 +11,9 @@ export async function GET(request: NextRequest) {
         : "gainers";
     const requestedDays = Number(request.nextUrl.searchParams.get("days") ?? 7);
     const days = [1, 7, 30, 90].includes(requestedDays) ? requestedDays : 7;
-    const cards = await getMarketMovers(12, direction, days);
+    const setCode =
+      request.nextUrl.searchParams.get("set")?.slice(0, 20) || undefined;
+    const cards = await getMarketMovers(12, direction, days, setCode);
     return NextResponse.json(
       { cards, direction, days },
       { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } },

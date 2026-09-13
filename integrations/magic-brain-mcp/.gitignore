@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+.rules-venv/
+*.log
+rules-data/*
+!rules-data/.gitignore

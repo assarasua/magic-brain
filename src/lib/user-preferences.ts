@@ -1,3 +1,10 @@
+import {
+  CARD_COLORS,
+  CARD_RARITIES,
+  CARD_TYPES,
+  normalizeSetCodes,
+} from "@/lib/card-filters";
+
 export type UserPreferences = {
   defaultBudget: number;
   maxCardPrice: number;
@@ -10,6 +17,7 @@ export type UserPreferences = {
   colors: string[];
   rarities: string[];
   cardTypes: string[];
+  setCodes: string[];
   reservedOnly: boolean;
 };
 
@@ -25,6 +33,7 @@ export const defaultUserPreferences: UserPreferences = {
   colors: [],
   rarities: ["rare", "mythic"],
   cardTypes: [],
+  setCodes: [],
   reservedOnly: false,
 };
 
@@ -34,9 +43,9 @@ const allowed = {
   strategy: ["diversified", "momentum", "stability", "collectible"],
   marketTrend: ["any", "rising", "stable", "recovering"],
   releaseEra: ["any", "classic", "established", "recent"],
-  colors: ["W", "U", "B", "R", "G"],
-  rarities: ["common", "uncommon", "rare", "mythic"],
-  cardTypes: ["Creature", "Artifact", "Enchantment", "Land", "Planeswalker", "Instant", "Sorcery"],
+  colors: CARD_COLORS,
+  rarities: CARD_RARITIES,
+  cardTypes: CARD_TYPES,
 } as const;
 
 const choice = <T extends string>(
@@ -79,6 +88,7 @@ export function normalizeUserPreferences(input: unknown): UserPreferences {
     colors: choices(value.colors, allowed.colors),
     rarities: choices(value.rarities, allowed.rarities),
     cardTypes: choices(value.cardTypes, allowed.cardTypes),
+    setCodes: normalizeSetCodes(value.setCodes),
     reservedOnly: value.reservedOnly === true,
   };
 }

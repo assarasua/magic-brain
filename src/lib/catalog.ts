@@ -269,12 +269,17 @@ export async function getCatalog(filters: CatalogFilters) {
   };
 }
 
-export async function searchCatalog(search: string, limit = 8) {
+export async function searchCatalog(
+  search: string,
+  limit = 8,
+  setCode?: string,
+) {
   const normalized = search.trim().toLowerCase();
   if (normalized.length < 2) return [];
   const fuzzyClause = normalized.length >= 3
     ? "or lower(c.name) % $1 or lower(c.set_name) % $1"
     : "";
+  const setClause = setCode ? "and lower(c.set_code) = $4" : "";
 
   const { rows } = await query<CatalogRow>(
     `
@@ -302,10 +307,13 @@ export async function searchCatalog(search: string, limit = 8) {
         and latest.source = 'mtgjson'
         and latest.date = dates.latest_date
       where
-        lower(c.name) like $2
-        or lower(c.set_name) like $2
-        or lower(c.set_code) = $1
-        ${fuzzyClause}
+        (
+          lower(c.name) like $2
+          or lower(c.set_name) like $2
+          or lower(c.set_code) = $1
+          ${fuzzyClause}
+        )
+        ${setClause}
       order by
         case
           when lower(c.name) = $1 then 0
@@ -320,7 +328,9 @@ export async function searchCatalog(search: string, limit = 8) {
         c.released_at desc nulls last
       limit $3
     `,
-    [normalized, `%${normalized}%`, limit],
+    setCode
+      ? [normalized, `%${normalized}%`, limit, setCode.toLowerCase()]
+      : [normalized, `%${normalized}%`, limit],
   );
 
   return rows.map(mapCard);
@@ -330,6 +340,7 @@ export async function getMarketMovers(
   limit = 8,
   direction: "gainers" | "losers" = "gainers",
   days = 7,
+  setCode?: string,
 ) {
   const directionFilter = direction === "losers" ? "< 0" : "> 0";
   const order = direction === "losers" ? "asc" : "desc";
@@ -375,6 +386,7 @@ export async function getMarketMovers(
         join cards c on c.scryfall_id = current_price.scryfall_id
         where current_price.eur between 2 and 5000
           and previous_price.eur >= 2
+          and ($3::text is null or lower(c.set_code) = $3)
       )
       select
         *
@@ -384,7 +396,7 @@ export async function getMarketMovers(
       order by change_7d ${order}
       limit $1
     `,
-    [limit, days],
+    [limit, days, setCode?.toLowerCase() ?? null],
   );
 
   return rows.map(mapCard);

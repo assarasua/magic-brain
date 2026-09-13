@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Magic Brain connector</title>
+  <desc id="desc">A violet brain-shaped card with a white spark</desc>
+  <defs>
+    <linearGradient id="g" x1="64" y1="48" x2="448" y2="464" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#4C1D95"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#111827"/>
+  <path d="M151 98h210c31 0 57 26 57 57v202c0 31-26 57-57 57H151c-31 0-57-26-57-57V155c0-31 26-57 57-57Z" fill="url(#g)"/>
+  <path d="M208 167c-31 0-56 25-56 56 0 12 4 24 11 33-7 9-11 21-11 33 0 31 25 56 56 56 20 0 37-10 47-25 10 15 28 25 48 25 31 0 56-25 56-56 0-12-4-24-11-33 7-9 11-21 11-33 0-31-25-56-56-56-20 0-38 10-48 25-10-15-27-25-47-25Z" fill="none" stroke="#F5F3FF" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M255 192v128M205 230h50M255 282h53" stroke="#F5F3FF" stroke-width="18" stroke-linecap="round"/>
+  <path d="m366 91 8 23 23 8-23 8-8 23-8-23-23-8 23-8 8-23Z" fill="#FDE68A"/>
+</svg>

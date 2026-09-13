@@ -22,7 +22,9 @@ import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
 import { useCardDetail } from "@/components/card-detail-provider";
 import { ProGate } from "@/components/pro-gate";
+import { SetSelector } from "@/components/set-selector";
 import type { BrainPreferences, BrainRecommendation } from "@/lib/brain";
+import { CARD_COLORS, CARD_RARITIES, CARD_TYPES } from "@/lib/card-filters";
 import { formatCurrency } from "@/lib/data";
 import { defaultUserPreferences, type UserPreferences } from "@/lib/user-preferences";
 
@@ -36,13 +38,11 @@ type BrainResult = {
   recommendations: BrainRecommendation[];
 };
 
-const colorOptions = [
-  { value: "W", label: "White", symbol: "☀" },
-  { value: "U", label: "Blue", symbol: "💧" },
-  { value: "B", label: "Black", symbol: "●" },
-  { value: "R", label: "Red", symbol: "🔥" },
-  { value: "G", label: "Green", symbol: "🌿" },
-];
+const colorOptions = CARD_COLORS.map((value) => ({
+  value,
+  label: { W: "White", U: "Blue", B: "Black", R: "Red", G: "Green" }[value],
+  symbol: { W: "☀", U: "💧", B: "●", R: "🔥", G: "🌿" }[value],
+}));
 
 export default function BrainPage() {
   const { locale, t } = useLanguage();
@@ -55,6 +55,7 @@ export default function BrainPage() {
   const [colors, setColors] = useState<string[]>([]);
   const [rarities, setRarities] = useState<string[]>(["rare", "mythic"]);
   const [cardTypes, setCardTypes] = useState<string[]>([]);
+  const [setCodes, setSetCodes] = useState<string[]>([]);
   const [reservedOnly, setReservedOnly] = useState(false);
   const [budget, setBudget] = useState(defaultUserPreferences.defaultBudget);
   const [maxCardPrice, setMaxCardPrice] = useState(defaultUserPreferences.maxCardPrice);
@@ -81,6 +82,7 @@ export default function BrainPage() {
         setColors(preferences.colors);
         setRarities(preferences.rarities);
         setCardTypes(preferences.cardTypes);
+        setSetCodes(preferences.setCodes);
         setReservedOnly(preferences.reservedOnly);
         setBudget(preferences.defaultBudget);
         setMaxCardPrice(preferences.maxCardPrice);
@@ -108,6 +110,7 @@ export default function BrainPage() {
         colors,
         rarities,
         cardTypes,
+        setCodes,
         reservedOnly,
         locale,
       }),
@@ -246,15 +249,25 @@ export default function BrainPage() {
           <div className="brain-field">
             <label>{t("Rarity")}</label>
             <div className="check-row">
-              {["common", "uncommon", "rare", "mythic"].map((value) => <button type="button" key={value} className={rarities.includes(value) ? "active" : ""} onClick={() => toggle(value, rarities, setRarities)}>{rarities.includes(value) && <Check size={12} />}{value}</button>)}
+              {CARD_RARITIES.map((value) => <button type="button" key={value} className={rarities.includes(value) ? "active" : ""} onClick={() => toggle(value, rarities, setRarities)}>{rarities.includes(value) && <Check size={12} />}{value}</button>)}
             </div>
           </div>
 
           <div className="brain-field">
             <label>{locale === "es" ? "Tipos de carta" : "Card types"}</label>
             <div className="check-row">
-              {["Creature", "Artifact", "Enchantment", "Land", "Planeswalker", "Instant", "Sorcery"].map((value) => <button type="button" key={value} className={cardTypes.includes(value) ? "active" : ""} onClick={() => toggle(value, cardTypes, setCardTypes)}>{cardTypes.includes(value) && <Check size={12} />}{value}</button>)}
+              {CARD_TYPES.map((value) => <button type="button" key={value} className={cardTypes.includes(value) ? "active" : ""} onClick={() => toggle(value, cardTypes, setCardTypes)}>{cardTypes.includes(value) && <Check size={12} />}{value}</button>)}
             </div>
+          </div>
+
+          <div className="brain-field">
+            <SetSelector
+              value={setCodes}
+              onChange={setSetCodes}
+              multiple
+              label={locale === "es" ? "Ediciones" : "Sets"}
+              allLabel={locale === "es" ? "Todas las ediciones" : "All sets"}
+            />
           </div>
 
           <div className="brain-field split">

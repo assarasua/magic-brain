@@ -1,0 +1,38 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.assarasua/magic-brain",
+  "title": "Magic Brain",
+  "description": "Read-only Magic card, set, market price, latest-set research, and cited Comprehensive Rules tools.",
+  "version": "0.1.0",
+  "websiteUrl": "https://magicbrain.es/developers",
+  "repository": {
+    "url": "https://github.com/assarasua/magic-brain",
+    "source": "github"
+  },
+  "icons": [
+    {
+      "src": "https://raw.githubusercontent.com/assarasua/magic-brain/main/integrations/magic-brain-mcp/directory/icon.svg",
+      "mimeType": "image/svg+xml"
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://magic-brain-mcp.assarasua.workers.dev/mcp"
+    }
+  ],
+  "_meta": {
+    "io.modelcontextprotocol.registry/publisher-provided": {
+      "status": "deployed",
+      "readOnly": true,
+      "supportUrl": "https://github.com/assarasua/magic-brain/issues",
+      "privacyPolicyUrl": "https://github.com/assarasua/magic-brain/blob/main/PRIVACY.md",
+      "dataCategories": [
+        "public-card-catalogue",
+        "public-market-prices",
+        "public-set-metadata",
+        "public-comprehensive-rules-excerpts"
+      ]
+    }
+  }
+}

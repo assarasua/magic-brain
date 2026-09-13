@@ -15,6 +15,8 @@ import { useEffect, useState } from "react";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
+import { SetSelector } from "@/components/set-selector";
+import { CARD_COLORS, CARD_RARITIES, CARD_TYPES } from "@/lib/card-filters";
 import {
   defaultUserPreferences,
   type UserPreferences,
@@ -40,22 +42,11 @@ const strategies: UserPreferences["strategy"][] = [
   "stability",
   "collectible",
 ];
-const cardTypes = [
-  "Creature",
-  "Artifact",
-  "Enchantment",
-  "Land",
-  "Planeswalker",
-  "Instant",
-  "Sorcery",
-];
-const colours = [
-  { value: "W", label: "White", symbol: "☀" },
-  { value: "U", label: "Blue", symbol: "💧" },
-  { value: "B", label: "Black", symbol: "●" },
-  { value: "R", label: "Red", symbol: "🔥" },
-  { value: "G", label: "Green", symbol: "🌿" },
-];
+const colours = CARD_COLORS.map((value) => ({
+  value,
+  label: { W: "White", U: "Blue", B: "Black", R: "Red", G: "Green" }[value],
+  symbol: { W: "☀", U: "💧", B: "●", R: "🔥", G: "🌿" }[value],
+}));
 
 export default function SettingsPage() {
   const { locale, t } = useLanguage();
@@ -81,7 +72,7 @@ export default function SettingsPage() {
   ) => setPreferences((current) => ({ ...current, [key]: value }));
 
   const toggle = (
-    key: "colors" | "rarities" | "cardTypes",
+    key: "colors" | "rarities" | "cardTypes" | "setCodes",
     value: string,
   ) => {
     const values = preferences[key];
@@ -207,10 +198,17 @@ export default function SettingsPage() {
             <div className="settings-section-title"><span><Sparkles size={19} /></span><div><h2>{es ? "Universo de cartas" : "Card universe"}</h2><p>{es ? "Prioriza los segmentos que conoces mejor. Deja todo vacío para no limitar resultados." : "Prioritise the segments you know best. Leave selections empty for unrestricted results."}</p></div></div>
             <div className="settings-options-row">
               <div><label>{es ? "Colores" : "Colours"}</label><div className="settings-colours">{colours.map((colour) => <button key={colour.value} title={colour.label} className={preferences.colors.includes(colour.value) ? "active" : ""} onClick={() => toggle("colors", colour.value)}>{colour.symbol}</button>)}</div></div>
-              <div><label>{es ? "Rarezas" : "Rarities"}</label><div className="settings-chips">{["common", "uncommon", "rare", "mythic"].map((value) => <button key={value} className={preferences.rarities.includes(value) ? "active" : ""} onClick={() => toggle("rarities", value)}>{preferences.rarities.includes(value) && <Check size={12} />}{value}</button>)}</div></div>
+              <div><label>{es ? "Rarezas" : "Rarities"}</label><div className="settings-chips">{CARD_RARITIES.map((value) => <button key={value} className={preferences.rarities.includes(value) ? "active" : ""} onClick={() => toggle("rarities", value)}>{preferences.rarities.includes(value) && <Check size={12} />}{value}</button>)}</div></div>
             </div>
             <label>{es ? "Tipos de carta" : "Card types"}</label>
-            <div className="settings-chips">{cardTypes.map((value) => <button key={value} className={preferences.cardTypes.includes(value) ? "active" : ""} onClick={() => toggle("cardTypes", value)}>{preferences.cardTypes.includes(value) && <Check size={12} />}{value}</button>)}</div>
+            <div className="settings-chips">{CARD_TYPES.map((value) => <button key={value} className={preferences.cardTypes.includes(value) ? "active" : ""} onClick={() => toggle("cardTypes", value)}>{preferences.cardTypes.includes(value) && <Check size={12} />}{value}</button>)}</div>
+            <SetSelector
+              value={preferences.setCodes}
+              onChange={(codes) => update("setCodes", codes)}
+              multiple
+              label={es ? "Limitar a ediciones" : "Limit to sets"}
+              allLabel={es ? "Todas las ediciones" : "All sets"}
+            />
             <button className={`settings-reserved ${preferences.reservedOnly ? "active" : ""}`} onClick={() => update("reservedOnly", !preferences.reservedOnly)}><span><Check size={14} /></span><div><strong>{es ? "Priorizar exclusivamente Reserved List" : "Reserved List only"}</strong><small>{es ? "Limita las estrategias a cartas de oferta fija." : "Limit strategies to fixed-supply cards."}</small></div></button>
           </section>
 

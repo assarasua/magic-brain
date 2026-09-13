@@ -19,6 +19,8 @@ import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
 import { useCardDetail } from "@/components/card-detail-provider";
+import { SetSelector } from "@/components/set-selector";
+import { CARD_RARITIES } from "@/lib/card-filters";
 import type { CatalogCard } from "@/lib/catalog";
 import { formatCurrency } from "@/lib/data";
 
@@ -38,7 +40,7 @@ const initialData: CatalogResponse = {
   totalPages: 0,
 };
 
-const rarityOptions = ["", "common", "uncommon", "rare", "mythic"];
+const rarityOptions = ["", ...CARD_RARITIES];
 
 export default function InventoryPage({
   defaultReserved = false,
@@ -52,6 +54,7 @@ export default function InventoryPage({
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [rarity, setRarity] = useState("");
+  const [setCodes, setSetCodes] = useState<string[]>([]);
   const [color, setColor] = useState("");
   const [language, setLanguage] = useState("");
   const [cardType, setCardType] = useState("");
@@ -74,6 +77,7 @@ export default function InventoryPage({
   const filterSheet = useRef<HTMLElement>(null);
   const [draftFilters, setDraftFilters] = useState({
     rarity: "",
+    setCodes: [] as string[],
     color: "",
     language: "",
     cardType: "",
@@ -108,7 +112,7 @@ export default function InventoryPage({
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
       setSuggestionsLoading(true);
-      fetch(`/api/cards/search?q=${encodeURIComponent(normalized)}`, {
+      fetch(`/api/cards/search?q=${encodeURIComponent(normalized)}${setCodes[0] ? `&set=${encodeURIComponent(setCodes[0])}` : ""}`, {
         signal: controller.signal,
       })
         .then(async (response) => {
@@ -131,7 +135,7 @@ export default function InventoryPage({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [query]);
+  }, [query, setCodes]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -142,6 +146,7 @@ export default function InventoryPage({
     });
     if (debouncedQuery) params.set("q", debouncedQuery);
     if (rarity) params.set("rarity", rarity);
+    if (setCodes[0]) params.set("set", setCodes[0]);
     if (color) params.set("color", color);
     if (language) params.set("language", language);
     if (cardType) params.set("type", cardType);
@@ -170,6 +175,7 @@ export default function InventoryPage({
   }, [
     debouncedQuery,
     rarity,
+    setCodes,
     color,
     language,
     cardType,
@@ -222,6 +228,7 @@ export default function InventoryPage({
   const openFilters = () => {
     setDraftFilters({
       rarity,
+      setCodes,
       color,
       language,
       cardType,
@@ -237,6 +244,7 @@ export default function InventoryPage({
   const applyFilters = () => {
     setLoading(true);
     setRarity(draftFilters.rarity);
+    setSetCodes(draftFilters.setCodes);
     setColor(draftFilters.color);
     setLanguage(draftFilters.language);
     setCardType(draftFilters.cardType);
@@ -252,6 +260,7 @@ export default function InventoryPage({
   const clearFilters = () => {
     const cleared = {
       rarity: "",
+      setCodes: [] as string[],
       color: "",
       language: "",
       cardType: "",
@@ -264,6 +273,7 @@ export default function InventoryPage({
     setDraftFilters(cleared);
     setLoading(true);
     setRarity("");
+    setSetCodes([]);
     setColor("");
     setLanguage("");
     setCardType("");
@@ -277,6 +287,7 @@ export default function InventoryPage({
 
   const activeFilters = [
     rarity && { key: "rarity", label: `${t("Rarity")}: ${rarity}` },
+    setCodes[0] && { key: "setCodes", label: `${es ? "Edición" : "Set"}: ${setCodes[0].toUpperCase()}` },
     color && { key: "color", label: `${es ? "Color" : "Colour"}: ${color}` },
     language && { key: "language", label: `${es ? "Idioma" : "Language"}: ${language.toUpperCase()}` },
     cardType && { key: "cardType", label: `${es ? "Tipo" : "Type"}: ${cardType}` },
@@ -290,6 +301,7 @@ export default function InventoryPage({
     setLoading(true);
     setPage(1);
     if (key === "rarity") setRarity("");
+    if (key === "setCodes") setSetCodes([]);
     if (key === "color") setColor("");
     if (key === "language") setLanguage("");
     if (key === "cardType") setCardType("");
@@ -462,6 +474,16 @@ export default function InventoryPage({
               ))}
             </select>
           </label>
+          <SetSelector
+            value={setCodes}
+            onChange={(codes) => {
+              setLoading(true);
+              setSetCodes(codes);
+              setPage(1);
+            }}
+            label={es ? "Edición" : "Set"}
+            allLabel={es ? "Todas" : "All sets"}
+          />
           <label>
             {locale === "es" ? "Color" : "Colour"}
             <select value={color} onChange={(event) => { setLoading(true); setColor(event.target.value); setPage(1); }}>
@@ -579,6 +601,12 @@ export default function InventoryPage({
             </header>
             <div className="inventory-filter-fields">
               <label>{t("Rarity")}<select value={draftFilters.rarity} onChange={(event) => setDraftFilters((current) => ({ ...current, rarity: event.target.value }))}>{rarityOptions.map((option) => <option value={option} key={option}>{option ? `${option[0].toUpperCase()}${option.slice(1)}` : t("All rarities")}</option>)}</select></label>
+              <SetSelector
+                value={draftFilters.setCodes}
+                onChange={(codes) => setDraftFilters((current) => ({ ...current, setCodes: codes }))}
+                label={es ? "Edición" : "Set"}
+                allLabel={es ? "Todas las ediciones" : "All sets"}
+              />
               <label>{es ? "Color" : "Colour"}<select value={draftFilters.color} onChange={(event) => setDraftFilters((current) => ({ ...current, color: event.target.value }))}><option value="">{es ? "Todos" : "All colours"}</option><option value="W">{es ? "Blanco" : "White"}</option><option value="U">{es ? "Azul" : "Blue"}</option><option value="B">{es ? "Negro" : "Black"}</option><option value="R">{es ? "Rojo" : "Red"}</option><option value="G">{es ? "Verde" : "Green"}</option></select></label>
               <label>{es ? "Idioma" : "Language"}<select value={draftFilters.language} onChange={(event) => setDraftFilters((current) => ({ ...current, language: event.target.value }))}><option value="">{es ? "Todos" : "All languages"}</option><option value="en">English</option><option value="es">Español</option><option value="de">Deutsch</option><option value="fr">Français</option><option value="it">Italiano</option><option value="ja">日本語</option></select></label>
               <label>{es ? "Tipo" : "Type"}<input value={draftFilters.cardType} onChange={(event) => setDraftFilters((current) => ({ ...current, cardType: event.target.value }))} placeholder="Creature…" /></label>

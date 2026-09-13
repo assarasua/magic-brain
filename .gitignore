@@ -16,9 +16,27 @@
 # logs and operating system files
 *.log
 .DS_Store
+coverage/
+*.lcov
+
+# local databases, dumps, and credentials
+*.sql.gz
+*.dump
+*.backup
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
+service-account*.json
 
 # TypeScript
 *.tsbuildinfo
+
+# editor files
+.idea/
+.vscode/*
+!.vscode/extensions.json
 
 # Local agent tooling
 /.agents/
