@@ -174,6 +174,7 @@ test("producer uses transactions, immutable upserts, checkpoints, and no mutatio
   assert.match(producer, /on conflict[\s\S]+do nothing returning id/i);
   assert.match(producer, /update app_ml_producer_runs/);
   assert.match(producer, /p\.date > f\.as_of_date and p\.date <= f\.as_of_date \+ 90/);
+  assert.match(producer, /existing\.feature_snapshot_id = f\.id/);
   assert.doesNotMatch(producer, /DATABASE_URL.*console|console.*DATABASE_URL/);
   assert.match(migration, /create table if not exists app_ml_producer_runs/);
   assert.match(migration, /metadata_checksum/);

@@ -411,6 +411,10 @@ async function labelCandidates(afterId) {
         and p.date > f.as_of_date and p.date <= f.as_of_date + 90
       where f.feature_contract_version = $1 and f.price_source = $2
         and f.as_of_date + 90 <= $3
+        and not exists (
+          select 1 from app_ml_outcome_labels existing
+           where existing.feature_snapshot_id = f.id
+        )
         and ($4::uuid is null or f.id > $4)
       group by f.id
       order by f.id
