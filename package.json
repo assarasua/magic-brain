@@ -2,6 +2,10 @@
   "name": "magic-brain",
   "version": "1.0.0",
   "description": "Magic Brain — intelligence for Magic: The Gathering collectors and investors.",
+  "author": {
+    "name": "Asier Sarasua",
+    "url": "https://bizkardolab.com"
+  },
   "private": true,
   "type": "module",
   "homepage": "https://github.com/assarasua/magic-brain#readme",

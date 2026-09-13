@@ -695,7 +695,13 @@ export function DevelopersHub({
 
       <footer className={styles.footer}>
         <Link href="/"><MagicBrainLogo /></Link>
-        <p>Unofficial Magic: The Gathering market intelligence. Not affiliated with Wizards of the Coast.</p>
+        <p>
+          Created by{" "}
+          <a href="https://bizkardolab.com" target="_blank" rel="noreferrer">
+            Asier Sarasua · BizkardoLab
+          </a>
+          . Unofficial Magic: The Gathering market intelligence.
+        </p>
         <nav aria-label="Developer footer">
           <a href="/api/v1/openapi.json">OpenAPI</a>
           <a href="https://github.com/assarasua/magic-brain">GitHub</a>

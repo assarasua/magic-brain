@@ -1,5 +1,8 @@
 # Notices and data attribution
 
+Magic Brain was created by
+[Asier Sarasua at BizkardoLab](https://bizkardolab.com).
+
 Magic Brain source code is licensed under AGPL-3.0-only. That license does not
 grant rights to third-party card data, prices, artwork, trademarks, or service
 content. No third-party dataset is included in this repository.
