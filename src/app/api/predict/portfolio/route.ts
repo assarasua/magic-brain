@@ -26,11 +26,14 @@ export async function POST(request: NextRequest) {
       locale?: string;
     };
     const setCodes = normalizeSetCodes([body.setCode]);
-    const budget = Number(body.budget);
+    const budget =
+      body.budget === undefined
+        ? user.preferences.defaultBudget
+        : Number(body.budget);
     const risk = body.risk ?? user.preferences.risk;
 
     if (
-      setCodes.length !== 1 ||
+      (body.setCode !== undefined && setCodes.length !== 1) ||
       !Number.isFinite(budget) ||
       budget < 25 ||
       budget > 1_000_000 ||
@@ -42,22 +45,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const strategy: BrainPreferences["strategy"] =
-      risk === "preservation" || risk === "conservative"
-        ? "stability"
-        : risk === "growth" || risk === "aggressive"
-          ? "momentum"
-          : "diversified";
     const result = await generateBrainPortfolio(
       user.id,
       {
         ...user.preferences,
         budget,
         risk,
-        strategy,
-        releaseEra: "any",
         setCodes,
-        reservedOnly: false,
         locale: body.locale === "es" ? "es" : "en",
       },
       { savePreferences: false },
