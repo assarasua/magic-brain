@@ -6,13 +6,15 @@ import {
   ArrowLeft,
   ArrowRight,
   ExternalLink,
+  LoaderCircle,
   Search,
   Sparkles,
   TrendingDown,
   TrendingUp,
+  X,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
@@ -53,6 +55,7 @@ function MoverList({
 
 export default function MarketPage() {
   const { locale, t } = useLanguage();
+  const { openCard } = useCardDetail();
   const [days, setDays] = useState(7);
   const [setCodes, setSetCodes] = useState<string[]>([]);
   const [gainers, setGainers] = useState<CatalogCard[]>([]);
@@ -63,8 +66,16 @@ export default function MarketPage() {
   const [pulseLoading, setPulseLoading] = useState(true);
   const [pulseError, setPulseError] = useState(false);
   const [pulseSearch, setPulseSearch] = useState("");
-  const [pulseSort, setPulseSort] = useState<MarketPulseSort>("release");
+  const [pulseSort, setPulseSort] = useState<MarketPulseSort>("release-desc");
   const [pulseLimit, setPulseLimit] = useState(120);
+  const [selectedPulseCode, setSelectedPulseCode] = useState("");
+  const [setCards, setSetCards] = useState<CatalogCard[]>([]);
+  const [setCardsPage, setSetCardsPage] = useState(1);
+  const [setCardsTotal, setSetCardsTotal] = useState(0);
+  const [setCardsLoading, setSetCardsLoading] = useState(false);
+  const [setCardsError, setSetCardsError] = useState(false);
+  const [setCardsRetry, setSetCardsRetry] = useState(0);
+  const setCardsPanel = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -116,6 +127,38 @@ export default function MarketPage() {
     return () => controller.abort();
   }, [days]);
 
+  useEffect(() => {
+    if (!selectedPulseCode) return;
+    const controller = new AbortController();
+    const params = new URLSearchParams({
+      set: selectedPulseCode,
+      page: String(setCardsPage),
+      limit: "24",
+      sort: "name_asc",
+    });
+    fetch(`/api/cards?${params}`, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error("Unable to load set cards");
+        return response.json() as Promise<{
+          cards: CatalogCard[];
+          total: number;
+        }>;
+      })
+      .then((payload) => {
+        setSetCards((current) =>
+          setCardsPage === 1 ? payload.cards : [...current, ...payload.cards],
+        );
+        setSetCardsTotal(payload.total);
+      })
+      .catch((error: Error) => {
+        if (error.name !== "AbortError") setSetCardsError(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setSetCardsLoading(false);
+      });
+    return () => controller.abort();
+  }, [selectedPulseCode, setCardsPage, setCardsRetry]);
+
   const visiblePulse = useMemo(() => {
     const search = pulseSearch.trim().toLowerCase();
     const filtered = search
@@ -126,10 +169,20 @@ export default function MarketPage() {
     return sortMarketPulseSets(filtered, pulseSort);
   }, [pulse, pulseSearch, pulseSort]);
 
+  const selectedPulseSet = pulse.find((set) => set.code === selectedPulseCode);
+
   const selectPulseSet = (code: string) => {
-    setLoading(true);
-    setSetCodes([code]);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (selectedPulseCode !== code) {
+      setSelectedPulseCode(code);
+      setSetCards([]);
+      setSetCardsPage(1);
+      setSetCardsTotal(0);
+      setSetCardsLoading(true);
+      setSetCardsError(false);
+    }
+    window.requestAnimationFrame(() => {
+      setCardsPanel.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   };
 
   const percent = (value: number | null, signed = false) =>
@@ -190,12 +243,18 @@ export default function MarketPage() {
               <label>
                 <span className="sr-only">{locale === "es" ? "Ordenar ediciones" : "Sort sets"}</span>
                 <select value={pulseSort} onChange={(event) => { setPulseSort(event.target.value as MarketPulseSort); setPulseLimit(120); }}>
-                  <option value="release">{locale === "es" ? "Más recientes" : "Newest release"}</option>
-                  <option value="name">{locale === "es" ? "Nombre" : "Name"}</option>
-                  <option value="median">{locale === "es" ? "Rentabilidad mediana" : "Median return"}</option>
-                  <option value="breadth">{locale === "es" ? "Amplitud" : "Breadth"}</option>
-                  <option value="coverage">{locale === "es" ? "Cobertura" : "Coverage"}</option>
-                  <option value="tracked">{locale === "es" ? "Cartas seguidas" : "Tracked cards"}</option>
+                  <option value="release-desc">{locale === "es" ? "Más recientes primero" : "Newest first"}</option>
+                  <option value="release-asc">{locale === "es" ? "Más antiguas primero" : "Oldest first"}</option>
+                  <option value="name-asc">{locale === "es" ? "Nombre: A–Z" : "Name: A–Z"}</option>
+                  <option value="name-desc">{locale === "es" ? "Nombre: Z–A" : "Name: Z–A"}</option>
+                  <option value="median-desc">{locale === "es" ? "Rentabilidad mediana: mayor a menor" : "Median return: high to low"}</option>
+                  <option value="median-asc">{locale === "es" ? "Rentabilidad mediana: menor a mayor" : "Median return: low to high"}</option>
+                  <option value="breadth-desc">{locale === "es" ? "Amplitud: mayor a menor" : "Breadth: high to low"}</option>
+                  <option value="breadth-asc">{locale === "es" ? "Amplitud: menor a mayor" : "Breadth: low to high"}</option>
+                  <option value="coverage-desc">{locale === "es" ? "Cobertura: mayor a menor" : "Coverage: high to low"}</option>
+                  <option value="coverage-asc">{locale === "es" ? "Cobertura: menor a mayor" : "Coverage: low to high"}</option>
+                  <option value="tracked-desc">{locale === "es" ? "Cartas seguidas: más a menos" : "Tracked cards: most to least"}</option>
+                  <option value="tracked-asc">{locale === "es" ? "Cartas seguidas: menos a más" : "Tracked cards: least to most"}</option>
                 </select>
               </label>
             </div>
@@ -212,7 +271,7 @@ export default function MarketPage() {
                 <span>{locale === "es" ? "Edición" : "Set"}</span><span>{locale === "es" ? "Seguimiento" : "Tracked"}</span><span>{locale === "es" ? `Mediana ${days}D` : `${days}D median`}</span><span>{locale === "es" ? "Avance / descenso" : "Advance / decline"}</span><span>{locale === "es" ? "Amplitud" : "Breadth"}</span><span>{locale === "es" ? "Líder" : "Leading mover"}</span>
               </div>
               {visiblePulse.slice(0, pulseLimit).map((set) => (
-                <button className="market-pulse-row" type="button" key={set.code} onClick={() => selectPulseSet(set.code)} aria-label={`${set.name} (${set.code.toUpperCase()}), ${locale === "es" ? "abrir detalle" : "open drilldown"}`}>
+                <button className={`market-pulse-row ${selectedPulseCode === set.code ? "selected" : ""}`} type="button" key={set.code} onClick={() => selectPulseSet(set.code)} aria-pressed={selectedPulseCode === set.code} aria-label={`${set.name} (${set.code.toUpperCase()}), ${locale === "es" ? "ver cartas de la edición" : "view cards in set"}`}>
                   <span className="market-pulse-set"><strong>{set.name}</strong><small>{set.code.toUpperCase()}{set.releasedAt ? ` · ${set.releasedAt}` : ""}</small></span>
                   {set.available ? (
                     <>
@@ -225,7 +284,7 @@ export default function MarketPage() {
                   ) : (
                     <span className="market-pulse-unavailable">{locale === "es" ? `Sin comparación válida para ${days}D` : `No valid ${days}D comparison`}</span>
                   )}
-                  <ArrowRight size={14} />
+                  <span className="market-pulse-action">{locale === "es" ? "Ver cartas" : "View cards"} <ArrowRight size={13} /></span>
                 </button>
               ))}
               {visiblePulse.length > pulseLimit && (
@@ -236,6 +295,81 @@ export default function MarketPage() {
             </div>
           )}
         </section>
+        {selectedPulseCode && (
+          <section ref={setCardsPanel} className="fintech-panel market-set-cards-panel" aria-busy={setCardsLoading}>
+            <div className="market-set-cards-head">
+              <div>
+                <span className="eyebrow">{selectedPulseCode.toUpperCase()} · {locale === "es" ? "Edición seleccionada" : "Selected set"}</span>
+                <h2>{selectedPulseSet?.name ?? selectedPulseCode.toUpperCase()}</h2>
+                <p aria-live="polite">
+                  {setCardsLoading && setCards.length === 0
+                    ? locale === "es" ? "Cargando cartas…" : "Loading cards…"
+                    : locale === "es"
+                      ? `${setCards.length.toLocaleString(locale)} de ${setCardsTotal.toLocaleString(locale)} impresiones mostradas`
+                      : `Showing ${setCards.length.toLocaleString(locale)} of ${setCardsTotal.toLocaleString(locale)} printings`}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="market-set-cards-close"
+                onClick={() => setSelectedPulseCode("")}
+              >
+                <X size={15} />
+                {locale === "es" ? "Cerrar" : "Close"}
+              </button>
+            </div>
+            {setCardsError && setCards.length === 0 ? (
+              <div className="market-pulse-state error" role="alert">
+                <p>{locale === "es" ? "No se pudieron cargar las cartas de esta edición." : "Cards from this set could not be loaded."}</p>
+                <button type="button" className="market-pulse-more" onClick={() => { setSetCardsLoading(true); setSetCardsError(false); setSetCardsRetry((value) => value + 1); }}>
+                  {locale === "es" ? "Reintentar" : "Try again"}
+                </button>
+              </div>
+            ) : !setCardsLoading && setCards.length === 0 ? (
+              <div className="market-pulse-state">
+                {locale === "es" ? "Esta edición no tiene cartas disponibles." : "No cards are available for this set."}
+              </div>
+            ) : (
+              <>
+                <div className="market-set-card-grid">
+                  {setCards.map((card) => (
+                    <button
+                      type="button"
+                      className="inventory-card"
+                      key={card.id}
+                      onClick={() => openCard(card)}
+                      aria-label={`${locale === "es" ? "Ver detalles de" : "View details for"} ${card.name}`}
+                    >
+                      <div className="inventory-image">
+                        {card.imageUrl ? <img src={card.imageUrl} alt="" /> : <span className="image-missing">{locale === "es" ? "Sin imagen" : "No image"}</span>}
+                      </div>
+                      <span className="inventory-card-copy">
+                        <strong>{card.name}</strong>
+                        <span>{card.collectorNumber} · {card.rarity}</span>
+                        <div>
+                          <b>{card.price === null ? "—" : formatCurrency(card.price)}</b>
+                          {card.change7d !== null && <em className={card.change7d >= 0 ? "up" : "down"}>{card.change7d >= 0 ? "+" : ""}{card.change7d.toFixed(1)}%</em>}
+                        </div>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                {setCardsLoading && <div className="market-set-cards-loading" role="status"><LoaderCircle className="spin" size={16} /> {locale === "es" ? "Cargando más cartas…" : "Loading more cards…"}</div>}
+                {setCardsError && setCards.length > 0 && (
+                  <div className="market-set-cards-retry" role="alert">
+                    <span>{locale === "es" ? "No se pudieron cargar más cartas." : "More cards could not be loaded."}</span>
+                    <button type="button" onClick={() => { setSetCardsLoading(true); setSetCardsError(false); setSetCardsRetry((value) => value + 1); }}>{locale === "es" ? "Reintentar" : "Try again"}</button>
+                  </div>
+                )}
+                {setCards.length < setCardsTotal && !setCardsLoading && (
+                  <button className="market-pulse-more" type="button" onClick={() => { setSetCardsLoading(true); setSetCardsError(false); setSetCardsPage((page) => page + 1); }}>
+                    {locale === "es" ? `Mostrar más (${setCardsTotal - setCards.length} restantes)` : `Show more (${setCardsTotal - setCards.length} remaining)`}
+                  </button>
+                )}
+              </>
+            )}
+          </section>
+        )}
       </div>
     </main>
   );

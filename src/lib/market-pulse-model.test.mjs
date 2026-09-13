@@ -64,7 +64,7 @@ test("keeps sets without comparisons as explicitly unavailable", () => {
   assert.equal(result.leadingMover, null);
 });
 
-test("sorts metrics descending and unavailable values last", () => {
+test("sorts metrics in both directions and keeps unavailable values last", () => {
   const positive = mapMarketPulseRow(row);
   const negative = mapMarketPulseRow({
     ...row,
@@ -81,9 +81,66 @@ test("sorts metrics descending and unavailable values last", () => {
   });
 
   assert.deepEqual(
-    sortMarketPulseSets([unavailable, negative, positive], "median").map(
+    sortMarketPulseSets([unavailable, negative, positive], "median-desc").map(
       (set) => set.code,
     ),
     ["tst", "neg", "none"],
+  );
+  assert.deepEqual(
+    sortMarketPulseSets([unavailable, positive, negative], "median-asc").map(
+      (set) => set.code,
+    ),
+    ["neg", "tst", "none"],
+  );
+});
+
+test("sorts names and releases explicitly in both directions", () => {
+  const alpha = mapMarketPulseRow({
+    ...row,
+    code: "alp",
+    name: "Alpha",
+    released_at: "2020-01-01",
+  });
+  const beta = mapMarketPulseRow({
+    ...row,
+    code: "bet",
+    name: "Beta",
+    released_at: "2025-01-01",
+  });
+  const unknown = mapMarketPulseRow({
+    ...row,
+    code: "unk",
+    name: "Unknown date",
+    released_at: null,
+  });
+
+  assert.deepEqual(
+    sortMarketPulseSets([beta, alpha], "name-asc").map((set) => set.code),
+    ["alp", "bet"],
+  );
+  assert.deepEqual(
+    sortMarketPulseSets([alpha, beta], "name-desc").map((set) => set.code),
+    ["bet", "alp"],
+  );
+  assert.deepEqual(
+    sortMarketPulseSets([unknown, alpha, beta], "release-desc").map((set) => set.code),
+    ["bet", "alp", "unk"],
+  );
+  assert.deepEqual(
+    sortMarketPulseSets([unknown, beta, alpha], "release-asc").map((set) => set.code),
+    ["alp", "bet", "unk"],
+  );
+});
+
+test("uses stable name and code tie-breakers for metric sorts", () => {
+  const alphaZ = mapMarketPulseRow({ ...row, code: "zzz", name: "Alpha" });
+  const alphaA = mapMarketPulseRow({ ...row, code: "aaa", name: "Alpha" });
+  const beta = mapMarketPulseRow({ ...row, code: "bet", name: "Beta" });
+
+  assert.deepEqual(
+    sortMarketPulseSets([beta, alphaZ, alphaA], "coverage-desc").map(
+      (set) => set.code,
+    ),
+    ["aaa", "zzz", "bet"],
   );
 });
