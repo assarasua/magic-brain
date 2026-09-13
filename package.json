@@ -25,7 +25,7 @@
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "node --test test/*.test.mjs src/lib/*.test.mjs",
     "db:migrate": "node --env-file=.env.local scripts/migrate.mjs",
     "db:sync-reserved": "node --env-file=.env.local scripts/sync-reserved-list.mjs",
