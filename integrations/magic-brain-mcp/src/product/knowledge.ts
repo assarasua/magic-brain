@@ -76,8 +76,8 @@ export const PRODUCT_FACTS: ProductFact[] = [
     topic: "differentiation_and_moat",
     status: "shipped_fact",
     statement:
-      "The product integrates portfolio and cost-basis records, P&L, watchlists, price history, market screens, explainable signals, portfolio construction, Cardmarket links, and a provenance-aware public API.",
-    keywords: ["differentiation", "integrated", "workflow", "portfolio", "signals", "api", "cardmarket"],
+      "The product integrates portfolio and cost-basis records, P&L, watchlists, price history, market screens, explainable signals, set-level scenario prediction, portfolio construction, Cardmarket links, and a provenance-aware public API.",
+    keywords: ["differentiation", "integrated", "workflow", "portfolio", "signals", "predict", "api", "cardmarket"],
     citations: [
       cite("README.md#product-areas", "Product areas"),
       cite("src/lib/public-api/openapi.ts", "Public API contract"),

@@ -17,6 +17,9 @@ redistributing data.
 - `/portfolio` — persistent holdings, cost basis, P&L, allocation, and history
 - `/watchlist` — persistent tracking and target prices
 - `/brain` — preference-driven portfolio generation using historical prices
+- `/predict` — set-level scenario analysis against inflation, S&P 500, and
+  extreme risk/reward targets
+- `/donate` — optional PayPal.Me P2P contributions
 
 English and Spanish are available from the header language control.
 

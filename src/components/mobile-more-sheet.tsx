@@ -12,6 +12,7 @@ import {
   Radar,
   Settings,
   Sparkles,
+  Target,
   TrendingUp,
   X,
 } from "lucide-react";
@@ -36,6 +37,7 @@ const groups = [
     label: "Brain",
     links: [
       { href: "/brain-pro", label: "Brain Pro", icon: Crown, premium: true },
+      { href: "/predict", label: "Predict", icon: Target, premium: true },
       { href: "/brain", label: "Portfolio Builder", icon: BrainCircuit, premium: true },
       { href: "/signals", label: "Brain Signals", icon: TrendingUp, premium: true },
       { href: "/analyst", label: "Ask Brain", icon: Sparkles, premium: true },
