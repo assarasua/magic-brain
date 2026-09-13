@@ -8,6 +8,7 @@ import {
   isValidPortfolioUnitPrice,
   parsePortfolioUpdate,
 } from "./portfolio-model.ts";
+import { buildPortfolioForecast } from "./portfolio-forecast-model.ts";
 
 const isLanguage = (value) => ["en", "es", "ja"].includes(value);
 
@@ -81,13 +82,14 @@ test("recalculates cost basis, pnl, and opportunity exposure", () => {
   ];
 
   const summary = calculatePortfolioSummary(holdings);
-  assert.deepEqual(summary, {
-    invested: 84,
-    value: 60,
-    gain: -24,
-    gainPercent: (-24 / 84) * 100,
-    cardCount: 6,
-  });
+  assert.equal(summary.invested, 84);
+  assert.equal(summary.valuedInvested, 80);
+  assert.equal(summary.unpricedInvested, 4);
+  assert.equal(summary.value, 60);
+  assert.equal(summary.unrealizedGain, -20);
+  assert.equal(summary.unrealizedGainPercent, -25);
+  assert.equal(summary.gain, -20);
+  assert.equal(summary.cardCount, 6);
 
   const analytics = calculateOpportunityAnalytics(holdings, summary.value);
   assert.equal(analytics.comparableHoldings, 2);
@@ -99,4 +101,147 @@ test("recalculates cost basis, pnl, and opportunity exposure", () => {
     exposurePercent: 50,
   });
   assert.equal(analytics.classifications.lost_momentum.count, 0);
+});
+
+test("aggregates winners, losers, and absolute contributors deterministically", () => {
+  const summary = calculatePortfolioSummary([
+    {
+      id: 1,
+      name: "Winner",
+      quantity: 2,
+      purchasePrice: 10,
+      currentPrice: 20,
+      currentValue: 40,
+      change7d: null,
+      change30d: null,
+      opportunityClassification: null,
+    },
+    {
+      id: 2,
+      name: "Loser",
+      quantity: 1,
+      purchasePrice: 50,
+      currentPrice: 30,
+      currentValue: 30,
+      change7d: null,
+      change30d: null,
+      opportunityClassification: null,
+    },
+    {
+      id: 3,
+      name: "Flat",
+      quantity: 1,
+      purchasePrice: 5,
+      currentPrice: 5,
+      currentValue: 5,
+      change7d: null,
+      change30d: null,
+      opportunityClassification: null,
+    },
+  ]);
+
+  assert.equal(summary.invested, 75);
+  assert.equal(summary.value, 75);
+  assert.equal(summary.unrealizedGain, 0);
+  assert.equal(summary.unrealizedGainPercent, 0);
+  assert.deepEqual(
+    [summary.winners, summary.losers, summary.flat],
+    [1, 1, 1],
+  );
+  assert.deepEqual(summary.bestContributor, {
+    id: 1,
+    name: "Winner",
+    gain: 20,
+    gainPercent: 100,
+    currentValue: 40,
+  });
+  assert.equal(summary.worstContributor.name, "Loser");
+  assert.equal(summary.worstContributor.gain, -20);
+});
+
+test("excludes missing market prices from unrealized P&L", () => {
+  const summary = calculatePortfolioSummary([
+    {
+      name: "Priced",
+      quantity: 1,
+      purchasePrice: 10,
+      currentPrice: 15,
+      currentValue: 15,
+      change7d: null,
+      change30d: null,
+      opportunityClassification: null,
+    },
+    {
+      name: "Unpriced",
+      quantity: 3,
+      purchasePrice: 20,
+      currentPrice: null,
+      currentValue: null,
+      change7d: null,
+      change30d: null,
+      opportunityClassification: null,
+    },
+  ]);
+
+  assert.equal(summary.invested, 70);
+  assert.equal(summary.value, 15);
+  assert.equal(summary.unrealizedGain, 5);
+  assert.equal(summary.unpricedInvested, 60);
+  assert.equal(summary.pricingCoveragePercent, 50);
+  assert.equal(summary.unpricedHoldings, 1);
+});
+
+test("reports absolute P&L but no percentage for zero cost basis", () => {
+  const summary = calculatePortfolioSummary([
+    {
+      name: "Gift",
+      quantity: 1,
+      purchasePrice: 0,
+      currentPrice: 25,
+      currentValue: 25,
+      change7d: null,
+      change30d: null,
+      opportunityClassification: null,
+    },
+  ]);
+
+  assert.equal(summary.unrealizedGain, 25);
+  assert.equal(summary.unrealizedGainPercent, null);
+  assert.equal(summary.zeroCostHoldings, 1);
+  assert.equal(summary.bestContributor.gainPercent, null);
+});
+
+test("performance analytics coexist with the existing forecast model", () => {
+  const holdings = [
+    {
+      id: 1,
+      name: "Forecastable",
+      cardId: "11111111-1111-4111-8111-111111111111",
+      quantity: 2,
+      purchasePrice: 40,
+      currentPrice: 50,
+      currentValue: 100,
+      currentPriceDate: "2026-09-10",
+      acquiredAt: "2026-01-01",
+      change7d: null,
+      change30d: 4,
+      opportunityClassification: null,
+    },
+  ];
+  const summary = calculatePortfolioSummary(holdings);
+  const forecast = buildPortfolioForecast({
+    holdings,
+    history: [],
+    ranking: {
+      source: "deterministic",
+      reason: "scores_missing_or_stale",
+      modelVersion: null,
+      scoreDate: null,
+    },
+    asOfDate: "2026-09-10",
+  });
+
+  assert.equal(summary.unrealizedGain, 20);
+  assert.equal(forecast.points[0].base, summary.value);
+  assert.equal(forecast.points.length, 61);
 });

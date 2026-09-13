@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getMarketMovers } from "@/lib/catalog";
 import { addPortfolioItem, getPortfolio } from "@/lib/portfolio";
 import { isCardLanguage } from "@/lib/card-languages";
 import {
@@ -11,6 +12,7 @@ import {
   unavailableMlExperience,
 } from "@/lib/ml-serving";
 import { buildPortfolioForecast } from "@/lib/portfolio-forecast-model";
+import { buildPortfolioIntelligence } from "@/lib/portfolio-intelligence-model";
 import { attachSessionCookie, getOrCreateUser } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -29,7 +31,7 @@ export async function GET(request: NextRequest) {
     }
     const { user, newToken } = session;
     const portfolio = await getPortfolio(user.id);
-    const [experience, candidates] = await Promise.all([
+    const [experience, personalized] = await Promise.all([
       getMlExperienceForCards(
         user.id,
         portfolio.holdings.map((holding) => holding.cardId),
@@ -39,7 +41,26 @@ export async function GET(request: NextRequest) {
         ranking: unavailableMlExperience().ranking,
       })),
     ]);
-    const heldIds = new Set(portfolio.holdings.map((holding) => holding.cardId));
+    const usesVerifiedCandidates =
+      personalized.ranking.source === "ml_batch" &&
+      personalized.signals.length > 0;
+    const candidatePool = usesVerifiedCandidates
+      ? personalized.signals
+      : await getMarketMovers(24, "gainers", 7).catch(() => []);
+    const intelligenceRanking = usesVerifiedCandidates
+      ? personalized.ranking
+      : personalized.ranking.source === "deterministic"
+        ? personalized.ranking
+        : unavailableMlExperience().ranking;
+    const intelligence = buildPortfolioIntelligence({
+      holdings: portfolio.holdings,
+      candidates: candidatePool,
+      ranking: intelligenceRanking,
+      maximumCandidatePrice: Math.min(
+        user.preferences.maxCardPrice,
+        user.preferences.defaultBudget * 0.45,
+      ),
+    });
     const forecast = buildPortfolioForecast({
       holdings: portfolio.holdings.map((holding) => ({
         ...holding,
@@ -57,19 +78,13 @@ export async function GET(request: NextRequest) {
           ml: experience.scores[holding.cardId] ?? null,
         })),
         mlIntelligence: {
-          ranking: candidates.ranking.source === "ml_batch"
-            ? candidates.ranking
-            : experience.ranking,
-          candidateAdditions: candidates.signals
-            .filter((candidate) => !heldIds.has(candidate.id))
-            .slice(0, 3),
-          coolingHoldings: portfolio.holdings
-            .filter((holding) => holding.opportunityClassification === "lost_momentum")
-            .slice(0, 3)
-            .map((holding) => ({
-              ...holding,
-              ml: experience.scores[holding.cardId] ?? null,
-            })),
+          ranking: intelligenceRanking,
+          ...intelligence,
+          candidateAdditions: intelligence.candidateAdditions,
+          holdingReviews: intelligence.holdingReviews.map((holding) => ({
+            ...holding,
+            ml: experience.scores[holding.cardId] ?? null,
+          })),
         },
       }),
       newToken,

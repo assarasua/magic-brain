@@ -45,6 +45,31 @@ type PortfolioData = {
     value: number;
     gain: number;
     gainPercent: number;
+    unrealizedGain: number;
+    unrealizedGainPercent: number | null;
+    valuedInvested: number;
+    unpricedInvested: number;
+    pricedHoldings: number;
+    unpricedHoldings: number;
+    zeroCostHoldings: number;
+    pricingCoveragePercent: number;
+    winners: number;
+    losers: number;
+    flat: number;
+    bestContributor: {
+      id: number | null;
+      name: string | null;
+      gain: number;
+      gainPercent: number | null;
+      currentValue: number;
+    } | null;
+    worstContributor: {
+      id: number | null;
+      name: string | null;
+      gain: number;
+      gainPercent: number | null;
+      currentValue: number;
+    } | null;
     cardCount: number;
   };
   history: Array<{ date: string; value: number; invested: number }>;
@@ -64,6 +89,12 @@ type PortfolioData = {
   };
   mlIntelligence?: {
     ranking: MlRankingStatus;
+    mode: "ml" | "deterministic";
+    state: "no_portfolio" | "no_priced_holdings" | "active";
+    candidateState:
+      | "available"
+      | "no_candidates_after_constraints"
+      | "portfolio_unavailable";
     candidateAdditions: Array<{
       id: string;
       name: string;
@@ -71,9 +102,14 @@ type PortfolioData = {
       imageUrl: string | null;
       price: number;
       change7d: number | null;
-      ml: MlCardContext;
+      ml?: MlCardContext | null;
     }>;
-    coolingHoldings: Array<PortfolioHolding & { ml?: MlCardContext | null }>;
+    holdingReviews: Array<
+      PortfolioHolding & {
+        ml?: MlCardContext | null;
+        reviewSignal: "cooling" | "hold";
+      }
+    >;
   };
 };
 
@@ -93,7 +129,26 @@ const fallbackRanking: MlRankingStatus = {
 
 const emptyPortfolio: PortfolioData = {
   holdings: [],
-  summary: { invested: 0, value: 0, gain: 0, gainPercent: 0, cardCount: 0 },
+  summary: {
+    invested: 0,
+    value: 0,
+    gain: 0,
+    gainPercent: 0,
+    unrealizedGain: 0,
+    unrealizedGainPercent: null,
+    valuedInvested: 0,
+    unpricedInvested: 0,
+    pricedHoldings: 0,
+    unpricedHoldings: 0,
+    zeroCostHoldings: 0,
+    pricingCoveragePercent: 0,
+    winners: 0,
+    losers: 0,
+    flat: 0,
+    bestContributor: null,
+    worstContributor: null,
+    cardCount: 0,
+  },
   history: [],
   forecast: {
     asOfDate: new Date().toISOString().slice(0, 10),
@@ -198,7 +253,7 @@ function PortfolioChart({
         onMouseLeave={() => setHovered(null)}
       >
         <div className="chart-y-axis"><span>{formatCurrency(max)}</span><span>{formatCurrency((max + min) / 2)}</span><span>{formatCurrency(min)}</span></div>
-        <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img" aria-label={locale === "es" ? "Valor de cartera frente al capital invertido" : "Portfolio value versus invested capital"}>
+        <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img" aria-label={locale === "es" ? "Valor conocido de cartera frente al coste de posiciones valoradas" : "Known portfolio value versus priced holdings cost"}>
           <defs><linearGradient id="advancedPortfolioFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#8b5cf6" stopOpacity=".3" /><stop offset="1" stopColor="#8b5cf6" stopOpacity="0" /></linearGradient></defs>
           {[0.2, 0.5, 0.8].map((position) => <line key={position} x1="0" x2={width} y1={height * position} y2={height * position} className="chart-grid-line" />)}
           <polygon points={`0,${height - bottom} ${valueLine} ${width},${height - bottom}`} fill="url(#advancedPortfolioFill)" />
@@ -209,7 +264,7 @@ function PortfolioChart({
         </svg>
         {hovered !== null && <div className="chart-tooltip" style={{ left: `${(activeIndex / (visible.length - 1)) * 100}%` }}><strong>{formatCurrency(active.value)}</strong><span>{new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(new Date(active.date))}</span><small>{locale === "es" ? "Invertido" : "Invested"} {formatCurrency(active.invested)}</small></div>}
       </div>
-      <div className="chart-legend"><span><i className="value" />{locale === "es" ? "Valor de mercado" : "Market value"}</span><span><i className="cost" />{locale === "es" ? "Capital invertido" : "Invested capital"}</span></div>
+      <div className="chart-legend"><span><i className="value" />{locale === "es" ? "Valor conocido" : "Known value"}</span><span><i className="cost" />{locale === "es" ? "Coste valorado" : "Priced cost basis"}</span></div>
     </div>
   );
 }
@@ -331,13 +386,6 @@ export default function PortfolioPage() {
     const valued = data.holdings.filter(
       (holding) => holding.currentValue !== null && holding.gainPercent !== null,
     );
-    const ranked = [...valued].sort(
-      (a, b) => (b.gainPercent ?? 0) - (a.gainPercent ?? 0),
-    );
-    const previous = data.history.at(-2)?.value ?? data.summary.value;
-    const dailyChange = previous > 0
-      ? ((data.summary.value - previous) / previous) * 100
-      : 0;
     const series = calculateSeriesMetrics(
       data.history.map((point) => ({ date: point.date, value: point.value })),
     );
@@ -352,12 +400,6 @@ export default function PortfolioPage() {
       ? data.summary.gainPercent / series.annualizedVolatilityPercent
       : 0;
     return {
-      dailyChange,
-      best: ranked[0] ?? null,
-      worst: ranked.at(-1) ?? null,
-      profitableShare: valued.length
-        ? (valued.filter((holding) => (holding.gain ?? 0) > 0).length / valued.length) * 100
-        : 0,
       concentration: allocation[0]?.share ?? 0,
       averagePosition: valued.length ? data.summary.value / valued.length : 0,
       volatility: series?.annualizedVolatilityPercent ?? 0,
@@ -417,7 +459,7 @@ export default function PortfolioPage() {
       }),
     });
     if (response.ok) {
-      setData((await response.json()) as PortfolioData);
+      await loadPortfolio();
       setShowAdd(false);
       setSelectedCard(null);
       setCardQuery("");
@@ -429,7 +471,7 @@ export default function PortfolioPage() {
 
   const removeHolding = async (id: number) => {
     const response = await fetch(`/api/portfolio/${id}`, { method: "DELETE" });
-    if (response.ok) setData((await response.json()) as PortfolioData);
+    if (response.ok) await loadPortfolio();
   };
 
   const patchHolding = async (
@@ -490,7 +532,7 @@ export default function PortfolioPage() {
         body: JSON.stringify(update),
       });
       if (!response.ok) throw new Error("Update failed");
-      setData((await response.json()) as PortfolioData);
+      await loadPortfolio();
       setEditingHolding(null);
     } catch {
       setData(previous);
@@ -558,7 +600,7 @@ export default function PortfolioPage() {
         eventType: "add_to_portfolio",
         surface: "portfolio",
         cardId: candidate.id,
-        context: candidate.ml,
+        context: candidate.ml ?? undefined,
         rankPosition,
       });
       await loadPortfolio();
@@ -591,15 +633,27 @@ export default function PortfolioPage() {
         ) : (
           <>
             <section className="account-metrics">
-              <div><span>{t("Portfolio value")}</span><strong>{formatCurrency(data.summary.value)}</strong><em className={data.summary.gain >= 0 ? "up" : "down"}>{data.summary.gain >= 0 ? <TrendingUp size={13} /> : <TrendingDown size={13} />}{data.summary.gainPercent.toFixed(2)}%</em></div>
-              <div><span>{t("Total invested")}</span><strong>{formatCurrency(data.summary.invested)}</strong><small>{data.summary.cardCount} {locale === "es" ? "cartas" : "cards"}</small></div>
-              <div><span>{t("Unrealised return")}</span><strong className={data.summary.gain >= 0 ? "up" : "down"}>{data.summary.gain >= 0 ? "+" : ""}{formatCurrency(data.summary.gain)}</strong><small>{locale === "es" ? "Desde la compra" : "Since purchase"}</small></div>
-              <div><span>{locale === "es" ? "Movimiento diario" : "Daily movement"}</span><strong className={analytics.dailyChange >= 0 ? "up" : "down"}>{analytics.dailyChange >= 0 ? "+" : ""}{analytics.dailyChange.toFixed(2)}%</strong><small>{locale === "es" ? "Último cierre disponible" : "Latest available close"}</small></div>
+              <div><span>{locale === "es" ? "Coste total invertido" : "Total invested cost"}</span><strong>{formatCurrency(data.summary.invested)}</strong><small>{data.summary.cardCount} {locale === "es" ? "cartas en cartera" : "cards held"}</small></div>
+              <div><span>{locale === "es" ? "Valor actual conocido" : "Known current value"}</span><strong>{formatCurrency(data.summary.value)}</strong><small>{data.summary.pricedHoldings}/{data.holdings.length} {locale === "es" ? "posiciones con precio" : "holdings priced"} · {data.summary.pricingCoveragePercent.toFixed(0)}%</small></div>
+              <div><span>{locale === "es" ? "Ganancia/pérdida no realizada" : "Unrealized gain/loss"}</span><strong className={data.summary.unrealizedGain >= 0 ? "up" : "down"}>{data.summary.unrealizedGain >= 0 ? <TrendingUp size={16} aria-hidden="true" /> : <TrendingDown size={16} aria-hidden="true" />}{data.summary.unrealizedGain >= 0 ? "+" : ""}{formatCurrency(data.summary.unrealizedGain)}</strong><small>{locale === "es" ? "Solo posiciones con precio actual" : "Priced holdings only"}</small></div>
+              <div><span>{locale === "es" ? "Rentabilidad no realizada" : "Unrealized return"}</span><strong className={(data.summary.unrealizedGainPercent ?? 0) >= 0 ? "up" : "down"}>{data.summary.unrealizedGainPercent === null ? "—" : `${data.summary.unrealizedGainPercent >= 0 ? "▲ +" : "▼ "}${data.summary.unrealizedGainPercent.toFixed(2)}%`}</strong><small>{data.summary.unrealizedGainPercent === null ? (locale === "es" ? "No disponible: coste valorado cero" : "Unavailable: valued cost is zero") : (locale === "es" ? `Sobre ${formatCurrency(data.summary.valuedInvested)} de coste valorado` : `On ${formatCurrency(data.summary.valuedInvested)} priced cost`)}</small></div>
             </section>
+
+            <p className={styles.pnlDisclosure}>
+              {locale === "es"
+                ? `Todas las cifras de rendimiento son no realizadas. Las ganancias/pérdidas realizadas requieren ventas registradas, y esta cartera todavía no tiene un registro de ventas.${data.summary.unpricedHoldings ? ` ${data.summary.unpricedHoldings} posición(es), con ${formatCurrency(data.summary.unpricedInvested)} de coste, no tienen precio actual y se excluyen del valor y P&L.` : ""}`
+                : `All return figures are unrealized. Realized P&L requires recorded sales, and this portfolio does not yet have a sales ledger.${data.summary.unpricedHoldings ? ` ${data.summary.unpricedHoldings} holding(s), representing ${formatCurrency(data.summary.unpricedInvested)} of cost, have no current price and are excluded from value and P&L.` : ""}`}
+            </p>
+
+            <PortfolioForecastChart
+              forecast={data.forecast}
+              history={data.history}
+              locale={locale}
+            />
 
             <section className="portfolio-workspace">
               <div className="fintech-panel performance-panel">
-                <div className="section-title"><div><span className="eyebrow">{t("Portfolio performance")}</span><h2>{locale === "es" ? "Valor frente a capital invertido" : "Value versus invested capital"}</h2></div><span className="live-badge"><i /> Live</span></div>
+                <div className="section-title"><div><span className="eyebrow">{t("Portfolio performance")}</span><h2>{locale === "es" ? "Valor conocido frente a coste valorado" : "Known value versus priced cost"}</h2></div><span className="live-badge"><i /> Live</span></div>
                 <PortfolioChart points={data.history} locale={locale} />
               </div>
               <div className="fintech-panel allocation-panel">
@@ -609,17 +663,11 @@ export default function PortfolioPage() {
               </div>
             </section>
 
-            <PortfolioForecastChart
-              forecast={data.forecast}
-              history={data.history}
-              locale={locale}
-            />
-
             <section className="portfolio-stat-grid">
-              <article><span>{locale === "es" ? "Mejor posición" : "Best performer"}</span><strong>{analytics.best?.name ?? "—"}</strong><em className="up">{analytics.best?.gainPercent === null || !analytics.best ? "—" : `+${analytics.best.gainPercent.toFixed(1)}%`}</em></article>
-              <article><span>{locale === "es" ? "Posiciones rentables" : "Profitable positions"}</span><strong>{analytics.profitableShare.toFixed(0)}%</strong><small>{locale === "es" ? "de activos valorados" : "of valued assets"}</small></article>
+              <article><span>{locale === "es" ? "Posiciones ganadoras / perdedoras" : "Winning / losing positions"}</span><strong>▲ {data.summary.winners} / ▼ {data.summary.losers}</strong><small>{data.summary.flat} {locale === "es" ? "sin cambio · solo valoradas" : "flat · priced only"}</small></article>
+              <article><span>{locale === "es" ? "Mejor contribución" : "Best contributor"}</span><strong>{data.summary.bestContributor?.name ?? "—"}</strong><em className={(data.summary.bestContributor?.gain ?? 0) >= 0 ? "up" : "down"}>{data.summary.bestContributor ? `${data.summary.bestContributor.gain >= 0 ? "▲ +" : "▼ "}${formatCurrency(data.summary.bestContributor.gain)}${data.summary.bestContributor.gainPercent === null ? "" : ` · ${data.summary.bestContributor.gainPercent.toFixed(1)}%`}` : "—"}</em></article>
+              <article><span>{locale === "es" ? "Peor contribución" : "Worst contributor"}</span><strong>{data.summary.worstContributor?.name ?? "—"}</strong><em className={(data.summary.worstContributor?.gain ?? 0) >= 0 ? "up" : "down"}>{data.summary.worstContributor ? `${data.summary.worstContributor.gain >= 0 ? "▲ +" : "▼ "}${formatCurrency(data.summary.worstContributor.gain)}${data.summary.worstContributor.gainPercent === null ? "" : ` · ${data.summary.worstContributor.gainPercent.toFixed(1)}%`}` : "—"}</em></article>
               <article><span>{locale === "es" ? "Mayor exposición" : "Top concentration"}</span><strong>{analytics.concentration.toFixed(1)}%</strong><small>{allocation[0]?.name ?? "—"}</small></article>
-              <article><span>{locale === "es" ? "Posición media" : "Average position"}</span><strong>{formatCurrency(analytics.averagePosition)}</strong><small>{locale === "es" ? "valor por activo" : "value per asset"}</small></article>
             </section>
 
             <section className={`fintech-panel ${styles.intelligencePanel}`}>
@@ -644,7 +692,7 @@ export default function PortfolioPage() {
               )}
               <div className={styles.intelligenceGrid}>
                 <div>
-                  <h3>{locale === "es" ? "Candidatas para añadir" : "Candidate additions"}</h3>
+                  <h3>{data.mlIntelligence?.mode === "ml" ? (locale === "es" ? "Candidatas personalizadas" : "Personalized candidates") : (locale === "es" ? "Candidatas por reglas" : "Rule-based candidates")}</h3>
                   {data.mlIntelligence?.candidateAdditions.length ? data.mlIntelligence.candidateAdditions.map((candidate, index) => (
                     <article key={candidate.id} className={styles.intelligenceCard}>
                       <div>
@@ -654,32 +702,41 @@ export default function PortfolioPage() {
                       <button type="button" onClick={() => void addCandidate(candidate, index + 1)}>
                         <Plus size={14} /> {locale === "es" ? "Revisar y añadir" : "Review and add"}
                       </button>
-                      <MlInsight
-                        locale={locale}
-                        ranking={data.mlIntelligence!.ranking}
-                        context={candidate.ml}
-                        surface="portfolio"
-                        cardId={candidate.id}
-                        rankPosition={index + 1}
-                      />
+                      {data.mlIntelligence!.mode === "ml" && candidate.ml ? (
+                        <MlInsight
+                          locale={locale}
+                          ranking={data.mlIntelligence!.ranking}
+                          context={candidate.ml}
+                          surface="portfolio"
+                          cardId={candidate.id}
+                          rankPosition={index + 1}
+                        />
+                      ) : (
+                        <small className={styles.deterministicReason}>
+                          {locale === "es"
+                            ? `Regla transparente: precio dentro de tu límite y momentum 7D positivo (${candidate.change7d?.toFixed(1)}%).`
+                            : `Transparent rule: price within your limit and positive 7D momentum (${candidate.change7d?.toFixed(1)}%).`}
+                        </small>
+                      )}
                     </article>
-                  )) : <p>{locale === "es" ? "No hay candidatas aprendidas verificadas disponibles." : "No verified learned candidates are available."}</p>}
+                  )) : <p>{data.mlIntelligence?.state === "no_priced_holdings"
+                    ? (locale === "es" ? "Añade o actualiza precios de mercado para activar comparaciones de cartera." : "Add or refresh market prices to enable portfolio comparisons.")
+                    : (locale === "es" ? "Ninguna carta pasa ahora los límites de precio, identidad y momentum. Revisa tu precio máximo o vuelve cuando cambien los datos." : "No cards currently pass the price, identity, and momentum constraints. Review your maximum price or check again when market data changes.")}</p>}
                 </div>
                 <div>
-                  <h3>{locale === "es" ? "Posiciones enfriándose" : "Cooling holdings"}</h3>
-                  {data.mlIntelligence?.coolingHoldings.length ? data.mlIntelligence.coolingHoldings.map((holding, index) => (
+                  <h3>{locale === "es" ? "Posiciones para revisar" : "Holdings to review"}</h3>
+                  {data.mlIntelligence?.holdingReviews.length ? data.mlIntelligence.holdingReviews.map((holding) => (
                     <article key={holding.id} className={styles.intelligenceCard}>
-                      <div><strong>{holding.name}</strong><span>7D {holding.change7d?.toFixed(1)}% · 30D {holding.change30d?.toFixed(1)}%</span></div>
-                      <MlInsight
-                        locale={locale}
-                        ranking={data.mlIntelligence!.ranking}
-                        context={holding.ml ?? undefined}
-                        surface="portfolio"
-                        cardId={holding.cardId}
-                        rankPosition={index + 1}
-                      />
+                      <div><strong>{holding.name}</strong><span>7D {holding.change7d === null ? "—" : `${holding.change7d >= 0 ? "+" : ""}${holding.change7d.toFixed(1)}%`} · 30D {holding.change30d === null ? "—" : `${holding.change30d >= 0 ? "+" : ""}${holding.change30d.toFixed(1)}%`}</span></div>
+                      <small className={styles.deterministicReason}>
+                        {holding.reviewSignal === "cooling"
+                          ? (locale === "es" ? "▼ Revisar: caída de al menos 2% en 7D o 5% en 30D. No implica vender." : "▼ Review: down at least 2% over 7D or 5% over 30D. This is not a sell instruction.")
+                          : (locale === "es" ? "● Mantener bajo observación: es tu mayor posición valorada y no cruza el umbral de enfriamiento." : "● Monitor: this is your largest priced position and it does not cross the cooling threshold.")}
+                      </small>
                     </article>
-                  )) : <p>{locale === "es" ? "Ninguna posición cruza el umbral descriptivo de enfriamiento." : "No holding crosses the descriptive cooling threshold."}</p>}
+                  )) : <p>{data.mlIntelligence?.state === "no_priced_holdings"
+                    ? (locale === "es" ? "No hay posiciones con precio actual; no se puede medir momentum ni contribución." : "There are no holdings with a current price, so momentum and contribution cannot be measured.")
+                    : (locale === "es" ? "No hay posiciones valoradas que revisar todavía." : "There are no priced holdings to review yet.")}</p>}
                 </div>
               </div>
             </section>
@@ -742,7 +799,7 @@ export default function PortfolioPage() {
                 </div>
                 <div className={styles.costCell}><span>{locale === "es" ? "Coste" : "Cost"}</span>{editingHolding === holding.id ? <div className={styles.editFields}><label><span>{locale === "es" ? "Cantidad" : "Quantity"}</span><input aria-label={locale === "es" ? "Cantidad" : "Quantity"} type="number" min="1" max="1000000" step="1" value={editQuantity} disabled={updatingHolding === holding.id} onChange={(event) => setEditQuantity(event.target.value)} /></label><label><span>{locale === "es" ? "Precio unitario" : "Unit price"}</span><input aria-label={locale === "es" ? "Precio unitario" : "Unit price"} type="number" min="0" max="999999999999.99" step=".01" value={editPurchasePrice} disabled={updatingHolding === holding.id} onChange={(event) => setEditPurchasePrice(event.target.value)} /></label></div> : <strong>{formatCurrency(holding.costBasis)}</strong>}</div>
                 <div><span>{locale === "es" ? "Valor" : "Value"}</span><strong>{holding.currentValue === null ? "—" : formatCurrency(holding.currentValue)}</strong></div>
-                <div><span>P&L</span><strong className={(holding.gain ?? 0) >= 0 ? "up" : "down"}>{holding.gain === null ? "—" : `${holding.gain >= 0 ? "+" : ""}${formatCurrency(holding.gain)}`}</strong></div>
+                <div><span>{locale === "es" ? "P&L no realizado" : "Unrealized P&L"}</span><strong className={(holding.gain ?? 0) >= 0 ? "up" : "down"}>{holding.gain === null ? (locale === "es" ? "Sin precio actual" : "No current price") : `${holding.gain >= 0 ? "▲ +" : "▼ "}${formatCurrency(holding.gain)}`}</strong><small className={styles.holdingReturn}>{holding.gain === null ? (locale === "es" ? "Excluido del total" : "Excluded from total") : holding.gainPercent === null ? (locale === "es" ? "% no disponible: coste cero" : "% unavailable: zero cost") : `${holding.gainPercent >= 0 ? "▲ +" : "▼ "}${holding.gainPercent.toFixed(2)}%`}</small></div>
                 <div className={styles.actions}>
                   {updatingHolding === holding.id && <span className={styles.savingIndicator} role="status">{locale === "es" ? "Guardando" : "Saving"}</span>}
                   {editingHolding === holding.id ? <><button disabled={updatingHolding === holding.id} onClick={() => saveHolding(holding.id)} aria-label={`Save ${holding.name}`}><Check size={15} /></button><button disabled={updatingHolding === holding.id} onClick={() => setEditingHolding(null)} aria-label={`Cancel editing ${holding.name}`}><X size={15} /></button></> : <button onClick={() => startEditingHolding(holding)} aria-label={`Edit ${holding.name}`}><Pencil size={14} /></button>}

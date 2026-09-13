@@ -7,6 +7,8 @@ export type PortfolioOpportunityClassification =
   | "lost_momentum";
 
 export type PortfolioNumericHolding = {
+  id?: number;
+  name?: string;
   quantity: number;
   purchasePrice: number;
   currentPrice: number | null;
@@ -96,16 +98,57 @@ export function calculatePortfolioSummary<T extends PortfolioNumericHolding>(
       total + holding.purchasePrice * holding.quantity,
     0,
   );
-  const value = holdings.reduce(
-    (total, holding) => total + (holding.currentValue ?? 0),
+  const priced = holdings.filter((holding) => holding.currentValue !== null);
+  const valuedInvested = priced.reduce(
+    (total, holding) =>
+      total + holding.purchasePrice * holding.quantity,
     0,
   );
+  const value = priced.reduce(
+    (total, holding) => total + holding.currentValue!,
+    0,
+  );
+  const unrealizedGain = value - valuedInvested;
+  const contributors = priced
+    .map((holding) => {
+      const costBasis = holding.purchasePrice * holding.quantity;
+      const gain = holding.currentValue! - costBasis;
+      return {
+        id: holding.id ?? null,
+        name: holding.name ?? null,
+        gain,
+        gainPercent: costBasis > 0 ? (gain / costBasis) * 100 : null,
+        currentValue: holding.currentValue!,
+      };
+    })
+    .sort((a, b) => b.gain - a.gain);
 
   return {
     invested,
     value,
-    gain: value - invested,
-    gainPercent: invested > 0 ? ((value - invested) / invested) * 100 : 0,
+    // Kept for existing consumers; both fields are unrealized and only include
+    // holdings with a current market price.
+    gain: unrealizedGain,
+    gainPercent:
+      valuedInvested > 0 ? (unrealizedGain / valuedInvested) * 100 : 0,
+    unrealizedGain,
+    unrealizedGainPercent:
+      valuedInvested > 0 ? (unrealizedGain / valuedInvested) * 100 : null,
+    valuedInvested,
+    unpricedInvested: invested - valuedInvested,
+    pricedHoldings: priced.length,
+    unpricedHoldings: holdings.length - priced.length,
+    zeroCostHoldings: priced.filter(
+      (holding) => holding.purchasePrice * holding.quantity === 0,
+    ).length,
+    pricingCoveragePercent: holdings.length
+      ? (priced.length / holdings.length) * 100
+      : 0,
+    winners: contributors.filter((holding) => holding.gain > 0).length,
+    losers: contributors.filter((holding) => holding.gain < 0).length,
+    flat: contributors.filter((holding) => holding.gain === 0).length,
+    bestContributor: contributors[0] ?? null,
+    worstContributor: contributors.at(-1) ?? null,
     cardCount: holdings.reduce(
       (total, holding) => total + holding.quantity,
       0,
