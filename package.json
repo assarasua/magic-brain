@@ -37,6 +37,8 @@
     "ml:evaluate": "node scripts/evaluate-ml-ranking.mjs",
     "ml:export-real": "node --env-file-if-exists=.env.local scripts/export-ml-ranking-dataset.mjs",
     "ml:evaluate-real": "node scripts/evaluate-ml-ranking.mjs --input artifacts/ml-ranking/real-dataset.json --output-dir artifacts/ml-ranking/real",
+    "ml:register": "node --env-file-if-exists=.env.local scripts/register-ml-artifact.mjs",
+    "ml:score-daily": "node --env-file-if-exists=.env.local scripts/run-ml-batch-scoring.mjs",
     "db:migrate": "node --env-file=.env.local scripts/migrate.mjs",
     "db:sync-reserved": "node --env-file=.env.local scripts/sync-reserved-list.mjs",
     "db:sync-sets": "node --env-file=.env.local scripts/sync-sets.mjs"
