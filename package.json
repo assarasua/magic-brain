@@ -34,6 +34,9 @@
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "node --test test/*.test.mjs src/lib/*.test.mjs",
+    "ml:evaluate": "node scripts/evaluate-ml-ranking.mjs",
+    "ml:export-real": "node --env-file-if-exists=.env.local scripts/export-ml-ranking-dataset.mjs",
+    "ml:evaluate-real": "node scripts/evaluate-ml-ranking.mjs --input artifacts/ml-ranking/real-dataset.json --output-dir artifacts/ml-ranking/real",
     "db:migrate": "node --env-file=.env.local scripts/migrate.mjs",
     "db:sync-reserved": "node --env-file=.env.local scripts/sync-reserved-list.mjs",
     "db:sync-sets": "node --env-file=.env.local scripts/sync-sets.mjs"

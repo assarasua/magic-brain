@@ -29,6 +29,8 @@ coverage/
 *.pfx
 credentials*.json
 service-account*.json
+/artifacts/ml-ranking/real-dataset.json
+/artifacts/ml-ranking/real/
 
 # TypeScript
 *.tsbuildinfo

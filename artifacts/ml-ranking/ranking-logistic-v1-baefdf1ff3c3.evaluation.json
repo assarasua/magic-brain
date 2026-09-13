@@ -1,0 +1,247 @@
+{
+  "schemaVersion": "ml-ranking-evaluation-v1",
+  "datasetContractVersion": "ml-ranking-dataset-v1",
+  "datasetVersion": "sha256:baefdf1ff3c39439db187eec6214f970d1d8f93e78fa3f49353cac18b3227aa7",
+  "datasetKind": "synthetic",
+  "featureContractVersion": "v1",
+  "labelContractVersion": "v1",
+  "modelVersion": "ranking-logistic-v1-baefdf1ff3c3",
+  "evaluation": {
+    "methodology": {
+      "split": "expanding_walk_forward_by_as_of_date",
+      "deterministicComparator": "brain_balanced_medium_diversified_any_v1",
+      "labelMaturityRule": "label_cutoff_date <= test_date",
+      "exactTarget": "return_30d from exact calendar-date price",
+      "missingLabels": "excluded_from metric denominators and reported as coverage",
+      "k": 10,
+      "seed": 20260913,
+      "transactionCost": 0.02
+    },
+    "folds": [
+      {
+        "testDate": "2023-08-29",
+        "trainingRows": 36,
+        "trainingMaxAsOfDate": "2023-05-01",
+        "trainingMaxLabelCutoffDate": "2023-07-30",
+        "testRows": 18,
+        "labelCoverage30d": 1,
+        "deterministic": {
+          "precisionAt10": 0.5,
+          "ndcgAt10": 0.3347014123418784,
+          "hitRate": 1,
+          "downsideRate": 0.7,
+          "downsideCoverage": 1,
+          "meanNetReturn30d": -0.057199999999999994,
+          "evaluatedAtK": 10
+        },
+        "learned": {
+          "precisionAt10": 1,
+          "ndcgAt10": 0.9950809716346832,
+          "hitRate": 1,
+          "downsideRate": 0.3,
+          "downsideCoverage": 1,
+          "meanNetReturn30d": 0.0842,
+          "evaluatedAtK": 10
+        },
+        "learnedCalibration": {
+          "brierScore": 0.1166428,
+          "expectedCalibrationError": 0.18593588,
+          "sampleCount": 18
+        }
+      },
+      {
+        "testDate": "2023-12-27",
+        "trainingRows": 54,
+        "trainingMaxAsOfDate": "2023-08-29",
+        "trainingMaxLabelCutoffDate": "2023-11-27",
+        "testRows": 18,
+        "labelCoverage30d": 1,
+        "deterministic": {
+          "precisionAt10": 0.3,
+          "ndcgAt10": 0.2583419681144634,
+          "hitRate": 0,
+          "downsideRate": 0.7,
+          "downsideCoverage": 1,
+          "meanNetReturn30d": -0.0834,
+          "evaluatedAtK": 10
+        },
+        "learned": {
+          "precisionAt10": 0.4,
+          "ndcgAt10": 0.9009677749254951,
+          "hitRate": 1,
+          "downsideRate": 0.6,
+          "downsideCoverage": 1,
+          "meanNetReturn30d": -0.0032500000000000016,
+          "evaluatedAtK": 10
+        },
+        "learnedCalibration": {
+          "brierScore": 0.19694103,
+          "expectedCalibrationError": 0.27720268,
+          "sampleCount": 18
+        }
+      },
+      {
+        "testDate": "2024-04-25",
+        "trainingRows": 72,
+        "trainingMaxAsOfDate": "2023-12-27",
+        "trainingMaxLabelCutoffDate": "2024-03-26",
+        "testRows": 18,
+        "labelCoverage30d": 1,
+        "deterministic": {
+          "precisionAt10": 0.4,
+          "ndcgAt10": 0.21549190085776773,
+          "hitRate": 1,
+          "downsideRate": 0.7,
+          "downsideCoverage": 1,
+          "meanNetReturn30d": -0.10045,
+          "evaluatedAtK": 10
+        },
+        "learned": {
+          "precisionAt10": 0.8,
+          "ndcgAt10": 0.9844067557141479,
+          "hitRate": 1,
+          "downsideRate": 0.4,
+          "downsideCoverage": 1,
+          "meanNetReturn30d": 0.0364,
+          "evaluatedAtK": 10
+        },
+        "learnedCalibration": {
+          "brierScore": 0.09283325,
+          "expectedCalibrationError": 0.20601948,
+          "sampleCount": 18
+        }
+      },
+      {
+        "testDate": "2024-08-23",
+        "trainingRows": 90,
+        "trainingMaxAsOfDate": "2024-04-25",
+        "trainingMaxLabelCutoffDate": "2024-07-24",
+        "testRows": 18,
+        "labelCoverage30d": 0.9444444444444444,
+        "deterministic": {
+          "precisionAt10": 0.3,
+          "ndcgAt10": 0.24830569018032653,
+          "hitRate": 0,
+          "downsideRate": 0.7,
+          "downsideCoverage": 1,
+          "meanNetReturn30d": -0.07145,
+          "evaluatedAtK": 10
+        },
+        "learned": {
+          "precisionAt10": 0.6,
+          "ndcgAt10": 0.9473175492990576,
+          "hitRate": 1,
+          "downsideRate": 0.4,
+          "downsideCoverage": 1,
+          "meanNetReturn30d": 0.05130000000000001,
+          "evaluatedAtK": 10
+        },
+        "learnedCalibration": {
+          "brierScore": 0.11878243,
+          "expectedCalibrationError": 0.16797295,
+          "sampleCount": 17
+        }
+      },
+      {
+        "testDate": "2024-12-21",
+        "trainingRows": 107,
+        "trainingMaxAsOfDate": "2024-08-23",
+        "trainingMaxLabelCutoffDate": "2024-11-21",
+        "testRows": 18,
+        "labelCoverage30d": 1,
+        "deterministic": {
+          "precisionAt10": 0.4,
+          "ndcgAt10": 0.2865894997858791,
+          "hitRate": 1,
+          "downsideRate": 0.7,
+          "downsideCoverage": 1,
+          "meanNetReturn30d": -0.09,
+          "evaluatedAtK": 10
+        },
+        "learned": {
+          "precisionAt10": 0.6,
+          "ndcgAt10": 0.9982655867820981,
+          "hitRate": 1,
+          "downsideRate": 0.5,
+          "downsideCoverage": 1,
+          "meanNetReturn30d": 0.004949999999999999,
+          "evaluatedAtK": 10
+        },
+        "learnedCalibration": {
+          "brierScore": 0.10940729,
+          "expectedCalibrationError": 0.2049446,
+          "sampleCount": 18
+        }
+      },
+      {
+        "testDate": "2025-04-20",
+        "trainingRows": 125,
+        "trainingMaxAsOfDate": "2024-12-21",
+        "trainingMaxLabelCutoffDate": "2025-03-21",
+        "testRows": 18,
+        "labelCoverage30d": 1,
+        "deterministic": {
+          "precisionAt10": 0.1,
+          "ndcgAt10": 0.18976386633708148,
+          "hitRate": 0,
+          "downsideRate": 0.9,
+          "downsideCoverage": 1,
+          "meanNetReturn30d": -0.13195,
+          "evaluatedAtK": 10
+        },
+        "learned": {
+          "precisionAt10": 0.4,
+          "ndcgAt10": 0.9876432301220044,
+          "hitRate": 1,
+          "downsideRate": 0.6,
+          "downsideCoverage": 1,
+          "meanNetReturn30d": 0.002450000000000002,
+          "evaluatedAtK": 10
+        },
+        "learnedCalibration": {
+          "brierScore": 0.08507736,
+          "expectedCalibrationError": 0.20620843,
+          "sampleCount": 18
+        }
+      }
+    ],
+    "aggregate": {
+      "foldCount": 6,
+      "candidateRows": 108,
+      "labelCoverage30d": 0.99074074,
+      "deterministic": {
+        "precisionAt10": 0.33333333,
+        "ndcgAt10": 0.25553239,
+        "hitRate": 0.5,
+        "downsideRate": 0.73333333,
+        "downsideCoverage": 1,
+        "meanNetReturn30d": -0.089075,
+        "calibration": null
+      },
+      "learned": {
+        "precisionAt10": 0.63333333,
+        "ndcgAt10": 0.96894698,
+        "hitRate": 1,
+        "downsideRate": 0.46666667,
+        "downsideCoverage": 1,
+        "meanNetReturn30d": 0.02934167,
+        "calibration": {
+          "brierScore": 0.11995825,
+          "expectedCalibrationError": 0.12249268,
+          "sampleCount": 107
+        }
+      }
+    }
+  },
+  "promotion": {
+    "decision": "not_eligible",
+    "checks": {
+      "minimumThreeFolds": true,
+      "coverageAtLeast95Percent": true,
+      "precisionAt10BeatsBaseline": true,
+      "ndcgAt10BeatsBaseline": true,
+      "downsideIncreaseAtMostTwoPoints": true
+    },
+    "note": "Synthetic fixtures validate the pipeline only and cannot support promotion."
+  }
+}

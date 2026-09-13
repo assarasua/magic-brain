@@ -1,0 +1,19 @@
+{
+  "version": "ranking-logistic-v1-baefdf1ff3c3",
+  "model_kind": "learning_to_rank",
+  "status": "draft",
+  "feature_contract_version": "v1",
+  "label_contract_version": "v1",
+  "training_cutoff_date": "2025-04-20",
+  "artifact_uri": "artifacts/ml-ranking/ranking-logistic-v1-baefdf1ff3c3.json",
+  "artifact_sha256": "155e4cc33b928e8048c7b325ab04aa2c18e4319c04a5ffdcae28b40a649bfd64",
+  "ranking_policy": {
+    "target": "probability_return_30d_positive",
+    "tie_breaker": "scryfall_id_ascending",
+    "safety_constraints": [
+      "offline_evaluation_only",
+      "no_online_serving",
+      "deterministic_fallback_required"
+    ]
+  }
+}
