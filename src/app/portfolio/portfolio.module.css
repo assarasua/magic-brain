@@ -2,6 +2,254 @@
   margin-top: 24px;
 }
 
+.forecastPanel {
+  position: relative;
+  overflow: hidden;
+  margin: 0 0 16px;
+  padding: 26px;
+  border: 1px solid rgba(211, 173, 98, 0.18);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 90% 0, rgba(211, 173, 98, 0.1), transparent 34%),
+    linear-gradient(145deg, rgba(28, 31, 38, 0.96), rgba(17, 20, 25, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    0 20px 60px rgba(0, 0, 0, 0.12);
+}
+
+.forecastHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.forecastHeader h2 {
+  margin: 5px 0 0;
+  font: 650 21px var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.horizonSelector {
+  display: flex;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.horizonSelector button {
+  min-width: 42px;
+  min-height: 32px;
+  border: 0;
+  border-radius: 7px;
+  color: #778394;
+  background: transparent;
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.horizonSelector button[aria-pressed="true"] {
+  color: #1b1710;
+  background: linear-gradient(135deg, #edd08e, #b98b3c);
+  box-shadow: 0 5px 15px rgba(185, 139, 60, 0.2);
+}
+
+.horizonSelector button:focus-visible,
+.forecastPlot:focus-visible {
+  outline: 2px solid #d3ad62;
+  outline-offset: 3px;
+}
+
+.forecastKpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin: 22px 0 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.forecastKpis > div {
+  min-width: 0;
+  padding: 13px 16px;
+  background: rgba(10, 13, 18, 0.7);
+}
+
+.forecastKpis span,
+.forecastKpis small {
+  display: block;
+  color: #778394;
+  font-size: 9px;
+}
+
+.forecastKpis strong {
+  display: inline-block;
+  margin: 5px 7px 2px 0;
+  color: #edf1f5;
+  font-size: 16px;
+  letter-spacing: -0.02em;
+}
+
+.forecastKpis em {
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 750;
+}
+
+.forecastPlot {
+  position: relative;
+  min-height: 320px;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.forecastPlot svg {
+  width: 100%;
+  height: 320px;
+  overflow: visible;
+}
+
+.forecastPlot text {
+  fill: #616b78;
+  font-size: 9px;
+}
+
+.forecastGrid {
+  stroke: rgba(255, 255, 255, 0.065);
+  stroke-dasharray: 3 6;
+}
+
+.historicalLine,
+.baseLine,
+.optimisticLine,
+.conservativeLine {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.historicalLine {
+  stroke: #8a95a4;
+  stroke-width: 2;
+}
+
+.baseLine {
+  stroke: #d3ad62;
+  stroke-width: 2.5;
+}
+
+.optimisticLine {
+  stroke: rgba(139, 214, 176, 0.82);
+  stroke-width: 1.2;
+}
+
+.conservativeLine {
+  stroke: rgba(222, 123, 127, 0.82);
+  stroke-width: 1.2;
+}
+
+.anchorLine {
+  stroke: rgba(211, 173, 98, 0.5);
+  stroke-width: 1;
+  stroke-dasharray: 4 5;
+  vector-effect: non-scaling-stroke;
+}
+
+.cursorLine {
+  stroke: rgba(255, 255, 255, 0.26);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.forecastPoint {
+  fill: #17191f;
+  stroke: #e3c279;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.forecastTooltip {
+  position: absolute;
+  z-index: 2;
+  top: 28px;
+  display: grid;
+  gap: 3px;
+  min-width: 142px;
+  padding: 10px 12px;
+  border: 1px solid rgba(211, 173, 98, 0.2);
+  border-radius: 10px;
+  background: rgba(15, 17, 22, 0.96);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+.forecastTooltip span,
+.forecastTooltip small {
+  color: #87919e;
+  font-size: 9px;
+}
+
+.forecastTooltip strong {
+  color: #f2e6c7;
+  font-size: 14px;
+}
+
+.forecastLegend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 16px;
+  color: #798391;
+  font-size: 9px;
+}
+
+.forecastLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.forecastLegend i {
+  width: 16px;
+  border-top: 2px solid #8a95a4;
+}
+
+.forecastLegend i[data-series="base"] {
+  border-color: #d3ad62;
+}
+
+.forecastLegend i[data-series="range"] {
+  height: 7px;
+  border: 1px solid rgba(211, 173, 98, 0.55);
+  background: rgba(211, 173, 98, 0.12);
+}
+
+.forecastSummary {
+  margin: 13px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.055);
+  color: #737e8c;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.forecastUnavailable {
+  display: grid;
+  gap: 6px;
+  min-height: 150px;
+  place-content: center;
+  text-align: center;
+  color: #778394;
+}
+
+.forecastUnavailable strong {
+  color: #cad2dc;
+}
+
 .constraint {
   margin: 14px 0;
   padding: 10px 12px;
@@ -537,6 +785,43 @@
 }
 
 @media (max-width: 640px) {
+  .forecastPanel {
+    padding: 19px 14px;
+  }
+
+  .forecastHeader {
+    align-items: center;
+  }
+
+  .forecastHeader h2 {
+    font-size: 18px;
+  }
+
+  .forecastKpis {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .forecastKpis > div:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .forecastPlot,
+  .forecastPlot svg {
+    min-height: 260px;
+    height: 260px;
+  }
+
+  .forecastTooltip {
+    top: 18px;
+    min-width: 126px;
+    padding: 8px 10px;
+  }
+
+  .forecastLegend {
+    justify-content: flex-start;
+    gap: 10px;
+  }
+
   .headingActions {
     gap: 6px;
   }

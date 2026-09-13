@@ -25,7 +25,11 @@ export async function POST(request: NextRequest) {
       risk?: BrainPreferences["risk"];
       locale?: string;
     };
-    const setCodes = normalizeSetCodes([body.setCode]);
+    const requestedSetCodes = normalizeSetCodes([body.setCode]);
+    const setCodes =
+      body.setCode === undefined
+        ? user.preferences.setCodes
+        : requestedSetCodes;
     const budget =
       body.budget === undefined
         ? user.preferences.defaultBudget
@@ -33,7 +37,7 @@ export async function POST(request: NextRequest) {
     const risk = body.risk ?? user.preferences.risk;
 
     if (
-      (body.setCode !== undefined && setCodes.length !== 1) ||
+      (body.setCode !== undefined && requestedSetCodes.length !== 1) ||
       !Number.isFinite(budget) ||
       budget < 25 ||
       budget > 1_000_000 ||

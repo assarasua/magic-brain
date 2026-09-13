@@ -10,6 +10,7 @@ import {
   getPersonalizedBatchSignals,
   unavailableMlExperience,
 } from "@/lib/ml-serving";
+import { buildPortfolioForecast } from "@/lib/portfolio-forecast-model";
 import { attachSessionCookie, getOrCreateUser } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -39,9 +40,18 @@ export async function GET(request: NextRequest) {
       })),
     ]);
     const heldIds = new Set(portfolio.holdings.map((holding) => holding.cardId));
+    const forecast = buildPortfolioForecast({
+      holdings: portfolio.holdings.map((holding) => ({
+        ...holding,
+        ml: experience.scores[holding.cardId] ?? null,
+      })),
+      history: portfolio.history,
+      ranking: experience.ranking,
+    });
     return attachSessionCookie(
       NextResponse.json({
         ...portfolio,
+        forecast,
         holdings: portfolio.holdings.map((holding) => ({
           ...holding,
           ml: experience.scores[holding.cardId] ?? null,
@@ -154,8 +164,19 @@ export async function POST(request: NextRequest) {
       acquiredAt,
     });
 
+    const portfolio = await getPortfolio(user.id);
     return attachSessionCookie(
-      NextResponse.json(await getPortfolio(user.id), { status: 201 }),
+      NextResponse.json(
+        {
+          ...portfolio,
+          forecast: buildPortfolioForecast({
+            holdings: portfolio.holdings,
+            history: portfolio.history,
+            ranking: unavailableMlExperience().ranking,
+          }),
+        },
+        { status: 201 },
+      ),
       newToken,
     );
   } catch {
