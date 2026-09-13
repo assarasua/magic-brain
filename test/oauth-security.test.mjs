@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   ACCESS_TOKEN_SECONDS,
   AUTHORIZATION_CODE_SECONDS,
+  CONSENT_REQUEST_SECONDS,
   REFRESH_TOKEN_SECONDS,
   parseScopes,
   pkceChallenge,
@@ -44,6 +45,7 @@ test("scopes default least privilege and reject unknown values", () => {
 
 test("OAuth lifetimes are bounded and rotation/replay protections are atomic", async () => {
   assert.equal(AUTHORIZATION_CODE_SECONDS, 300);
+  assert.equal(CONSENT_REQUEST_SECONDS, 900);
   assert.equal(ACCESS_TOKEN_SECONDS, 900);
   assert.equal(REFRESH_TOKEN_SECONDS, 2_592_000);
   const source = await readFile(
@@ -55,6 +57,33 @@ test("OAuth lifetimes are bounded and rotation/replay protections are atomic", a
   assert.match(source, /set revoked_at = now\(\), rotated_at = now\(\)/);
   assert.match(source, /returning owner_id::text/);
   assert.doesNotMatch(source, /console\.(?:log|error).*token/i);
+});
+
+test("consent survives login without cookie state and is consumed once", async () => {
+  const [oauthSource, routeSource, migration, runner] = await Promise.all([
+    readFile(new URL("../src/lib/oauth.ts", import.meta.url), "utf8"),
+    readFile(
+      new URL("../src/app/oauth/authorize/route.ts", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL("../db/023_oauth_consent_requests.sql", import.meta.url),
+      "utf8",
+    ),
+    readFile(new URL("../scripts/migrate.mjs", import.meta.url), "utf8"),
+  ]);
+  assert.match(routeSource, /callbackUrl=\$\{encodeURIComponent\(callback\)\}/);
+  assert.match(routeSource, /createOAuthConsentRequest/);
+  assert.match(routeSource, /consumeOAuthConsentRequest/);
+  assert.doesNotMatch(routeSource, /mb_oauth_consent/);
+  assert.match(oauthSource, /now\(\) \+ \(\$9::text \|\| ' seconds'\)::interval/);
+  assert.match(oauthSource, /consent\.expires_at > now\(\)/);
+  assert.match(oauthSource, /consent\.consumed_at is null/);
+  assert.match(oauthSource, /set consumed_at = now\(\)/);
+  assert.match(migration, /created_at timestamptz/);
+  assert.match(migration, /expires_at timestamptz/);
+  assert.match(migration, /consumed_at timestamptz/);
+  assert.match(runner, /023_oauth_consent_requests\.sql/);
 });
 
 test("token endpoint returns invalid_client for stale DCR registrations", async () => {

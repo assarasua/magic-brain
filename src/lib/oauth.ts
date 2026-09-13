@@ -4,6 +4,7 @@ import { ApiError } from "@/lib/public-api/core";
 import {
   ACCESS_TOKEN_SECONDS,
   AUTHORIZATION_CODE_SECONDS,
+  CONSENT_REQUEST_SECONDS,
   OAUTH_SCOPES,
   REFRESH_TOKEN_SECONDS,
   parseScopes as parseScopesValue,
@@ -14,6 +15,7 @@ import {
 export {
   ACCESS_TOKEN_SECONDS,
   AUTHORIZATION_CODE_SECONDS,
+  CONSENT_REQUEST_SECONDS,
   OAUTH_SCOPES,
   REFRESH_TOKEN_SECONDS,
   type OAuthScope,
@@ -174,6 +176,80 @@ export async function validateAuthorizationRequest(params: URLSearchParams) {
 
 export async function requireOAuthTokenClient(clientId: string) {
   return getClient(clientId, 401);
+}
+
+export async function createOAuthConsentRequest(
+  ownerId: string,
+  authorization: Awaited<ReturnType<typeof validateAuthorizationRequest>>,
+) {
+  const requestToken = `mbcr_${randomBytes(32).toString("base64url")}`;
+  await query(
+    `delete from app_oauth_consent_requests
+     where owner_id = $1 and expires_at <= now()`,
+    [ownerId],
+  );
+  await query(
+    `insert into app_oauth_consent_requests
+      (request_hash, owner_id, client_id, redirect_uri, resource, state,
+       scopes, code_challenge, expires_at)
+     values ($1, $2, $3, $4, $5, $6, $7::text[], $8,
+       now() + ($9::text || ' seconds')::interval)`,
+    [
+      hash(requestToken),
+      ownerId,
+      authorization.client.client_id,
+      authorization.redirectUri,
+      authorization.resource,
+      authorization.state,
+      authorization.scopes,
+      authorization.challenge,
+      CONSENT_REQUEST_SECONDS,
+    ],
+  );
+  return requestToken;
+}
+
+export async function consumeOAuthConsentRequest(
+  ownerId: string,
+  requestToken: string,
+) {
+  if (!/^mbcr_[A-Za-z0-9_-]{43}$/.test(requestToken)) {
+    throw new ApiError(400, "invalid_request", "Consent request expired or already used");
+  }
+  const result = await query<{
+    client_id: string;
+    redirect_uri: string;
+    resource: string;
+    state: string;
+    scopes: OAuthScope[];
+    code_challenge: string;
+  }>(
+    `update app_oauth_consent_requests consent
+     set consumed_at = now()
+     from app_oauth_clients client
+     where consent.request_hash = $1
+       and consent.owner_id = $2
+       and consent.consumed_at is null
+       and consent.expires_at > now()
+       and client.client_id = consent.client_id
+       and client.revoked_at is null
+       and client.expires_at > now()
+     returning consent.client_id, consent.redirect_uri, consent.resource,
+       consent.state, consent.scopes, consent.code_challenge`,
+    [hash(requestToken), ownerId],
+  );
+  const consent = result.rows[0];
+  if (!consent) {
+    throw new ApiError(400, "invalid_request", "Consent request expired or already used");
+  }
+  return {
+    clientId: consent.client_id,
+    redirectUri: consent.redirect_uri,
+    resource: consent.resource,
+    state: consent.state,
+    scopes: consent.scopes,
+    challenge: consent.code_challenge,
+  };
 }
 
 export async function createAuthorizationCode(input: {
