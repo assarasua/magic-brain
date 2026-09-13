@@ -31,6 +31,11 @@ unavailable. Predict therefore starts from a neutral market score, assigns low
 confidence, widens the scenario range, and identifies the result as assumption
 driven.
 
+For released sets, Predict also surfaces up to 12 card-level candidates from
+the existing Latest Set Watch ranking. Cards require observed prices before
+they are ranked. An announced set can therefore have a set-level scenario while
+showing no card predictions yet.
+
 ## Outputs
 
 The score is a 0–100 relative scenario score. The bear, base, and bull values

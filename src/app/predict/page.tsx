@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
+
 import {
   ArrowLeft,
   ArrowRight,
@@ -19,6 +21,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
+import { useCardDetail } from "@/components/card-detail-provider";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { SetSelector } from "@/components/set-selector";
 import type { GrowthTarget } from "@/lib/predict-model";
@@ -59,6 +62,7 @@ const spanishReasons: Record<string, string> = {
 
 export default function PredictPage() {
   const { locale, t } = useLanguage();
+  const { cardSurfaceProps } = useCardDetail();
   const es = locale === "es";
   const [setCodes, setSetCodes] = useState<string[]>([]);
   const [target, setTarget] = useState<GrowthTarget>("sp500");
@@ -274,6 +278,59 @@ export default function PredictPage() {
                 )}
               </>
             )}
+          </div>
+        </section>
+
+        <section className={styles.cardSection}>
+          <div className={styles.cardSectionHead}>
+            <div>
+              <span className="eyebrow">{es ? "PREDICCIONES POR CARTA" : "CARD PREDICTIONS"}</span>
+              <h2>{es ? "Cartas de la edición seleccionada" : "Cards in the selected set"}</h2>
+            </div>
+            {result && !result.marketEvidence.isUpcoming && (
+              <Link href={`/market/latest-set-watch?set=${result.set.code}`}>
+                {es ? "Ver ranking completo" : "View full ranking"} <ArrowRight size={15} />
+              </Link>
+            )}
+          </div>
+
+          {!loading && result?.cardPredictions.length === 0 && (
+            <div className={styles.noCards}>
+              <CircleAlert size={20} />
+              <div>
+                <strong>
+                  {result.marketEvidence.isUpcoming
+                    ? (es ? "Aún no hay predicciones fiables por carta." : "Reliable card-level predictions are not available yet.")
+                    : (es ? "No hay suficientes precios por carta." : "There is not enough card-level price data.")}
+                </strong>
+                <p>
+                  {result.marketEvidence.isUpcoming
+                    ? (es ? `El catálogo conoce ${result.set.cardCount} cartas previstas, pero esperaremos a tener cartas importadas y precios observados para puntuarlas.` : `The catalogue reports ${result.set.cardCount} expected cards, but scoring waits for imported cards and observed prices.`)
+                    : (es ? "La predicción de la edición sigue disponible, pero no inventamos estimaciones para cartas sin historial." : "The set scenario remains available, but we do not invent estimates for cards without history.")}
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className={styles.cardGrid}>
+            {result?.cardPredictions.map((pick, index) => (
+              <article className="card-surface" key={pick.card.id} {...cardSurfaceProps(pick.card)}>
+                <div className={styles.cardImage}>
+                  {pick.card.imageUrl ? <img src={pick.card.imageUrl} alt="" /> : <span>No image</span>}
+                  <b>#{index + 1}</b>
+                </div>
+                <div className={styles.cardCopy}>
+                  <span>{pick.card.rarity} · {pick.card.setCode.toUpperCase()}</span>
+                  <h3>{pick.card.name}</h3>
+                  <div>
+                    <strong>{pick.score.total}/100</strong>
+                    <em>{pick.score.risk} risk</em>
+                    <b>{signed(pick.momentum30d)} 30D</b>
+                  </div>
+                  <p>{pick.rationale[0]}</p>
+                </div>
+              </article>
+            ))}
           </div>
         </section>
 

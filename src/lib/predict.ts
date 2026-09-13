@@ -1,4 +1,5 @@
 import { query } from "@/lib/db";
+import { getLatestSetWatch, type LatestSetWatchPick } from "@/lib/latest-set-watch";
 import {
   calculateSetPrediction,
   type GrowthTarget,
@@ -37,6 +38,7 @@ export type SetPrediction = {
   };
   inputs: PredictionInputs;
   prediction: PredictionResult;
+  cardPredictions: LatestSetWatchPick[];
   methodology: {
     benchmarkNote: string;
     forecastNote: string;
@@ -170,6 +172,7 @@ export async function getSetPrediction(
     volatility90d: numberOrNull(row.volatility_90d),
     isUpcoming,
   };
+  const cardResult = await getLatestSetWatch(row.code);
 
   return {
     set: {
@@ -191,6 +194,7 @@ export async function getSetPrediction(
         marketEvidence.trackedCards > 0 &&
         marketEvidence.medianReturn90d !== null,
     }),
+    cardPredictions: cardResult.picks.slice(0, 12),
     methodology: {
       benchmarkNote:
         "Illustrative annual benchmarks: inflation 3%, broad equity market 8%, extreme-growth target 20%. These are fixed comparison assumptions, not live index forecasts.",
