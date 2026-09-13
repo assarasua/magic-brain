@@ -126,7 +126,7 @@ export default function AnalystPage() {
     <main className="account-page analyst-page">
       <header className="account-topbar">
         <Link href="/" className="inventory-brand"><MagicBrainLogo /></Link>
-        <nav><Link href="/market">{t("Market")}</Link><Link href="/inventory">{t("Inventory")}</Link><Link href="/brain">Brain Pro</Link></nav>
+        <nav><Link href="/signals">Brain Signals</Link><Link href="/market">{t("Market")}</Link><Link href="/brain">Brain Pro</Link></nav>
         <LanguageToggle />
         <AuthControl compact />
         <Link href="/" className="back-dashboard"><ArrowLeft size={15} /> {t("Dashboard")}</Link>

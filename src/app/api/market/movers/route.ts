@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
         ? "losers"
         : "gainers";
     const requestedDays = Number(request.nextUrl.searchParams.get("days") ?? 7);
-    const days = [1, 7, 30].includes(requestedDays) ? requestedDays : 7;
+    const days = [1, 7, 30, 90].includes(requestedDays) ? requestedDays : 7;
     const cards = await getMarketMovers(12, direction, days);
     return NextResponse.json(
       { cards, direction, days },

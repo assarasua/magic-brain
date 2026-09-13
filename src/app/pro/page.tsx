@@ -1,12 +1,12 @@
 "use client";
 
 import {
+  Activity,
   ArrowLeft,
   ArrowRight,
   BrainCircuit,
   Check,
   Crown,
-  Database,
   Gauge,
   LoaderCircle,
   ShieldCheck,
@@ -97,11 +97,11 @@ export default function ProPage() {
         : "Set your budget, risk, horizon, colours, rarity, and maximum card price. Brain adapts every position.",
     },
     {
-      icon: Database,
-      title: es ? "Decisiones basadas en datos" : "Decisions grounded in data",
+      icon: Activity,
+      title: "Brain Signals",
       copy: es
-        ? "Compara el movimiento real de 7 y 30 días sobre más de 9 millones de observaciones de precio."
-        : "Compare real 7- and 30-day movement across more than 9 million price observations.",
+        ? "Lee el régimen, amplitud, volatilidad, índice de mercado y oportunidades priorizadas en 7, 30 y 90 días."
+        : "Read market regime, breadth, volatility, index trends, and prioritised opportunities across 7, 30, and 90 days.",
     },
     {
       icon: Gauge,
@@ -118,6 +118,7 @@ export default function ProPage() {
         <Link href="/" className="inventory-brand"><MagicBrainLogo /></Link>
         <nav>
           <Link href="/brain">{es ? "Probar Brain" : "Try Brain"}</Link>
+          <Link href="/signals">Brain Signals</Link>
           <Link href="/portfolio">{t("Portfolio")}</Link>
           <Link href="/market">{t("Market")}</Link>
         </nav>
@@ -246,6 +247,7 @@ export default function ProPage() {
             <ul>
               <li><Check size={15} /> {es ? "Hasta 20 posiciones diversificadas" : "Up to 20 diversified positions"}</li>
               <li><Check size={15} /> {es ? "Explicación y asignación por carta" : "Rationale and allocation per card"}</li>
+              <li><Check size={15} /> {es ? "Brain Signals con amplitud, riesgo y zonas de vigilancia" : "Brain Signals with breadth, risk, and watch zones"}</li>
               <li><Check size={15} /> {es ? "Añadir la cartera completa en un clic" : "Add the complete portfolio in one click"}</li>
               <li><Check size={15} /> {es ? "Gestión de suscripción autoservicio" : "Self-service subscription management"}</li>
             </ul>

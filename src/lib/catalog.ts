@@ -390,6 +390,107 @@ export async function getMarketMovers(
   return rows.map(mapCard);
 }
 
+export async function getMarketAnalytics(days = 7) {
+  const [breadthResult, historyResult] = await Promise.all([
+    query<{
+      tracked_cards: string;
+      advancers: string;
+      decliners: string;
+      unchanged: string;
+      average_return: string | null;
+      median_return: string | null;
+      dispersion: string | null;
+      strong_gainers: string;
+      strong_losers: string;
+    }>(
+      `
+        with dates as (
+          select
+            max(date) as latest_date,
+            (
+              select max(previous.date)
+              from prices previous
+              where previous.source = 'mtgjson'
+                and previous.date <= (
+                  select max(current.date)
+                  from prices current
+                  where current.source = 'mtgjson'
+                ) - $1::integer
+            ) as previous_date
+          from prices
+          where source = 'mtgjson'
+        ),
+        returns as (
+          select
+            ((current_price.eur - previous_price.eur) / previous_price.eur) * 100 as return_percent
+          from dates
+          join prices current_price
+            on current_price.date = dates.latest_date
+            and current_price.source = 'mtgjson'
+          join prices previous_price
+            on previous_price.scryfall_id = current_price.scryfall_id
+            and previous_price.date = dates.previous_date
+            and previous_price.source = 'mtgjson'
+          where current_price.eur between 2 and 5000
+            and previous_price.eur >= 2
+        )
+        select
+          count(*)::text as tracked_cards,
+          count(*) filter (where return_percent > 0.25)::text as advancers,
+          count(*) filter (where return_percent < -0.25)::text as decliners,
+          count(*) filter (where return_percent between -0.25 and 0.25)::text as unchanged,
+          avg(return_percent)::text as average_return,
+          percentile_cont(0.5) within group (order by return_percent)::text as median_return,
+          stddev_pop(return_percent)::text as dispersion,
+          count(*) filter (where return_percent >= 10)::text as strong_gainers,
+          count(*) filter (where return_percent <= -10)::text as strong_losers
+        from returns
+        where return_percent between -80 and 200
+      `,
+      [days],
+    ),
+    query<{ date: string; median_price: string }>(
+      `
+        select
+          date::text,
+          percentile_cont(0.5) within group (order by eur)::text as median_price
+        from prices
+        where source = 'mtgjson'
+          and date >= current_date - $1::integer
+          and eur between 2 and 5000
+        group by date
+        order by date
+      `,
+      [Math.min(days, 90)],
+    ),
+  ]);
+
+  const breadth = breadthResult.rows[0];
+  const history = historyResult.rows.map((point) => ({
+    date: point.date,
+    value: Number(point.median_price),
+  }));
+  const baseline = history[0]?.value ?? 1;
+
+  return {
+    summary: {
+      trackedCards: Number(breadth?.tracked_cards ?? 0),
+      advancers: Number(breadth?.advancers ?? 0),
+      decliners: Number(breadth?.decliners ?? 0),
+      unchanged: Number(breadth?.unchanged ?? 0),
+      averageReturn: Number(breadth?.average_return ?? 0),
+      medianReturn: Number(breadth?.median_return ?? 0),
+      dispersion: Number(breadth?.dispersion ?? 0),
+      strongGainers: Number(breadth?.strong_gainers ?? 0),
+      strongLosers: Number(breadth?.strong_losers ?? 0),
+    },
+    index: history.map((point) => ({
+      date: point.date,
+      value: baseline > 0 ? (point.value / baseline) * 100 : 100,
+    })),
+  };
+}
+
 export async function getPriceHistory(cardId: string, days: number) {
   const { rows } = await query<{
     date: string;

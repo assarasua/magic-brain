@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPriceHistory } from "@/lib/catalog";
+import { calculateSeriesMetrics } from "@/lib/financial-analytics";
 
 export const runtime = "nodejs";
 
@@ -19,7 +20,13 @@ export async function GET(
   const days = [30, 90, 180, 365].includes(requestedDays) ? requestedDays : 90;
 
   try {
-    return NextResponse.json({ history: await getPriceHistory(id, days) });
+    const history = await getPriceHistory(id, days);
+    const metrics = calculateSeriesMetrics(
+      history.flatMap((point) =>
+        point.eur === null ? [] : [{ date: point.date, value: point.eur }],
+      ),
+    );
+    return NextResponse.json({ history, metrics });
   } catch {
     return NextResponse.json(
       { error: "Unable to load price history" },

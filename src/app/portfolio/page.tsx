@@ -21,6 +21,7 @@ import { useCardDetail } from "@/components/card-detail-provider";
 import { PortfolioOnboarding } from "@/components/portfolio-onboarding";
 import type { CatalogCard } from "@/lib/catalog";
 import { formatCurrency } from "@/lib/data";
+import { calculateSeriesMetrics } from "@/lib/financial-analytics";
 import type { PortfolioHolding } from "@/lib/portfolio";
 
 type PortfolioData = {
@@ -48,9 +49,9 @@ function PortfolioChart({
   points: PortfolioData["history"];
   locale: "en" | "es";
 }) {
-  const [range, setRange] = useState<"30D" | "3M" | "1Y">("3M");
+  const [range, setRange] = useState<"7D" | "30D" | "3M" | "1Y">("3M");
   const [hovered, setHovered] = useState<number | null>(null);
-  const days = range === "30D" ? 30 : range === "3M" ? 90 : 365;
+  const days = range === "7D" ? 7 : range === "30D" ? 30 : range === "3M" ? 90 : 365;
   const visible = points.slice(-days);
 
   if (visible.length < 2) {
@@ -83,7 +84,7 @@ function PortfolioChart({
           <span className={pnl >= 0 ? "up" : "down"}>{pnl >= 0 ? "+" : ""}{formatCurrency(pnl)}</span>
         </div>
         <div className="range-switch">
-          {(["30D", "3M", "1Y"] as const).map((option) => <button key={option} className={range === option ? "active" : ""} onClick={() => { setRange(option); setHovered(null); }}>{option}</button>)}
+          {(["7D", "30D", "3M", "1Y"] as const).map((option) => <button key={option} className={range === option ? "active" : ""} onClick={() => { setRange(option); setHovered(null); }}>{option}</button>)}
         </div>
       </div>
       <div
@@ -215,8 +216,7 @@ export default function PortfolioPage() {
           value,
           share: data.summary.value > 0 ? (value / data.summary.value) * 100 : 0,
         }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 5);
+        .sort((a, b) => b.value - a.value);
     },
     [data],
   );
@@ -232,6 +232,19 @@ export default function PortfolioPage() {
     const dailyChange = previous > 0
       ? ((data.summary.value - previous) / previous) * 100
       : 0;
+    const series = calculateSeriesMetrics(
+      data.history.map((point) => ({ date: point.date, value: point.value })),
+    );
+    const concentrationIndex = allocation.reduce(
+      (total, item) => total + (item.share / 100) ** 2,
+      0,
+    );
+    const diversificationScore = allocation.length > 1
+      ? Math.max(0, Math.min(100, (1 - concentrationIndex) * 125))
+      : 0;
+    const returnToRisk = series && series.annualizedVolatilityPercent > 0
+      ? data.summary.gainPercent / series.annualizedVolatilityPercent
+      : 0;
     return {
       dailyChange,
       best: ranked[0] ?? null,
@@ -241,12 +254,30 @@ export default function PortfolioPage() {
         : 0,
       concentration: allocation[0]?.share ?? 0,
       averagePosition: valued.length ? data.summary.value / valued.length : 0,
+      volatility: series?.annualizedVolatilityPercent ?? 0,
+      maxDrawdown: series?.maxDrawdownPercent ?? 0,
+      diversificationScore,
+      returnToRisk,
     };
   }, [allocation, data]);
 
+  const displayedAllocation = useMemo(() => {
+    if (allocation.length <= 5) return allocation;
+    const leading = allocation.slice(0, 4);
+    const other = allocation.slice(4).reduce(
+      (total, item) => ({
+        name: locale === "es" ? "Otros" : "Other",
+        value: total.value + item.value,
+        share: total.share + item.share,
+      }),
+      { name: locale === "es" ? "Otros" : "Other", value: 0, share: 0 },
+    );
+    return [...leading, other];
+  }, [allocation, locale]);
+
   const allocationGradient = useMemo(() => {
     const colours = ["#8b5cf6", "#3b82f6", "#22c9a5", "#f1b94d", "#ef6b83"];
-    const result = allocation.reduce(
+    const result = displayedAllocation.reduce(
       (current, item, index) => ({
         cursor: current.cursor + item.share,
         stops: [
@@ -260,7 +291,7 @@ export default function PortfolioPage() {
       ? [...result.stops, `rgba(255,255,255,.06) ${result.cursor}% 100%`]
       : result.stops;
     return `conic-gradient(${stops.join(",")})`;
-  }, [allocation]);
+  }, [displayedAllocation]);
 
   const addHolding = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -332,7 +363,7 @@ export default function PortfolioPage() {
               <div className="fintech-panel allocation-panel">
                 <span className="eyebrow">{locale === "es" ? "Exposición" : "Exposure"}</span><h2>{locale === "es" ? "Concentración" : "Allocation"}</h2>
                 <div className="allocation-donut" style={{ background: allocationGradient }}><div><strong>{allocation.length}</strong><span>{locale === "es" ? "activos" : "assets"}</span></div></div>
-                {allocation.map((item) => <div className="allocation-row" key={item.name}><span>{item.name}</span><b>{item.share.toFixed(1)}%</b><i><span style={{ width: `${item.share}%` }} /></i></div>)}
+                {displayedAllocation.map((item) => <div className="allocation-row" key={item.name}><span>{item.name}</span><b>{item.share.toFixed(1)}%</b><i><span style={{ width: `${item.share}%` }} /></i></div>)}
               </div>
             </section>
 
@@ -341,6 +372,19 @@ export default function PortfolioPage() {
               <article><span>{locale === "es" ? "Posiciones rentables" : "Profitable positions"}</span><strong>{analytics.profitableShare.toFixed(0)}%</strong><small>{locale === "es" ? "de activos valorados" : "of valued assets"}</small></article>
               <article><span>{locale === "es" ? "Mayor exposición" : "Top concentration"}</span><strong>{analytics.concentration.toFixed(1)}%</strong><small>{allocation[0]?.name ?? "—"}</small></article>
               <article><span>{locale === "es" ? "Posición media" : "Average position"}</span><strong>{formatCurrency(analytics.averagePosition)}</strong><small>{locale === "es" ? "valor por activo" : "value per asset"}</small></article>
+            </section>
+
+            <section className="fintech-panel portfolio-risk-panel">
+              <div className="section-title">
+                <div><span className="eyebrow">{locale === "es" ? "Diagnóstico de riesgo" : "Risk diagnostics"}</span><h2>{locale === "es" ? "Calidad de la cartera" : "Portfolio quality"}</h2></div>
+                <small>{locale === "es" ? "Basado en el histórico disponible" : "Based on available history"}</small>
+              </div>
+              <div className="risk-metric-grid">
+                <article><span>{locale === "es" ? "Volatilidad anualizada" : "Annualised volatility"}</span><strong>{analytics.volatility.toFixed(1)}%</strong><small>{locale === "es" ? "Variación histórica del valor" : "Historical variability in value"}</small></article>
+                <article><span>Max drawdown</span><strong className="down">{analytics.maxDrawdown.toFixed(1)}%</strong><small>{locale === "es" ? "Mayor caída desde un máximo" : "Largest decline from a prior peak"}</small></article>
+                <article><span>{locale === "es" ? "Diversificación" : "Diversification"}</span><strong>{analytics.diversificationScore.toFixed(0)}/100</strong><small>{analytics.concentration > 35 ? (locale === "es" ? "Concentración elevada" : "High concentration") : (locale === "es" ? "Exposición distribuida" : "Distributed exposure")}</small></article>
+                <article><span>{locale === "es" ? "Rentabilidad / riesgo" : "Return / risk"}</span><strong className={analytics.returnToRisk >= 0 ? "up" : "down"}>{analytics.returnToRisk.toFixed(2)}×</strong><small>{locale === "es" ? "Rentabilidad frente a volatilidad" : "Return relative to volatility"}</small></article>
+              </div>
             </section>
 
             <section className="fintech-panel holdings-table">

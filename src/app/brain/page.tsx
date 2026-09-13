@@ -148,7 +148,7 @@ export default function BrainPage() {
     <main className="brain-page">
       <header className="account-topbar">
         <Link href="/" className="inventory-brand"><MagicBrainLogo /></Link>
-        <nav><Link href="/inventory">{t("Inventory")}</Link><Link href="/reserved">{t("Reserved List")}</Link><Link href="/portfolio">{t("Portfolio")}</Link></nav>
+        <nav><Link href="/signals">Brain Signals</Link><Link href="/inventory">{t("Inventory")}</Link><Link href="/portfolio">{t("Portfolio")}</Link></nav>
         <LanguageToggle />
         <AuthControl compact />
         <Link href="/" className="back-dashboard"><ArrowLeft size={15} /> {t("Dashboard")}</Link>
