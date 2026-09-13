@@ -22,12 +22,14 @@ import { MagicBrainLogo } from "@/components/brand-logo";
 import { useCardDetail } from "@/components/card-detail-provider";
 import { PortfolioOnboarding } from "@/components/portfolio-onboarding";
 import { PortfolioImportModal } from "@/components/portfolio-import-modal";
+import { PortfolioForecastChart } from "@/components/portfolio-forecast-chart";
 import { MlInsight, trackMlFeedback } from "@/components/ml-insight";
 import { CARD_LANGUAGES, type CardLanguage } from "@/lib/card-languages";
 import type { CatalogCard } from "@/lib/catalog";
 import { formatCurrency } from "@/lib/data";
 import { calculateSeriesMetrics } from "@/lib/financial-analytics";
 import type { PortfolioHolding } from "@/lib/portfolio";
+import type { PortfolioForecast } from "@/lib/portfolio-forecast-model";
 import type { MlCardContext, MlRankingStatus } from "@/lib/ml-experience";
 import {
   calculateOpportunityAnalytics,
@@ -46,6 +48,7 @@ type PortfolioData = {
     cardCount: number;
   };
   history: Array<{ date: string; value: number; invested: number }>;
+  forecast: PortfolioForecast;
   opportunities: {
     comparableHoldings: number;
     coveragePercent: number;
@@ -92,6 +95,27 @@ const emptyPortfolio: PortfolioData = {
   holdings: [],
   summary: { invested: 0, value: 0, gain: 0, gainPercent: 0, cardCount: 0 },
   history: [],
+  forecast: {
+    asOfDate: new Date().toISOString().slice(0, 10),
+    dataDate: null,
+    source: "unavailable",
+    modelVersion: null,
+    confidence: "low",
+    coverage: {
+      forecastableHoldings: 0,
+      totalHoldings: 0,
+      projectedValuePercent: 0,
+      staleCarriedHoldings: 0,
+      excludedHoldings: 0,
+      mlValuePercent: 0,
+    },
+    assumptions: {
+      annualBaseRatePercent: 0,
+      annualVolatilityPercent: 0,
+      compoundingCapPercent: 200,
+    },
+    points: [],
+  },
   opportunities: {
     comparableHoldings: 0,
     coveragePercent: 0,
@@ -584,6 +608,12 @@ export default function PortfolioPage() {
                 {displayedAllocation.map((item) => <div className="allocation-row" key={item.name}><span>{item.name}</span><b>{item.share.toFixed(1)}%</b><i><span style={{ width: `${item.share}%` }} /></i></div>)}
               </div>
             </section>
+
+            <PortfolioForecastChart
+              forecast={data.forecast}
+              history={data.history}
+              locale={locale}
+            />
 
             <section className="portfolio-stat-grid">
               <article><span>{locale === "es" ? "Mejor posición" : "Best performer"}</span><strong>{analytics.best?.name ?? "—"}</strong><em className="up">{analytics.best?.gainPercent === null || !analytics.best ? "—" : `+${analytics.best.gainPercent.toFixed(1)}%`}</em></article>

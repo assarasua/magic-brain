@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMarketMovers } from "@/lib/catalog";
-import { getPersonalizedBatchSignals } from "@/lib/ml-serving";
+import {
+  getPersonalizedBatchSignals,
+  mlExperimentAssignment,
+} from "@/lib/ml-serving";
+import { recordMlServingDecision } from "@/lib/ml-serving-telemetry";
 import { attachSessionCookie, getOrCreateUser } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -14,16 +18,30 @@ export async function GET(request: NextRequest) {
     const personalized = await getPersonalizedBatchSignals(
       user.id,
       user.preferences,
-    ).catch(() => ({
-      signals: [],
-      ranking: {
-        source: "deterministic" as const,
-        reason: "scores_missing_or_stale" as const,
-        modelVersion: null,
-        scoreDate: null,
-      },
-    }));
+    ).catch(() => {
+      const assignment = mlExperimentAssignment(user.id);
+      return {
+        signals: [],
+        ranking: {
+          source: "deterministic" as const,
+          cohort: assignment.enabled
+            ? "ml" as const
+            : assignment.reason === "experiment_off"
+              ? "off" as const
+              : "control" as const,
+          reason: assignment.enabled
+            ? "scores_missing_or_stale" as const
+            : assignment.reason,
+          modelVersion: null,
+          scoreDate: null,
+          scoreGeneratedAt: null,
+        },
+      };
+    });
     if (personalized.signals.length) {
+      await recordMlServingDecision(user.id, personalized.ranking).catch(
+        () => undefined,
+      );
       return attachSessionCookie(
         NextResponse.json({
           generatedAt: new Date().toISOString(),
@@ -38,6 +56,9 @@ export async function GET(request: NextRequest) {
       getMarketMovers(6, "gainers", days),
       getMarketMovers(4, "losers", days),
     ]);
+    await recordMlServingDecision(user.id, personalized.ranking).catch(
+      () => undefined,
+    );
 
     return attachSessionCookie(
       NextResponse.json({
