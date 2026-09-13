@@ -96,27 +96,6 @@ async function resolveAppUser(profile: {
         `update app_brain_portfolios set user_id = $1 where user_id = $2`,
         [identityId, anonymousId],
       );
-      await client.query(
-        `
-          update app_users target
-          set stripe_customer_id = coalesce(
-                target.stripe_customer_id,
-                source.stripe_customer_id
-              ),
-              stripe_subscription_id = coalesce(
-                target.stripe_subscription_id,
-                source.stripe_subscription_id
-              ),
-              subscription_status = case
-                when source.subscription_status in ('active', 'trialing')
-                  then source.subscription_status
-                else target.subscription_status
-              end
-          from app_users source
-          where target.id = $1 and source.id = $2
-        `,
-        [identityId, anonymousId],
-      );
       await client.query(`delete from app_users where id = $1`, [anonymousId]);
       userId = identityId;
     }

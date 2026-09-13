@@ -9060,6 +9060,46 @@ button:active,
   font: inherit;
 }
 
+.donation-paypal-recipient {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 5px 12px;
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 13px;
+  background: rgba(8, 10, 14, 0.5);
+}
+
+.donation-paypal-recipient > span {
+  grid-column: 1 / -1;
+  color: #7f8997;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.donation-paypal-recipient strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #e6edf5;
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+
+.donation-paypal-recipient button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  color: #f2c66d;
+  background: transparent;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
 .donation-submit {
   width: 100%;
   min-height: 50px;

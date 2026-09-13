@@ -2,9 +2,10 @@
 
 import {
   ArrowLeft,
-  ArrowRight,
+  Check,
+  Copy,
+  ExternalLink,
   HeartHandshake,
-  LoaderCircle,
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
@@ -22,62 +23,36 @@ export default function DonatePage() {
   const es = locale === "es";
   const [amount, setAmount] = useState(10);
   const [customAmount, setCustomAmount] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [status] = useState<"success" | "cancelled" | null>(() => {
-    if (typeof window === "undefined") return null;
-    const value = new URLSearchParams(window.location.search).get("donation");
-    return value === "success" || value === "cancelled" ? value : null;
-  });
+  const [copied, setCopied] = useState(false);
   const selectedAmount = customAmount ? Number(customAmount) : amount;
+  const recipient = "paypal.me/assarasua";
+  const paypalUrl = `https://${recipient}/${selectedAmount.toFixed(2)}EUR`;
 
-  const donate = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const response = await fetch("/api/stripe/donation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: selectedAmount }),
-      });
-      const result = (await response.json()) as { url?: string; error?: string };
-      if (!response.ok || !result.url) {
-        throw new Error(result.error ?? "Unable to open Stripe Checkout");
-      }
-      window.location.assign(result.url);
-    } catch (checkoutError) {
-      setError(
-        checkoutError instanceof Error
-          ? checkoutError.message
-          : "Unable to open Stripe Checkout",
-      );
-      setLoading(false);
-    }
+  const copyRecipient = async () => {
+    await navigator.clipboard.writeText(`https://${recipient}`);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
+  };
+
+  const openPayPal = () => {
+    window.open(
+      paypalUrl,
+      "_blank",
+      "noopener,noreferrer",
+    );
   };
 
   return (
     <main className="account-page donate-page">
       <header className="account-topbar">
         <Link href="/" className="inventory-brand"><MagicBrainLogo /></Link>
-        <nav><Link href="/pro">Brain Pro</Link><Link href="/signals">Brain Signals</Link><Link href="/portfolio">{t("Portfolio")}</Link></nav>
+        <nav><Link href="/brain-pro">Brain Pro</Link><Link href="/signals">Brain Signals</Link><Link href="/portfolio">{t("Portfolio")}</Link></nav>
         <LanguageToggle />
         <AuthControl compact />
         <Link href="/" className="back-dashboard"><ArrowLeft size={15} /> {t("Dashboard")}</Link>
       </header>
 
       <div className="donate-shell">
-        {status === "success" && (
-          <div className="donation-status success">
-            <HeartHandshake size={20} />
-            <div><strong>{es ? "Gracias por apoyar Magic Brain." : "Thank you for supporting Magic Brain."}</strong><span>{es ? "Stripe está confirmando tu contribución." : "Stripe is confirming your contribution."}</span></div>
-          </div>
-        )}
-        {status === "cancelled" && (
-          <div className="donation-status">
-            <span>{es ? "No se realizó ningún cargo." : "No charge was made."}</span>
-          </div>
-        )}
-
         <section className="donate-hero">
           <div>
             <span className="pro-badge"><HeartHandshake size={14} /> {es ? "APOYA EL PROYECTO" : "SUPPORT THE PROJECT"}</span>
@@ -111,13 +86,20 @@ export default function DonatePage() {
               {es ? "Otra cantidad" : "Custom amount"}
               <div><span>€</span><input type="number" min="2" max="500" step="1" value={customAmount} onChange={(event) => setCustomAmount(event.target.value)} placeholder="20" /></div>
             </label>
-            <button className="donation-submit" onClick={donate} disabled={loading || !Number.isFinite(selectedAmount) || selectedAmount < 2 || selectedAmount > 500}>
-              {loading ? <LoaderCircle className="spin" size={18} /> : <HeartHandshake size={18} />}
-              {loading ? (es ? "Abriendo Stripe…" : "Opening Stripe…") : es ? `Aportar ${formatCurrency(selectedAmount)}` : `Contribute ${formatCurrency(selectedAmount)}`}
-              {!loading && <ArrowRight size={16} />}
+            <div className="donation-paypal-recipient">
+              <span>{es ? "Destinatario PayPal" : "PayPal recipient"}</span>
+              <strong>{recipient}</strong>
+              <button onClick={copyRecipient}>
+                {copied ? <Check size={14} /> : <Copy size={14} />}
+                {copied ? (es ? "Copiado" : "Copied") : (es ? "Copiar" : "Copy")}
+              </button>
+            </div>
+            <button className="donation-submit" onClick={openPayPal} disabled={!Number.isFinite(selectedAmount) || selectedAmount < 2 || selectedAmount > 500}>
+              <HeartHandshake size={18} />
+              {es ? `Enviar ${formatCurrency(selectedAmount)} por PayPal` : `Send ${formatCurrency(selectedAmount)} with PayPal`}
+              <ExternalLink size={16} />
             </button>
-            {error && <div className="pro-error">{error}</div>}
-            <div className="donation-security"><ShieldCheck size={15} /> {es ? "Pago único y seguro procesado por Stripe." : "Secure one-time payment processed by Stripe."}</div>
+            <div className="donation-security"><ShieldCheck size={15} /> {es ? "PayPal abrirá el perfil de assarasua con el importe en EUR. Confirma los datos antes de enviar." : "PayPal will open assarasua's profile with the EUR amount. Confirm the details before sending."}</div>
             <small>{es ? "Esta aportación no es una donación benéfica y no es deducible fiscalmente." : "This contribution is not a charitable donation and is not tax-deductible."}</small>
           </div>
         </section>

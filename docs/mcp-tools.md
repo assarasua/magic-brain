@@ -11,7 +11,7 @@ https://magic-brain-mcp.assarasua.workers.dev/mcp
 The hosted connector requires no Magic Brain account, OAuth flow, or user API
 key. It can retrieve public card, price, set, rules, and product evidence only.
 It cannot access a user's account, portfolio, watchlist, collection,
-authentication records, Stripe customer, subscription, payment, or donation
+authentication records, payment, or contribution
 data, and it exposes no write or trading tools.
 
 ## How answers are composed

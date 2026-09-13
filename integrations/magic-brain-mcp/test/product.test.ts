@@ -105,8 +105,8 @@ describe("product knowledge MCP tools", () => {
     expect(result.structuredContent).toMatchObject({
       question: "What are monetization and willingness to pay?",
       evidence: expect.arrayContaining([
-        expect.objectContaining({ id: "monetization-pro" }),
-        expect.objectContaining({ id: "willingness-to-pay-hypothesis" }),
+        expect.objectContaining({ id: "monetization-free-access" }),
+        expect.objectContaining({ id: "free-product-tools" }),
       ]),
     });
 

@@ -10,7 +10,7 @@ has not been performed.
 - [ ] Confirm every price record includes source, as-of date/time, currency,
       and finish.
 - [ ] Confirm API responses cannot include users, portfolios, watchlists,
-      API-key records, authentication data, Stripe data, or internal secrets.
+      API-key records, authentication data, payment data, or internal secrets.
 - [ ] Run these package tests plus live contract tests against a staging API.
 
 ## 2. Deploy the MCP endpoint

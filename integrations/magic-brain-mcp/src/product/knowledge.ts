@@ -110,7 +110,7 @@ export const PRODUCT_FACTS: ProductFact[] = [
     keywords: ["portfolio", "size", "positions", "20", "aum", "assets", "managed"],
     citations: [
       cite("src/lib/brain.ts", "Portfolio generation implementation"),
-      cite("https://magicbrain.es/pro", "Brain Pro pricing and features"),
+      cite("https://magicbrain.es/brain-pro", "Brain Pro tools"),
     ],
   },
   {
@@ -123,22 +123,22 @@ export const PRODUCT_FACTS: ProductFact[] = [
     citations: [cite("docs/product-strategy-faq.md#metrics-portfolio-size-and-willingness-to-pay", "Metrics and demand")],
   },
   {
-    id: "willingness-to-pay-hypothesis",
+    id: "free-product-tools",
     topic: "metrics_and_demand",
-    status: "hypothesis",
+    status: "operating_principle",
     statement:
-      "A low-price subscription may appeal to users who value recurring research and portfolio intelligence, but willingness to pay has not been publicly measured or validated.",
-    keywords: ["willingness", "pay", "pricing", "demand", "subscription", "validation"],
+      "Magic Brain's Brain Pro intelligence tools are currently available without a paid subscription; the project accepts optional one-time contributions.",
+    keywords: ["free", "pricing", "subscription", "donation", "contribution"],
     citations: [cite("docs/product-strategy-faq.md#metrics-portfolio-size-and-willingness-to-pay", "Metrics and demand")],
   },
   {
-    id: "monetization-pro",
+    id: "monetization-free-access",
     topic: "monetization",
     status: "shipped_fact",
     statement:
-      "Brain Pro is presented at €5 per month with a 14-day trial and cancellation messaging on the current product page.",
-    keywords: ["monetization", "brain pro", "price", "€5", "subscription", "trial"],
-    citations: [cite("https://magicbrain.es/pro", "Brain Pro pricing")],
+      "Magic Brain does not currently sell a premium subscription; Brain Pro tools are available to authenticated users without a paid plan.",
+    keywords: ["monetization", "brain pro", "free", "price", "subscription", "access"],
+    citations: [cite("https://magicbrain.es/brain-pro", "Brain Pro tools")],
   },
   {
     id: "monetization-referral",
@@ -154,7 +154,7 @@ export const PRODUCT_FACTS: ProductFact[] = [
     topic: "monetization",
     status: "shipped_fact",
     statement:
-      "Magic Brain accepts optional one-time, non-charitable contributions and exposes a read-only public data API; the repository documents no paid API plan.",
+      "Magic Brain accepts optional one-time, non-charitable P2P contributions through PayPal.Me and exposes a read-only public data API; the repository documents no paid API plan.",
     keywords: ["donation", "contribution", "public api", "api pricing", "monetization"],
     citations: [
       cite("https://magicbrain.es/donate", "Support page"),
