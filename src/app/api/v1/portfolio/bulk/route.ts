@@ -58,8 +58,25 @@ export function POST(request: NextRequest) {
 function outcomeData(
   outcome: Awaited<ReturnType<typeof bulkManagePortfolio>>,
 ) {
-  if (outcome.status === "missing") {
-    throw new ApiError(404, "not_found", "Holding or destination list not found");
+  if (
+    outcome.status === "source_list_missing" ||
+    outcome.status === "destination_missing"
+  ) {
+    throw new ApiError(404, "not_found", "Portfolio list not found");
+  }
+  if (outcome.status === "holdings_missing") {
+    throw new ApiError(
+      409,
+      "holdings_changed",
+      "Some selected holdings changed or no longer exist",
+    );
+  }
+  if (outcome.status === "invalid_destination") {
+    throw new ApiError(
+      409,
+      "invalid_destination",
+      "Destination must differ from the source list",
+    );
   }
   if (outcome.status === "conflict") {
     throw new ApiError(

@@ -8,6 +8,14 @@ const uuidPattern =
 export const isUuid = (value: unknown): value is string =>
   typeof value === "string" && uuidPattern.test(value);
 
+export function normalizeDatabaseHoldingId(value: unknown) {
+  const id = typeof value === "string" ? Number(value) : value;
+  if (!Number.isSafeInteger(id) || (id as number) < 1) {
+    throw new Error("Invalid portfolio holding ID returned by database");
+  }
+  return id as number;
+}
+
 export function parseListName(value: unknown) {
   if (typeof value !== "string") return null;
   const name = value.trim().replace(/\s+/g, " ");
@@ -72,7 +80,8 @@ export function parsePortfolioBulkRequest(
   if (!holdingIds) return null;
   if (
     record.action !== "delete" &&
-    !isUuid(record.destinationListId)
+    (!isUuid(record.destinationListId) ||
+      record.destinationListId === record.sourceListId)
   ) {
     return null;
   }
