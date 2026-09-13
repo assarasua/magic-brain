@@ -46,6 +46,7 @@ try {
       "015_ml_batch_serving.sql",
       "016_ml_product_experience.sql",
       "017_ml_evaluation_monitoring.sql",
+      "018_ml_point_in_time_producer.sql",
   ];
   let applied = 0;
   for (const filename of filenames) {
