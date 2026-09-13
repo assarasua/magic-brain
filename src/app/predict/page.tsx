@@ -286,7 +286,9 @@ export default function PredictPage() {
   };
 
   const generateAutomaticPortfolio = async () => {
-    if (!result || generatingPortfolio) return;
+    if (!result || result.marketEvidence.isUpcoming || generatingPortfolio) {
+      return;
+    }
     setGeneratingPortfolio(true);
     setActionNotice("");
     try {
@@ -594,7 +596,7 @@ export default function PredictPage() {
             </div>
           )}
 
-          {buildMode === "automatic" && result && !result.marketEvidence.isUpcoming && (
+          {buildMode === "automatic" && result && (
             <div className={styles.autoBuilder}>
               <div className={styles.autoControls}>
                 <div>
@@ -640,7 +642,11 @@ export default function PredictPage() {
                 </label>
                 <button
                   type="button"
-                  disabled={generatingPortfolio || autoBudget < 25}
+                  disabled={
+                    generatingPortfolio ||
+                    autoBudget < 25 ||
+                    result.marketEvidence.isUpcoming
+                  }
                   onClick={() => void generateAutomaticPortfolio()}
                 >
                   {generatingPortfolio ? <LoaderCircle className="spin" size={15} /> : <Sparkles size={15} />}
@@ -648,7 +654,22 @@ export default function PredictPage() {
                 </button>
               </div>
 
-              {autoPortfolio && (
+              {result.marketEvidence.isUpcoming && (
+                <div className={styles.autoEmpty}>
+                  <strong>
+                    {es
+                      ? "La cartera automática necesita precios observados."
+                      : "Automatic portfolios require observed prices."}
+                  </strong>
+                  <span>
+                    {es
+                      ? "Esta edición todavía no se ha lanzado. Selecciona una edición publicada para que Brain pueda calcular cantidades y asignaciones reales."
+                      : "This set has not been released yet. Select a released set so Brain can calculate real quantities and allocations."}
+                  </span>
+                </div>
+              )}
+
+              {!result.marketEvidence.isUpcoming && autoPortfolio && (
                 <div className={styles.autoResult}>
                   <header>
                     <div>
