@@ -71,7 +71,31 @@ async function resolveAppUser(profile: {
 
     if (identityId && anonymousId && identityId !== anonymousId) {
       await client.query(
-        `update app_portfolio_items set user_id = $1 where user_id = $2`,
+        `
+          insert into app_portfolio_lists (user_id, name, position, is_default)
+          select id,
+            case when locale = 'es' then 'Mi colección' else 'My collection' end,
+            0, true
+          from app_users
+          where id = $1
+            and not exists (
+              select 1 from app_portfolio_lists where user_id = $1
+            )
+          on conflict do nothing
+        `,
+        [identityId],
+      );
+      await client.query(
+        `
+          update app_portfolio_items
+          set user_id = $1,
+              list_id = (
+                select id from app_portfolio_lists
+                where user_id = $1 and is_default
+              ),
+              updated_at = now()
+          where user_id = $2
+        `,
         [identityId, anonymousId],
       );
       await client.query(

@@ -3,6 +3,9 @@ import { getMarketMovers } from "@/lib/catalog";
 import { addPortfolioItem, getPortfolio } from "@/lib/portfolio";
 import { isCardLanguage } from "@/lib/card-languages";
 import {
+  isUuid,
+} from "@/lib/portfolio-list-model";
+import {
   isValidPortfolioQuantity,
   isValidPortfolioUnitPrice,
 } from "@/lib/portfolio-model";
@@ -30,7 +33,14 @@ export async function GET(request: NextRequest) {
       );
     }
     const { user, newToken } = session;
-    const portfolio = await getPortfolio(user.id);
+    const listId = request.nextUrl.searchParams.get("listId") ?? undefined;
+    if (listId !== undefined && !isUuid(listId)) {
+      return NextResponse.json({ error: "Invalid list ID" }, { status: 400 });
+    }
+    const portfolio = await getPortfolio(user.id, listId);
+    if (!portfolio) {
+      return NextResponse.json({ error: "Portfolio list not found" }, { status: 404 });
+    }
     const [experience, personalized] = await Promise.all([
       getMlExperienceForCards(
         user.id,
@@ -129,6 +139,7 @@ export async function POST(request: NextRequest) {
       "condition",
       "language",
       "acquiredAt",
+      "listId",
     ]);
     const allowedConditions = new Set([
       "near_mint",
@@ -153,6 +164,7 @@ export async function POST(request: NextRequest) {
       Object.keys(record).some((key) => !allowedKeys.has(key)) ||
       typeof record.cardId !== "string" ||
       !uuidPattern.test(record.cardId) ||
+      (record.listId !== undefined && !isUuid(record.listId)) ||
       !isValidPortfolioQuantity(record.quantity) ||
       !isValidPortfolioUnitPrice(record.purchasePrice) ||
       (record.condition !== undefined &&
@@ -167,7 +179,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await addPortfolioItem(user.id, {
+    const added = await addPortfolioItem(user.id, {
       cardId: record.cardId,
       quantity: record.quantity,
       purchasePrice: record.purchasePrice,
@@ -177,9 +189,19 @@ export async function POST(request: NextRequest) {
           : "near_mint",
       language: isCardLanguage(record.language) ? record.language : "en",
       acquiredAt,
+      listId: typeof record.listId === "string" ? record.listId : undefined,
     });
+    if (!added) {
+      return NextResponse.json({ error: "Portfolio list not found" }, { status: 404 });
+    }
 
-    const portfolio = await getPortfolio(user.id);
+    const portfolio = await getPortfolio(
+      user.id,
+      typeof record.listId === "string" ? record.listId : undefined,
+    );
+    if (!portfolio) {
+      return NextResponse.json({ error: "Portfolio list not found" }, { status: 404 });
+    }
     return attachSessionCookie(
       NextResponse.json(
         {

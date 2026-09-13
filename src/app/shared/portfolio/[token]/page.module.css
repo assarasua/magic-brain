@@ -1,0 +1,142 @@
+.page {
+  min-height: 100vh;
+  padding: 28px clamp(18px, 5vw, 72px) 50px;
+  color: #e9edf2;
+  background:
+    radial-gradient(circle at 80% 0, rgba(139, 92, 246, 0.13), transparent 30%),
+    #0c0f14;
+}
+
+.page > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #8793a2;
+  font-size: 11px;
+}
+
+.hero {
+  max-width: 760px;
+  margin: 70px auto 28px;
+}
+
+.hero > span {
+  color: #d3ad62;
+  font-size: 10px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.hero h1 {
+  margin: 8px 0;
+  font: 650 clamp(32px, 6vw, 58px) var(--font-display);
+}
+
+.hero p,
+.page footer {
+  color: #8b96a5;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-width: 980px;
+  margin: 0 auto 18px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 15px;
+}
+
+.metrics article {
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.metrics span,
+.metrics strong {
+  display: block;
+}
+
+.metrics span {
+  margin-bottom: 7px;
+  color: #7e8998;
+  font-size: 10px;
+}
+
+.metrics strong {
+  font-size: 20px;
+}
+
+.holdings {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.holdings h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.holdings article {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.holdings img,
+.holdings article > div {
+  width: 38px;
+  height: 52px;
+  border-radius: 5px;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.holdings article > span {
+  display: grid;
+  gap: 4px;
+}
+
+.holdings small {
+  color: #7e8998;
+}
+
+.page footer {
+  max-width: 980px;
+  margin: 16px auto 0;
+}
+
+.unavailable {
+  display: grid;
+  min-height: 65vh;
+  place-content: center;
+  text-align: center;
+}
+
+.unavailable h1 {
+  margin-bottom: 4px;
+}
+
+.unavailable p {
+  color: #8b96a5;
+}
+
+@media (max-width: 620px) {
+  .metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .hero {
+    margin-top: 44px;
+  }
+}

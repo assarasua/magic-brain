@@ -8,6 +8,7 @@ import {
   type PortfolioImportSource,
 } from "@/lib/portfolio-import-model";
 import styles from "@/app/portfolio/portfolio.module.css";
+import type { PortfolioList } from "@/lib/portfolio";
 
 type Locale = "en" | "es";
 
@@ -93,10 +94,14 @@ const localizeParseError = (message: string, locale: Locale) => {
 
 export function PortfolioImportModal({
   locale,
+  lists,
+  selectedListId,
   onClose,
   onComplete,
 }: {
   locale: Locale;
+  lists: PortfolioList[];
+  selectedListId: string;
   onClose: () => void;
   onComplete: () => Promise<void>;
 }) {
@@ -111,6 +116,8 @@ export function PortfolioImportModal({
   const [requestError, setRequestError] = useState("");
   const [busy, setBusy] = useState(false);
   const [reviewed, setReviewed] = useState(false);
+  const [listId, setListId] = useState(selectedListId);
+  const [requestId, setRequestId] = useState("");
   const [existingStrategy, setExistingStrategy] = useState<"add" | "skip">(
     "add",
   );
@@ -166,7 +173,7 @@ export function PortfolioImportModal({
       const response = await fetch("/api/portfolio/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "preview", rows: parsed.rows }),
+        body: JSON.stringify({ action: "preview", rows: parsed.rows, listId }),
       });
       const result = (await response.json()) as {
         rows?: ResolvedRow[];
@@ -176,6 +183,7 @@ export function PortfolioImportModal({
         throw new Error(result.error ?? "Preview failed");
       }
       setResolved(result.rows);
+      setRequestId(crypto.randomUUID());
       setSelections(
         Object.fromEntries(
           result.rows
@@ -213,6 +221,8 @@ export function PortfolioImportModal({
           action: "confirm",
           rows,
           existingStrategy,
+          listId,
+          requestId,
         }),
       });
       if (!response.ok) throw new Error("Import failed");
@@ -259,6 +269,14 @@ export function PortfolioImportModal({
               ? "Importa tu cartera"
               : "Import your portfolio"}
         </h2>
+        <label className={styles.importDestination}>
+          <span>{locale === "es" ? "Importar en" : "Import into"}</span>
+          <select value={listId} onChange={(event) => setListId(event.target.value)}>
+            {lists.map((list) => (
+              <option key={list.id} value={list.id}>{list.name}</option>
+            ))}
+          </select>
+        </label>
 
         {!resolved.length ? (
           <>
@@ -448,6 +466,7 @@ export function PortfolioImportModal({
                 onClick={() => {
                   setResolved([]);
                   setSelections({});
+                  setRequestId("");
                 }}
               >
                 {locale === "es" ? "Atrás" : "Back"}

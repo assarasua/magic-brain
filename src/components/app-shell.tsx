@@ -126,7 +126,10 @@ function SessionGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { status } = useSession();
   const isLogin = pathname === "/login";
-  const isPublic = pathname === "/developers" || pathname.startsWith("/developers/");
+  const isPublic =
+    pathname === "/developers" ||
+    pathname.startsWith("/developers/") ||
+    pathname.startsWith("/shared/portfolio/");
 
   useEffect(() => {
     if (status === "unauthenticated" && !isLogin && !isPublic) {
