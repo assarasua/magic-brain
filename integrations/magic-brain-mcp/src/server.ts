@@ -7,6 +7,7 @@ import {
   type JsonValue,
 } from "./api-client.js";
 import type { MagicBrainMcpConfig } from "./config.js";
+import { registerProductKnowledgeTools } from "./product/tools.js";
 import type { RulesKnowledgeBaseOptions } from "./rules/knowledge-base.js";
 import { registerRulesTools } from "./rules/tools.js";
 
@@ -59,7 +60,7 @@ export function createMagicBrainMcpServer(
     title: "Magic Brain",
     version: "0.1.0",
     description:
-      "Read-only Magic: The Gathering card, set, market price, and latest-set opportunity data from the Magic Brain Public API.",
+      "Read-only Magic: The Gathering card, price, rules, and source-cited Magic Brain product and business research.",
     websiteUrl: "https://github.com/assarasua/magic-brain",
   });
 
@@ -253,6 +254,7 @@ export function createMagicBrainMcpServer(
         fileURLToPath(new URL("../rules-data/rules-index.json", import.meta.url)),
     }),
   });
+  registerProductKnowledgeTools(server);
 
   return server;
 }

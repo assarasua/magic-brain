@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { googleAuthConfigured } from "@/auth";
 import { query } from "@/lib/db";
-import { attachSessionCookie, getOrCreateUser, isPro } from "@/lib/session";
+import { attachSessionCookie, getOrCreateUser } from "@/lib/session";
 import { normalizeUserPreferences } from "@/lib/user-preferences";
 
 export const runtime = "nodejs";
@@ -12,15 +12,11 @@ export async function GET(request: NextRequest) {
     NextResponse.json({
       id: user.id,
       locale: user.locale,
-      subscriptionStatus: user.subscriptionStatus,
-      isPro: isPro(user),
       authenticated: user.authenticated,
       email: user.email,
       name: user.displayName,
       avatarUrl: user.avatarUrl,
       googleAuthConfigured,
-      plan: isPro(user) ? "pro" : "basic",
-      hasBillingAccount: Boolean(user.stripeCustomerId),
       productTourCompleted: user.productTourCompleted,
       preferences: user.preferences,
     }),

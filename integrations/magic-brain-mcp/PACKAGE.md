@@ -1,10 +1,35 @@
 # Magic Brain MCP server
 
 An isolated, read-only remote MCP server for Magic Brain's versioned public
-Cards/Prices/Sets API. It exposes no resources, prompts, write tools, user
-accounts, portfolios, watchlists, authentication records, or Stripe data.
+Cards/Prices/Sets API, pinned Comprehensive Rules, and canonical public product
+knowledge. It exposes no resources, prompts, write tools, user accounts,
+portfolios, watchlists, authentication records, or payment data.
+
+## Install the live connector
+
+Use the hosted Streamable HTTP endpoint:
+
+```text
+https://magic-brain-mcp.assarasua.workers.dev/mcp
+```
+
+No Magic Brain account, OAuth sign-in, or user API key is currently required.
+See the canonical [MCP installation guide](../../docs/mcp-installation.md) for
+current Claude, Cursor, VS Code/GitHub Copilot, ChatGPT, and OpenAI Responses
+API instructions, requirements, and troubleshooting.
+
+For exact inputs, outputs, limits, examples, evidence rules, and failure modes
+for every registered tool, use the canonical
+[MCP tool reference](../../docs/mcp-tools.md).
+
+The hosted URL is separate from local development and self-hosting. The steps
+below run your own server and do not install the live connector.
 
 ## Tools
+
+The list below is a summary. The
+[canonical MCP tool reference](../../docs/mcp-tools.md) documents all 11 tools
+without duplicating their schemas here.
 
 - `search_cards` — bounded catalogue search with set/card filters
 - `get_card` — one public card record
@@ -14,13 +39,27 @@ accounts, portfolios, watchlists, authentication records, or Stripe data.
 - `get_latest_set_opportunities` — at most 25 latest-set research signals
 - `search_rules` — bounded local search of the pinned Comprehensive Rules index
 - `ask_rules` — cited rules retrieval with non-authoritative synthesis separated
+- `search_product_knowledge` — deterministic lexical search over canonical,
+  status-labelled product and business facts
+- `get_product_context` — bounded evidence bundle for selected diligence topics
+- `ask_product_question` — cited evidence and answer constraints for host-model
+  synthesis; it does not call another LLM
 
 Every tool has a title, strict input and output schemas, `readOnlyHint: true`,
 `destructiveHint: false`, and `idempotentHint: true`. Public API tools use
-`openWorldHint: true`; local rules-index tools use `openWorldHint: false`.
+`openWorldHint: true`; local rules and product-knowledge tools use
+`openWorldHint: false`.
 Results include Magic Brain attribution, the queried public URL, fetch time,
 and any upstream request ID. Price output retains the source, as-of time,
 currency, and finish fields returned by the public API.
+
+Product tools return at most 12 canonical statements. Every statement is tagged
+as `shipped_fact`, `operating_principle`, `hypothesis`, `roadmap_option`, or
+`unknown_not_measured` and includes direct citations. The knowledge base
+explicitly forbids invented AUM-equivalent, conversion, retention,
+willingness-to-pay, market-size, user-behavior, incident/SLA, and competitive
+superiority claims. See the canonical
+[product strategy and FAQ](../../docs/product-strategy-faq.md).
 
 ## Expected public API contract
 
@@ -98,12 +137,12 @@ npm audit
 ```
 
 Tests use mocked public API responses and an in-memory MCP client/server pair;
-they do not require database, account, Stripe, or network access.
+they do not require database, account, payment, or network access.
 
 ## Privacy and support
 
 The connector accepts bounded public-data and rules questions. It does not
-request or expose account, portfolio, watchlist, authentication, Stripe, or
+request or expose account, portfolio, watchlist, authentication, payment, or
 Google data. A deployment may process IP addresses and request metadata for
 security, abuse prevention, and operational logs. See the public
 [privacy notice](https://github.com/assarasua/magic-brain/blob/main/PRIVACY.md),

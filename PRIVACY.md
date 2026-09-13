@@ -11,23 +11,22 @@ bases, retention periods, and actual subprocessors before offering a service.
 
 Depending on enabled features, a deployment can process anonymous session
 tokens (stored as hashes), locale and preferences, portfolio/watchlist data,
-Google account ID, verified email, display name and avatar, Stripe customer and
-subscription identifiers, donation/payment status, server logs, IP addresses,
-and security/diagnostic records. Payment card details are handled by Stripe and
-should not be stored by Magic Brain.
+Google account ID, verified email, display name and avatar, server logs, IP
+addresses, and security/diagnostic records. Optional contributions are completed
+on PayPal; Magic Brain does not receive or store payment details or status.
 
 ## Purposes
 
 Data may be used to provide accounts and requested features, persist user
-choices, authenticate users, process subscriptions or donations, secure and
-debug the service, prevent abuse, and comply with law. Operators must document
+choices, authenticate users, secure and debug the service, prevent abuse, and
+comply with law. Operators must document
 the lawful basis for each purpose and must not silently reuse personal data for
 unrelated purposes.
 
 ## Sharing, retention, and transfers
 
 Configured providers can include hosting and database vendors, Cloudflare,
-Google, Stripe, and data providers. Each operator must list the providers it
+Google, PayPal, and data providers. Each operator must list the providers it
 actually uses, its international-transfer safeguards, and concrete retention
 periods. Keep personal data only as long as needed, then delete or anonymize it.
 

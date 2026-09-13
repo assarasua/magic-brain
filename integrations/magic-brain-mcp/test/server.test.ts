@@ -89,7 +89,7 @@ describe("MagicBrainApiClient", () => {
 });
 
 describe("MCP contract", () => {
-  it("publishes only eight read-only, well-described tools", async () => {
+  it("publishes only eleven read-only, well-described tools", async () => {
     const fetchMock = vi.fn<typeof fetch>(
       async () => new Response(JSON.stringify({ data: [] })),
     );
@@ -106,13 +106,16 @@ describe("MCP contract", () => {
 
     expect(tools.map(({ name }) => name).sort()).toEqual(
       [
+        "ask_product_question",
         "ask_rules",
         "get_card",
         "get_latest_prices",
         "get_latest_set_opportunities",
         "get_price_history",
+        "get_product_context",
         "list_sets",
         "search_cards",
+        "search_product_knowledge",
         "search_rules",
       ].sort(),
     );
@@ -125,7 +128,15 @@ describe("MCP contract", () => {
         idempotentHint: true,
       });
       expect(tool.annotations?.openWorldHint).toBe(
-        ["ask_rules", "search_rules"].includes(tool.name) ? false : true,
+        [
+          "ask_product_question",
+          "ask_rules",
+          "get_product_context",
+          "search_product_knowledge",
+          "search_rules",
+        ].includes(tool.name)
+          ? false
+          : true,
       );
       expect(tool.outputSchema).toBeTruthy();
     }

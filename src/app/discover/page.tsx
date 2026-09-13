@@ -19,7 +19,6 @@ import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
 import { useCardDetail } from "@/components/card-detail-provider";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
-import { ProGate } from "@/components/pro-gate";
 import type { DiscoveryCard } from "@/lib/discovery";
 import { formatCurrency } from "@/lib/data";
 
@@ -153,8 +152,7 @@ export default function DiscoverPage() {
         <Link href="/" className="back-dashboard"><ArrowLeft size={15} /> {t("Dashboard")}</Link>
       </header>
 
-      <ProGate feature="discover">
-        <div className="discovery-content">
+      <div className="discovery-content">
           <div className="discovery-heading">
             <span className="pro-badge"><Sparkles size={13} /> Brain Discovery</span>
             <h1>{es ? "Descubre tu próxima carta." : "Discover your next card."}</h1>
@@ -238,8 +236,7 @@ export default function DiscoverPage() {
               <div><Link href="/settings"><SlidersHorizontal size={15} /> {es ? "Cambiar preferencias" : "Change preferences"}</Link><button onClick={loadCards}><RotateCcw size={15} /> {es ? "Actualizar" : "Refresh"}</button></div>
             </div>
           )}
-        </div>
-      </ProGate>
+      </div>
       {notice && <div className="toast">{notice}</div>}
     </main>
   );

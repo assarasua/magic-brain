@@ -4,7 +4,7 @@ import {
   saveDiscoveryDecision,
   undoDiscoveryDecision,
 } from "@/lib/discovery";
-import { attachSessionCookie, getOrCreateUser, isPro } from "@/lib/session";
+import { attachSessionCookie, getOrCreateUser } from "@/lib/session";
 import { addWatchlistItemIfMissing } from "@/lib/watchlist";
 
 export const runtime = "nodejs";
@@ -12,19 +12,9 @@ export const runtime = "nodejs";
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-const proRequired = (newToken: string | null) =>
-  attachSessionCookie(
-    NextResponse.json(
-      { error: "Personalised card discovery requires Brain Pro" },
-      { status: 403 },
-    ),
-    newToken,
-  );
-
 export async function GET(request: NextRequest) {
   try {
     const { user, newToken } = await getOrCreateUser(request);
-    if (!isPro(user)) return proRequired(newToken);
     return attachSessionCookie(
       NextResponse.json({
         cards: await getDiscoveryCards(user.id, user.preferences),
@@ -42,7 +32,6 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const { user, newToken } = await getOrCreateUser(request);
-    if (!isPro(user)) return proRequired(newToken);
     const body = (await request.json()) as {
       cardId?: string;
       decision?: string;
