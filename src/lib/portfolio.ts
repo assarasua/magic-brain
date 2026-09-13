@@ -2,6 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { db, query } from "@/lib/db";
 import {
   MAX_PORTFOLIO_LISTS,
+  normalizeDatabaseHoldingId,
   type PortfolioBulkRequest,
 } from "@/lib/portfolio-list-model";
 import {
@@ -41,7 +42,7 @@ export type PortfolioHolding = {
 };
 
 type HoldingRow = {
-  id: number;
+  id: string;
   list_id: string;
   card_id: string;
   name: string;
@@ -73,7 +74,7 @@ const mapHolding = (row: HoldingRow): PortfolioHolding => {
     row.gain_percent === null ? null : Number(row.gain_percent);
 
   return {
-    id: row.id,
+    id: normalizeDatabaseHoldingId(row.id),
     listId: row.list_id,
     cardId: row.card_id,
     name: row.name,
@@ -568,6 +569,31 @@ export async function bulkManagePortfolio(
       await client.query("commit");
       return { status: "ok" as const, result: previous.rows[0].response };
     }
+    const sourceList = await client.query(
+      `select id from app_portfolio_lists where id = $1 and user_id = $2`,
+      [request.sourceListId, userId],
+    );
+    if (sourceList.rowCount !== 1) {
+      await client.query("rollback");
+      return { status: "source_list_missing" as const };
+    }
+    if (
+      request.destinationListId &&
+      request.destinationListId === request.sourceListId
+    ) {
+      await client.query("rollback");
+      return { status: "invalid_destination" as const };
+    }
+    if (request.destinationListId) {
+      const destination = await client.query(
+        `select id from app_portfolio_lists where id = $1 and user_id = $2`,
+        [request.destinationListId, userId],
+      );
+      if (destination.rowCount !== 1) {
+        await client.query("rollback");
+        return { status: "destination_missing" as const };
+      }
+    }
     const source = await client.query<{ id: number }>(
       `
         select id from app_portfolio_items
@@ -578,17 +604,11 @@ export async function bulkManagePortfolio(
     );
     if (source.rowCount !== request.holdingIds.length) {
       await client.query("rollback");
-      return { status: "missing" as const };
-    }
-    if (request.destinationListId) {
-      const destination = await client.query(
-        `select id from app_portfolio_lists where id = $1 and user_id = $2`,
-        [request.destinationListId, userId],
-      );
-      if (destination.rowCount !== 1) {
-        await client.query("rollback");
-        return { status: "missing" as const };
-      }
+      return {
+        status: "holdings_missing" as const,
+        requested: request.holdingIds.length,
+        found: source.rowCount ?? 0,
+      };
     }
     let affected = 0;
     if (request.action === "move") {
@@ -635,7 +655,12 @@ export async function bulkManagePortfolio(
       );
       affected = result.rowCount ?? 0;
     }
-    const response = { action: request.action, affected };
+    const response = {
+      action: request.action,
+      requested: request.holdingIds.length,
+      affected,
+      skipped: request.holdingIds.length - affected,
+    };
     await client.query(
       `
         insert into app_portfolio_bulk_operations

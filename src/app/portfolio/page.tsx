@@ -29,6 +29,10 @@ import { PortfolioOnboarding } from "@/components/portfolio-onboarding";
 import { PortfolioImportModal } from "@/components/portfolio-import-modal";
 import { PortfolioForecastChart } from "@/components/portfolio-forecast-chart";
 import { MlInsight, trackMlFeedback } from "@/components/ml-insight";
+import {
+  BulkActionDialog,
+  ConfirmationDialog,
+} from "@/components/portfolio-action-dialog";
 import { CARD_LANGUAGES, type CardLanguage } from "@/lib/card-languages";
 import type { CatalogCard } from "@/lib/catalog";
 import { formatCurrency } from "@/lib/data";
@@ -284,6 +288,7 @@ export default function PortfolioPage() {
   const [data, setData] = useState(emptyPortfolio);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [addDestinationListId, setAddDestinationListId] = useState("");
   const [showImport, setShowImport] = useState(false);
   const [requestedCardId, setRequestedCardId] = useState("");
   const [cardQuery, setCardQuery] = useState("");
@@ -299,8 +304,25 @@ export default function PortfolioPage() {
   const [selectedHoldingIds, setSelectedHoldingIds] = useState<number[]>([]);
   const [bulkDestination, setBulkDestination] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkAction, setBulkAction] = useState<
+    "move" | "copy" | "delete" | null
+  >(null);
+  const [bulkError, setBulkError] = useState("");
+  const [bulkRequestId, setBulkRequestId] = useState("");
   const [newListName, setNewListName] = useState("");
   const [managingLists, setManagingLists] = useState(false);
+  const [listBusy, setListBusy] = useState(false);
+  const [switchingListId, setSwitchingListId] = useState("");
+  const [editingListId, setEditingListId] = useState("");
+  const [editingListName, setEditingListName] = useState("");
+  const [confirmation, setConfirmation] = useState<
+    | { kind: "holding"; id: number; name: string }
+    | { kind: "list"; list: PortfolioList }
+    | { kind: "share_replace" }
+    | { kind: "share_revoke" }
+    | null
+  >(null);
+  const [confirmationBusy, setConfirmationBusy] = useState(false);
   const [share, setShare] = useState<{
     id: string;
     expiresAt: string;
@@ -308,10 +330,15 @@ export default function PortfolioPage() {
     url?: string;
   } | null>(null);
   const [shareNow, setShareNow] = useState(0);
+  const bulkSubmittingRef = useRef(false);
+  const confirmationSubmittingRef = useRef(false);
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
-  const loadPortfolio = (listId?: string) =>
+  const loadPortfolio = (
+    listId?: string,
+    options?: { preserveSelection?: boolean },
+  ) =>
     fetch(`/api/portfolio${listId ? `?listId=${encodeURIComponent(listId)}` : ""}`)
       .then((response) => {
         if (!response.ok) throw new Error("Unable to load portfolio");
@@ -319,7 +346,7 @@ export default function PortfolioPage() {
       })
       .then((result: PortfolioData) => {
         setData(result);
-        setSelectedHoldingIds([]);
+        if (!options?.preserveSelection) setSelectedHoldingIds([]);
         window.localStorage.setItem("portfolio.activeListId", result.selectedListId);
       })
       .finally(() => setLoading(false));
@@ -496,177 +523,267 @@ export default function PortfolioPage() {
 
   const createList = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (listBusy) return;
+    setListBusy(true);
     setError("");
-    const response = await fetch("/api/portfolio/lists", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newListName }),
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      setError(result.error ?? "Unable to create list");
-      return;
+    try {
+      const response = await fetch("/api/portfolio/lists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newListName }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Unable to create list");
+      setNewListName("");
+      setNotice(locale === "es" ? "Lista creada." : "List created.");
+      await loadPortfolio(result.list.id);
+    } catch (createError) {
+      setError(createError instanceof Error ? createError.message : "Unable to create list");
+    } finally {
+      setListBusy(false);
     }
-    setNewListName("");
-    setNotice(locale === "es" ? "Lista creada." : "List created.");
-    await loadPortfolio(result.list.id);
   };
 
-  const renameList = async (list: PortfolioList) => {
-    const name = window.prompt(
-      locale === "es" ? "Nuevo nombre de la lista" : "New list name",
-      list.name,
-    )?.trim();
-    if (!name || name === list.name) return;
-    const response = await fetch(`/api/portfolio/lists/${list.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    });
-    if (!response.ok) {
+  const renameList = async (listId: string) => {
+    const name = editingListName.trim();
+    if (!name || listBusy) return;
+    setListBusy(true);
+    try {
+      const response = await fetch(`/api/portfolio/lists/${listId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
       const result = await response.json();
-      setError(result.error ?? "Unable to rename list");
-      return;
+      if (!response.ok) throw new Error(result.error ?? "Unable to rename list");
+      setEditingListId("");
+      setEditingListName("");
+      setNotice(locale === "es" ? "Lista renombrada." : "List renamed.");
+      await loadPortfolio(data.selectedListId);
+    } catch (renameError) {
+      setError(renameError instanceof Error ? renameError.message : "Unable to rename list");
+    } finally {
+      setListBusy(false);
     }
-    setNotice(locale === "es" ? "Lista renombrada." : "List renamed.");
-    await loadPortfolio(data.selectedListId);
   };
 
   const reorderList = async (listId: string, offset: -1 | 1) => {
+    if (listBusy) return;
     const index = data.lists.findIndex((list) => list.id === listId);
     const target = index + offset;
     if (index < 0 || target < 0 || target >= data.lists.length) return;
     const ordered = data.lists.map((list) => list.id);
     [ordered[index], ordered[target]] = [ordered[target], ordered[index]];
-    const response = await fetch("/api/portfolio/lists", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderedIds: ordered }),
-    });
-    if (response.ok) await loadPortfolio(data.selectedListId);
-    else setError(locale === "es" ? "No se pudo reordenar." : "Unable to reorder.");
+    setListBusy(true);
+    try {
+      const response = await fetch("/api/portfolio/lists", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderedIds: ordered }),
+      });
+      if (!response.ok) throw new Error("reorder_failed");
+      await loadPortfolio(data.selectedListId);
+    } catch {
+      setError(locale === "es" ? "No se pudo reordenar." : "Unable to reorder.");
+    } finally {
+      setListBusy(false);
+    }
   };
 
   const deleteList = async (list: PortfolioList) => {
-    if (list.isDefault) return;
+    if (list.isDefault || confirmationSubmittingRef.current) return;
+    confirmationSubmittingRef.current = true;
     const destination = data.lists.find((candidate) => candidate.isDefault);
-    const message = list.holdingCount
-      ? locale === "es"
-        ? `Eliminar “${list.name}” moverá sus ${list.holdingCount} posiciones a “${destination?.name}”. ¿Continuar?`
-        : `Deleting “${list.name}” will move its ${list.holdingCount} holdings to “${destination?.name}”. Continue?`
-      : locale === "es"
-        ? `¿Eliminar la lista vacía “${list.name}”?`
-        : `Delete the empty list “${list.name}”?`;
-    if (!window.confirm(message)) return;
-    const response = await fetch(`/api/portfolio/lists/${list.id}`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(
-        list.holdingCount ? { destinationListId: destination?.id } : {},
-      ),
-    });
-    if (!response.ok) {
+    setConfirmationBusy(true);
+    try {
+      const response = await fetch(`/api/portfolio/lists/${list.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          list.holdingCount ? { destinationListId: destination?.id } : {},
+        ),
+      });
       const result = await response.json();
-      setError(result.error ?? "Unable to delete list");
-      return;
+      if (!response.ok) throw new Error(result.error ?? "Unable to delete list");
+      setConfirmation(null);
+      setNotice(locale === "es" ? "Lista eliminada." : "List deleted.");
+      await loadPortfolio(
+        list.id === data.selectedListId ? destination?.id : data.selectedListId,
+      );
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : locale === "es" ? "No se pudo eliminar la lista." : "Unable to delete list.",
+      );
+    } finally {
+      setConfirmationBusy(false);
+      confirmationSubmittingRef.current = false;
     }
-    setNotice(locale === "es" ? "Lista eliminada." : "List deleted.");
-    await loadPortfolio(
-      list.id === data.selectedListId ? destination?.id : data.selectedListId,
-    );
   };
 
-  const runBulkAction = async (action: "move" | "copy" | "delete") => {
-    if (!selectedHoldingIds.length) return;
+  const runBulkAction = async () => {
+    const action = bulkAction;
     if (
-      action === "delete" &&
-      !window.confirm(
-        locale === "es"
-          ? `Eliminar permanentemente ${selectedHoldingIds.length} posiciones de la cartera?`
-          : `Permanently remove ${selectedHoldingIds.length} holdings from your portfolio?`,
-      )
+      !action ||
+      !selectedHoldingIds.length ||
+      !bulkRequestId ||
+      bulkBusy ||
+      bulkSubmittingRef.current
     ) return;
     if (
       action !== "delete" &&
       (!bulkDestination || bulkDestination === data.selectedListId)
     ) {
-      setError(locale === "es" ? "Elige otra lista." : "Choose another list.");
+      setBulkError(locale === "es" ? "Elige otra lista." : "Choose another list.");
       return;
     }
+    bulkSubmittingRef.current = true;
     setBulkBusy(true);
-    setError("");
-    const response = await fetch("/api/portfolio/bulk", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action,
-        holdingIds: selectedHoldingIds,
-        sourceListId: data.selectedListId,
-        destinationListId: action === "delete" ? undefined : bulkDestination,
-        requestId: crypto.randomUUID(),
-      }),
-    });
-    if (response.ok) {
+    setBulkError("");
+    try {
+      const response = await fetch("/api/portfolio/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          holdingIds: selectedHoldingIds,
+          sourceListId: data.selectedListId,
+          destinationListId: action === "delete" ? undefined : bulkDestination,
+          requestId: bulkRequestId,
+        }),
+      });
+      const result = await response.json().catch(() => ({
+        code: "invalid_response",
+        error: "Invalid server response",
+      }));
+      if (!response.ok) {
+        const localized: Record<string, string> = {
+          invalid_bulk_request:
+            locale === "es"
+              ? "La selección ya no es válida. Selecciona entre 1 y 200 posiciones."
+              : "The selection is no longer valid. Select between 1 and 200 holdings.",
+          destination_missing:
+            locale === "es"
+              ? "La lista de destino ya no existe. Elige otra."
+              : "The destination list no longer exists. Choose another.",
+          invalid_destination:
+            locale === "es"
+              ? "Elige una lista distinta de la lista actual."
+              : "Choose a list other than the current list.",
+          holdings_missing:
+            locale === "es"
+              ? "Alguna posición cambió en otra pestaña. Actualiza la cartera y vuelve a seleccionarla."
+              : "A holding changed in another tab. Refresh the portfolio and select it again.",
+          bulk_operation_failed:
+            locale === "es"
+              ? "No se aplicó ningún cambio. Inténtalo de nuevo."
+              : "No changes were applied. Try again.",
+          source_list_missing:
+            locale === "es"
+              ? "La lista actual ya no existe. Actualiza la cartera."
+              : "The current list no longer exists. Refresh the portfolio.",
+          authentication_required:
+            locale === "es"
+              ? "Tu sesión caducó. Vuelve a iniciar sesión."
+              : "Your session expired. Sign in again.",
+        };
+        if (result.code === "destination_missing") {
+          setBulkDestination("");
+          setData((current) => ({
+            ...current,
+            lists: current.lists.filter((list) => list.id !== bulkDestination),
+          }));
+        }
+        setBulkError(
+          localized[result.code] ??
+            result.error ??
+            (locale === "es"
+              ? "No se aplicó ningún cambio."
+              : "No changes were applied."),
+        );
+        return;
+      }
+      const affected = Number(result.affected) || 0;
+      const skipped = Number(result.skipped) || 0;
       setNotice(
         locale === "es"
           ? action === "copy"
-            ? "Posiciones copiadas; se conservan en la lista original."
+            ? `${affected} posiciones copiadas; ${skipped} omitidas. Los originales permanecen en esta lista.`
             : action === "move"
-              ? "Posiciones movidas a otra lista."
-              : "Posiciones eliminadas de la cartera."
+              ? `${affected} posiciones movidas; ${skipped} omitidas.`
+              : `${affected} posiciones eliminadas de la cartera; ${skipped} omitidas.`
           : action === "copy"
-            ? "Holdings copied; originals remain in this list."
+            ? `${affected} holdings copied; ${skipped} skipped. Originals remain in this list.`
             : action === "move"
-              ? "Holdings moved to another list."
-              : "Holdings removed from the portfolio.",
+              ? `${affected} holdings moved; ${skipped} skipped.`
+              : `${affected} holdings removed from the portfolio; ${skipped} skipped.`,
       );
       await loadPortfolio(data.selectedListId);
-    } else {
-      setError(locale === "es" ? "La acción masiva falló." : "Bulk action failed.");
+      setBulkAction(null);
+      setBulkDestination("");
+      setBulkRequestId("");
+    } catch {
+      setBulkError(
+        locale === "es"
+          ? "No hay conexión. Tu selección se conserva para volver a intentarlo."
+          : "You appear offline. Your selection is preserved so you can retry.",
+      );
+    } finally {
+      setBulkBusy(false);
+      bulkSubmittingRef.current = false;
     }
-    setBulkBusy(false);
   };
 
   const createShare = async () => {
-    if (
-      share?.active &&
-      !window.confirm(
+    if (confirmationSubmittingRef.current) return;
+    confirmationSubmittingRef.current = true;
+    setConfirmationBusy(true);
+    try {
+      const response = await fetch(
+        `/api/portfolio/lists/${data.selectedListId}/shares`,
+        { method: "POST" },
+      );
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Unable to create share link");
+      setShare({ ...result.share, url: result.url });
+      setConfirmation(null);
+      setShareNow(Date.now());
+      setNotice(
         locale === "es"
-          ? "Crear un enlace nuevo revocará inmediatamente el enlace activo. ¿Continuar?"
-          : "Creating a new link immediately revokes the active link. Continue?",
-      )
-    ) return;
-    const response = await fetch(
-      `/api/portfolio/lists/${data.selectedListId}/shares`,
-      { method: "POST" },
-    );
-    const result = await response.json();
-    if (!response.ok) {
-      setError(result.error ?? "Unable to create share link");
-      return;
+          ? "Enlace creado. Caduca exactamente 24 horas después de su creación."
+          : "Link created. It expires exactly 24 hours after creation.",
+      );
+    } catch (shareError) {
+      setError(
+        shareError instanceof Error
+          ? shareError.message
+          : locale === "es" ? "No se pudo crear el enlace." : "Unable to create share link.",
+      );
+    } finally {
+      setConfirmationBusy(false);
+      confirmationSubmittingRef.current = false;
     }
-    setShare({ ...result.share, url: result.url });
-    setShareNow(Date.now());
-    setNotice(
-      locale === "es"
-        ? "Enlace creado. Caduca exactamente 24 horas después de su creación."
-        : "Link created. It expires exactly 24 hours after creation.",
-    );
   };
 
   const revokeShare = async () => {
-    if (!share || !window.confirm(
-      locale === "es"
-        ? "¿Revocar este enlace ahora?"
-        : "Revoke this link now?",
-    )) return;
-    const response = await fetch(
-      `/api/portfolio/lists/${data.selectedListId}/shares/${share.id}`,
-      { method: "DELETE" },
-    );
-    if (response.ok) {
+    if (!share || confirmationSubmittingRef.current) return;
+    confirmationSubmittingRef.current = true;
+    setConfirmationBusy(true);
+    try {
+      const response = await fetch(
+        `/api/portfolio/lists/${data.selectedListId}/shares/${share.id}`,
+        { method: "DELETE" },
+      );
+      if (!response.ok) throw new Error("revoke_failed");
       setShare(null);
+      setConfirmation(null);
       setNotice(locale === "es" ? "Enlace revocado." : "Link revoked.");
+    } catch {
+      setError(locale === "es" ? "No se pudo revocar el enlace." : "Unable to revoke link.");
+    } finally {
+      setConfirmationBusy(false);
+      confirmationSubmittingRef.current = false;
     }
   };
 
@@ -674,6 +791,47 @@ export default function PortfolioPage() {
     ? Math.max(0, new Date(share.expiresAt).getTime() - shareNow)
     : 0;
   const shareCountdownLabel = `${Math.floor(shareCountdown / 3_600_000)}h ${Math.floor((shareCountdown % 3_600_000) / 60_000)}m ${Math.floor((shareCountdown % 60_000) / 1_000)}s`;
+  const confirmationCopy = (() => {
+    if (!confirmation) return { title: "", description: "", label: "" };
+    if (confirmation.kind === "list") {
+      return {
+        title: locale === "es" ? "Eliminar lista" : "Delete list",
+        description: confirmation.list.holdingCount > 0
+          ? locale === "es"
+            ? `Las ${confirmation.list.holdingCount} posiciones de “${confirmation.list.name}” se moverán a “${data.lists.find((list) => list.isDefault)?.name}” antes de eliminar la lista.`
+            : `${confirmation.list.holdingCount} holdings in “${confirmation.list.name}” will move to “${data.lists.find((list) => list.isDefault)?.name}” before the list is deleted.`
+          : locale === "es"
+            ? `La lista vacía “${confirmation.list.name}” se eliminará.`
+            : `The empty list “${confirmation.list.name}” will be deleted.`,
+        label: locale === "es" ? "Eliminar lista" : "Delete list",
+      };
+    }
+    if (confirmation.kind === "holding") {
+      return {
+        title: locale === "es" ? "Eliminar posición" : "Remove holding",
+        description: locale === "es"
+          ? `“${confirmation.name}” se eliminará permanentemente de “${activeList?.name}”.`
+          : `“${confirmation.name}” will be permanently removed from “${activeList?.name}”.`,
+        label: locale === "es" ? "Eliminar posición" : "Remove holding",
+      };
+    }
+    if (confirmation.kind === "share_replace") {
+      return {
+        title: locale === "es" ? "Reemplazar enlace" : "Replace share link",
+        description: locale === "es"
+          ? "El enlace actual dejará de funcionar inmediatamente. El nuevo enlace caducará 24 horas después de crearse."
+          : "The current link will stop working immediately. The new link will expire 24 hours after creation.",
+        label: locale === "es" ? "Reemplazar" : "Replace",
+      };
+    }
+    return {
+      title: locale === "es" ? "Revocar enlace" : "Revoke share link",
+      description: locale === "es"
+        ? "El enlace dejará de funcionar inmediatamente."
+        : "The link will stop working immediately.",
+      label: locale === "es" ? "Revocar" : "Revoke",
+    };
+  })();
 
   const addHolding = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -690,11 +848,11 @@ export default function PortfolioPage() {
         condition: form.get("condition"),
         language: form.get("language"),
         acquiredAt: form.get("acquiredAt"),
-        listId: data.selectedListId,
+        listId: addDestinationListId || data.selectedListId,
       }),
     });
     if (response.ok) {
-      await loadPortfolio(data.selectedListId);
+      await loadPortfolio(addDestinationListId || data.selectedListId);
       setShowAdd(false);
       setSelectedCard(null);
       setCardQuery("");
@@ -705,13 +863,25 @@ export default function PortfolioPage() {
   };
 
   const removeHolding = async (id: number) => {
-    if (!window.confirm(
-      locale === "es"
-        ? "¿Eliminar esta posición de la cartera? Esta acción es permanente."
-        : "Remove this holding from the portfolio? This is permanent.",
-    )) return;
-    const response = await fetch(`/api/portfolio/${id}`, { method: "DELETE" });
-    if (response.ok) await loadPortfolio(data.selectedListId);
+    if (confirmationSubmittingRef.current) return;
+    confirmationSubmittingRef.current = true;
+    setConfirmationBusy(true);
+    try {
+      const response = await fetch(`/api/portfolio/${id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("remove_failed");
+      setConfirmation(null);
+      setNotice(locale === "es" ? "Posición eliminada." : "Holding removed.");
+      await loadPortfolio(data.selectedListId);
+    } catch {
+      setError(
+        locale === "es"
+          ? "No se eliminó la posición. Actualiza e inténtalo de nuevo."
+          : "The holding was not removed. Refresh and try again.",
+      );
+    } finally {
+      setConfirmationBusy(false);
+      confirmationSubmittingRef.current = false;
+    }
   };
 
   const patchHolding = async (
@@ -866,34 +1036,46 @@ export default function PortfolioPage() {
             <button ref={addButtonRef} className="primary-button" onClick={() => setShowAdd(true)}><Plus size={16} /> {t("Add holding")}</button>
           </div>
         </div>
+        {notice && <div className={styles.notice} role="status" aria-live="polite">{notice}</div>}
+        {error && <div className="inline-error" role="alert">{error}</div>}
 
         {!loading && data.lists.length > 0 && (
-          <section className={styles.listWorkspace} aria-label={locale === "es" ? "Listas de cartera" : "Portfolio lists"}>
+          <section className={styles.listWorkspace} aria-busy={Boolean(switchingListId)} aria-label={locale === "es" ? "Listas de cartera" : "Portfolio lists"}>
             <div className={styles.listSwitcher}>
-              <label>
-                <span>{locale === "es" ? "Lista activa" : "Active list"}</span>
-                <select
-                  value={data.selectedListId}
-                  onChange={(event) => {
-                    setLoading(true);
-                    void loadPortfolio(event.target.value).catch(() =>
-                      setError(locale === "es" ? "No se pudo cambiar de lista." : "Unable to switch list."),
-                    );
-                  }}
-                >
+              <div>
+                <span className={styles.listLabel}>{locale === "es" ? "Tus listas" : "Your lists"}</span>
+                <div className={styles.listTabs} aria-label={locale === "es" ? "Seleccionar lista" : "Choose a list"}>
                   {data.lists.map((list) => (
-                    <option key={list.id} value={list.id}>
-                      {list.name} ({list.holdingCount})
-                    </option>
+                    <button
+                      type="button"
+                      key={list.id}
+                      aria-current={list.id === data.selectedListId ? "true" : undefined}
+                      disabled={Boolean(switchingListId)}
+                      onClick={() => {
+                        if (list.id === data.selectedListId) return;
+                        setSwitchingListId(list.id);
+                        void loadPortfolio(list.id)
+                          .catch(() =>
+                            setError(locale === "es" ? "No se pudo cambiar de lista." : "Unable to switch list."),
+                          )
+                          .finally(() => setSwitchingListId(""));
+                  }}
+                    >
+                      <span>{list.name}</span><small>{switchingListId === list.id ? "…" : list.holdingCount}</small>
+                    </button>
                   ))}
-                </select>
-              </label>
+                </div>
+              </div>
               <button type="button" onClick={() => setManagingLists((value) => !value)} aria-expanded={managingLists}>
-                {locale === "es" ? "Gestionar listas" : "Manage lists"}
+                {managingLists ? (locale === "es" ? "Cerrar" : "Done") : (locale === "es" ? "Organizar" : "Organize")}
               </button>
             </div>
             {managingLists && (
-              <div className={styles.listManager}>
+              <div className={styles.listManager} aria-label={locale === "es" ? "Organizar listas" : "Organize lists"}>
+                <div className={styles.managerIntro}>
+                  <strong>{locale === "es" ? "Organiza tus listas" : "Organize your lists"}</strong>
+                  <span>{locale === "es" ? "Crea, renombra, ordena y comparte. La lista predeterminada no se puede eliminar." : "Create, rename, reorder, and share. The default list cannot be deleted."}</span>
+                </div>
                 <form onSubmit={createList}>
                   <label>
                     <span>{locale === "es" ? "Nueva lista" : "New list"}</span>
@@ -904,18 +1086,40 @@ export default function PortfolioPage() {
                       placeholder={locale === "es" ? "Por ejemplo, Modern" : "For example, Modern"}
                     />
                   </label>
-                  <button className="primary-button" disabled={!newListName.trim()}>
-                    <Plus size={15} /> {locale === "es" ? "Crear" : "Create"}
+                  <button className="primary-button" disabled={!newListName.trim() || listBusy}>
+                    <Plus size={15} /> {listBusy ? (locale === "es" ? "Guardando…" : "Saving…") : (locale === "es" ? "Crear" : "Create")}
                   </button>
                 </form>
                 <div>
                   {data.lists.map((list, index) => (
                     <div className={styles.listManagerRow} key={list.id}>
-                      <span><strong>{list.name}</strong><small>{list.holdingCount} {locale === "es" ? "posiciones" : "holdings"}{list.isDefault ? ` · ${locale === "es" ? "predeterminada" : "default"}` : ""}</small></span>
-                      <button type="button" disabled={index === 0} onClick={() => void reorderList(list.id, -1)} aria-label={`${locale === "es" ? "Subir" : "Move up"} ${list.name}`}><ChevronUp size={15} /></button>
-                      <button type="button" disabled={index === data.lists.length - 1} onClick={() => void reorderList(list.id, 1)} aria-label={`${locale === "es" ? "Bajar" : "Move down"} ${list.name}`}><ChevronDown size={15} /></button>
-                      <button type="button" onClick={() => void renameList(list)} aria-label={`${locale === "es" ? "Renombrar" : "Rename"} ${list.name}`}><Pencil size={14} /></button>
-                      <button type="button" disabled={list.isDefault || data.lists.length === 1} onClick={() => void deleteList(list)} aria-label={`${locale === "es" ? "Eliminar" : "Delete"} ${list.name}`}><Trash2 size={15} /></button>
+                      {editingListId === list.id ? (
+                        <label className={styles.inlineRename}>
+                          <span className="sr-only">{locale === "es" ? "Nombre de lista" : "List name"}</span>
+                          <input
+                            autoFocus
+                            value={editingListName}
+                            maxLength={80}
+                            onChange={(event) => setEditingListName(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Escape") setEditingListId("");
+                            }}
+                          />
+                        </label>
+                      ) : (
+                        <span><strong>{list.name}</strong><small>{list.holdingCount} {locale === "es" ? "posiciones" : "holdings"}{list.isDefault ? ` · ${locale === "es" ? "predeterminada" : "default"}` : ""}</small></span>
+                      )}
+                      <button type="button" disabled={listBusy || index === 0} onClick={() => void reorderList(list.id, -1)} aria-label={`${locale === "es" ? "Subir" : "Move up"} ${list.name}`}><ChevronUp size={15} /></button>
+                      <button type="button" disabled={listBusy || index === data.lists.length - 1} onClick={() => void reorderList(list.id, 1)} aria-label={`${locale === "es" ? "Bajar" : "Move down"} ${list.name}`}><ChevronDown size={15} /></button>
+                      {editingListId === list.id ? (
+                        <>
+                          <button type="button" disabled={listBusy || !editingListName.trim()} onClick={() => void renameList(list.id)} aria-label={`${locale === "es" ? "Guardar" : "Save"} ${list.name}`}><Check size={15} /></button>
+                          <button type="button" disabled={listBusy} onClick={() => setEditingListId("")} aria-label={locale === "es" ? "Cancelar cambio de nombre" : "Cancel rename"}><X size={15} /></button>
+                        </>
+                      ) : (
+                        <button type="button" onClick={() => { setEditingListId(list.id); setEditingListName(list.name); }} aria-label={`${locale === "es" ? "Renombrar" : "Rename"} ${list.name}`}><Pencil size={14} /></button>
+                      )}
+                      <button type="button" disabled={listBusy || list.isDefault || data.lists.length === 1} onClick={() => setConfirmation({ kind: "list", list })} aria-label={`${locale === "es" ? "Eliminar" : "Delete"} ${list.name}`}><Trash2 size={15} /></button>
                     </div>
                   ))}
                 </div>
@@ -944,8 +1148,8 @@ export default function PortfolioPage() {
                         <p>{locale === "es" ? "Por seguridad, el enlace completo solo se muestra al crearlo. Puedes reemplazarlo." : "For security, the full link is shown only when created. You can replace it."}</p>
                       )}
                       <div className={styles.shareActions}>
-                        <button type="button" onClick={() => void createShare()}>{locale === "es" ? "Reemplazar enlace" : "Replace link"}</button>
-                        <button type="button" onClick={() => void revokeShare()}>{locale === "es" ? "Revocar ahora" : "Revoke now"}</button>
+                        <button type="button" onClick={() => setConfirmation({ kind: "share_replace" })}>{locale === "es" ? "Reemplazar enlace" : "Replace link"}</button>
+                        <button type="button" onClick={() => setConfirmation({ kind: "share_revoke" })}>{locale === "es" ? "Revocar ahora" : "Revoke now"}</button>
                       </div>
                     </>
                   ) : (
@@ -1108,12 +1312,13 @@ export default function PortfolioPage() {
             <section className="fintech-panel holdings-table">
               <div className="section-title"><div><span className="eyebrow">{t("Your collection")}</span><h2>{locale === "es" ? "Posiciones" : "Holdings"} · {activeList?.name}</h2></div><span>{data.holdings.length} {locale === "es" ? "lotes" : "lots"}</span></div>
             <div className={styles.selectionControls}>
+              <span>{locale === "es" ? "Gestionar posiciones" : "Manage holdings"}</span>
               <button type="button" onClick={() => setSelectedHoldingIds(data.holdings.map((holding) => holding.id))}>{locale === "es" ? "Seleccionar todo" : "Select all"}</button>
-              <button type="button" disabled={!selectedHoldingIds.length} onClick={() => setSelectedHoldingIds([])}>{locale === "es" ? "Limpiar selección" : "Clear selection"}</button>
-              <span role="status">{selectedHoldingIds.length} {locale === "es" ? "seleccionadas" : "selected"}</span>
+              {selectedHoldingIds.length > 0 && <button type="button" onClick={() => setSelectedHoldingIds([])}>{locale === "es" ? "Limpiar" : "Clear"}</button>}
+              <strong role="status" aria-live="polite">{selectedHoldingIds.length} {locale === "es" ? "seleccionadas" : "selected"}</strong>
             </div>
             <div className="holdings-list">
-              {data.holdings.map((holding) => <div className={`portfolio-row card-surface ${styles.holdingRow} ${updatingHolding === holding.id ? styles.updating : ""}`} key={holding.id} {...cardSurfaceProps(holding.cardId)}>
+              {data.holdings.map((holding) => <div data-selected={selectedHoldingIds.includes(holding.id)} className={`portfolio-row card-surface ${styles.holdingRow} ${updatingHolding === holding.id ? styles.updating : ""}`} key={holding.id} {...cardSurfaceProps(holding.cardId)}>
                 <label className={styles.selectionBox} onClick={(event) => event.stopPropagation()}>
                   <input
                     type="checkbox"
@@ -1155,27 +1360,22 @@ export default function PortfolioPage() {
                 <div className={styles.actions}>
                   {updatingHolding === holding.id && <span className={styles.savingIndicator} role="status">{locale === "es" ? "Guardando" : "Saving"}</span>}
                   {editingHolding === holding.id ? <><button disabled={updatingHolding === holding.id} onClick={() => saveHolding(holding.id)} aria-label={`Save ${holding.name}`}><Check size={15} /></button><button disabled={updatingHolding === holding.id} onClick={() => setEditingHolding(null)} aria-label={`Cancel editing ${holding.name}`}><X size={15} /></button></> : <button onClick={() => startEditingHolding(holding)} aria-label={`Edit ${holding.name}`}><Pencil size={14} /></button>}
-                  <button disabled={updatingHolding === holding.id} onClick={() => removeHolding(holding.id)} aria-label={`Remove ${holding.name}`}><Trash2 size={15} /></button>
+                  <button disabled={updatingHolding === holding.id} onClick={(event) => { event.stopPropagation(); setConfirmation({ kind: "holding", id: holding.id, name: holding.name }); }} aria-label={`${locale === "es" ? "Eliminar posición" : "Remove holding"} ${holding.name}`}><Trash2 size={15} /></button>
                 </div>
               </div>)}
             </div>
             </section>
             {selectedHoldingIds.length > 0 && (
-              <div className={styles.bulkBar} role="region" aria-label={locale === "es" ? "Acciones masivas" : "Bulk actions"}>
-                <strong>{selectedHoldingIds.length} {locale === "es" ? "seleccionadas" : "selected"}</strong>
-                <select value={bulkDestination} onChange={(event) => setBulkDestination(event.target.value)} aria-label={locale === "es" ? "Lista de destino" : "Destination list"}>
-                  <option value="">{locale === "es" ? "Elige destino…" : "Choose destination…"}</option>
-                  {otherLists.map((list) => <option key={list.id} value={list.id}>{list.name}</option>)}
-                </select>
-                <button type="button" disabled={bulkBusy || !bulkDestination} onClick={() => void runBulkAction("move")}><FolderInput size={15} /> {locale === "es" ? "Mover" : "Move"}</button>
-                <button type="button" disabled={bulkBusy || !bulkDestination} onClick={() => void runBulkAction("copy")}><Copy size={15} /> {locale === "es" ? "Copiar" : "Copy"}</button>
-                <button type="button" disabled={bulkBusy} onClick={() => void runBulkAction("delete")}><Trash2 size={15} /> {locale === "es" ? "Eliminar de cartera" : "Remove from portfolio"}</button>
+              <div className={styles.bulkBar} role="region" aria-label={locale === "es" ? "Acciones para posiciones seleccionadas" : "Actions for selected holdings"}>
+                <div><strong>{selectedHoldingIds.length}</strong><span>{locale === "es" ? "seleccionadas" : "selected"}</span></div>
+                <button type="button" disabled={bulkBusy || otherLists.length === 0} onClick={() => { setBulkError(""); setBulkDestination(""); setBulkRequestId(crypto.randomUUID()); setBulkAction("move"); }}><FolderInput size={17} /> <span>{locale === "es" ? "Mover" : "Move"}</span></button>
+                <button type="button" disabled={bulkBusy || otherLists.length === 0} onClick={() => { setBulkError(""); setBulkDestination(""); setBulkRequestId(crypto.randomUUID()); setBulkAction("copy"); }}><Copy size={17} /> <span>{locale === "es" ? "Copiar" : "Copy"}</span></button>
+                <button type="button" disabled={bulkBusy} data-danger="true" onClick={() => { setBulkError(""); setBulkRequestId(crypto.randomUUID()); setBulkAction("delete"); }}><Trash2 size={17} /> <span>{locale === "es" ? "Eliminar posiciones" : "Remove holdings"}</span></button>
+                <button type="button" className={styles.bulkClear} disabled={bulkBusy} onClick={() => setSelectedHoldingIds([])}><X size={17} /><span className="sr-only">{locale === "es" ? "Limpiar selección" : "Clear selection"}</span></button>
               </div>
             )}
           </>
         )}
-        {notice && <div className={styles.notice} role="status">{notice}</div>}
-        {error && <div className="inline-error">{error}</div>}
       </div>
 
       {showAdd && (
@@ -1187,7 +1387,7 @@ export default function PortfolioPage() {
             {!selectedCard && results.length > 0 && <div className="holding-results">{results.map((card) => <button type="button" key={card.id} onClick={() => { setSelectedCard(card); setCardQuery(`${card.name} · ${card.setCode.toUpperCase()}`); setResults([]); }}>{card.imageUrl && <img src={card.imageUrl} alt="" />}<span><strong>{card.name}</strong><small>{card.setName}</small></span><b>{card.price === null ? "—" : formatCurrency(card.price)}</b></button>)}</div>}
             <div className="form-grid"><label>Quantity<input name="quantity" type="number" min="1" defaultValue="1" required /></label><label>{locale === "es" ? "Precio de compra unitario" : "Unit purchase price"}<input key={selectedCard?.id ?? "no-card"} name="purchasePrice" type="number" min="0" step=".01" defaultValue={selectedCard?.price ?? ""} required /></label></div>
             <div className="form-grid"><label>Condition<select name="condition"><option value="near_mint">Near Mint</option><option value="excellent">Excellent</option><option value="good">Good</option><option value="light_played">Light Played</option></select></label><label>{locale === "es" ? "Idioma" : "Language"}<select name="language">{CARD_LANGUAGES.map((language) => <option key={language.code} value={language.code}>{language[locale]}</option>)}</select></label></div>
-            <label>{locale === "es" ? "Lista de destino" : "Destination list"}<select name="listId" value={data.selectedListId} onChange={(event) => void loadPortfolio(event.target.value)}>{data.lists.map((list) => <option key={list.id} value={list.id}>{list.name}</option>)}</select></label>
+            <label>{locale === "es" ? "Guardar en la lista" : "Save to list"}<select name="listId" value={addDestinationListId || data.selectedListId} onChange={(event) => setAddDestinationListId(event.target.value)}>{data.lists.map((list) => <option key={list.id} value={list.id}>{list.name}</option>)}</select></label>
             <label>{locale === "es" ? "Fecha de compra" : "Purchase date"}<input name="acquiredAt" type="date" defaultValue={new Date().toISOString().slice(0, 10)} /></label>
             <button className="primary-button form-submit" disabled={!selectedCard || saving}>{saving ? "Saving…" : t("Add holding")}</button>
           </form>
@@ -1200,11 +1400,50 @@ export default function PortfolioPage() {
           selectedListId={data.selectedListId}
           onClose={() => setShowImport(false)}
           onComplete={async () => {
-            setLoading(true);
             await loadPortfolio(data.selectedListId);
           }}
         />
       )}
+      <BulkActionDialog
+        action={bulkAction}
+        count={selectedHoldingIds.length}
+        sourceName={activeList?.name ?? ""}
+        destinations={otherLists}
+        destinationId={bulkDestination}
+        busy={bulkBusy}
+        error={bulkError}
+        locale={locale}
+        onDestinationChange={setBulkDestination}
+        onClose={() => {
+          if (bulkBusy) return;
+          setBulkAction(null);
+          setBulkError("");
+          setBulkRequestId("");
+        }}
+        onConfirm={() => void runBulkAction()}
+      />
+      <ConfirmationDialog
+        open={confirmation !== null}
+        title={confirmationCopy.title}
+        description={confirmationCopy.description}
+        confirmLabel={confirmationCopy.label}
+        busy={confirmationBusy}
+        locale={locale}
+        onClose={() => {
+          if (!confirmationBusy) setConfirmation(null);
+        }}
+        onConfirm={() => {
+          if (confirmation?.kind === "list") {
+            void deleteList(confirmation.list);
+          } else if (confirmation?.kind === "holding") {
+            void removeHolding(confirmation.id);
+          } else if (confirmation?.kind === "share_replace") {
+            void createShare();
+          } else if (confirmation?.kind === "share_revoke") {
+            void revokeShare();
+          }
+        }}
+      />
     </main>
   );
 }
