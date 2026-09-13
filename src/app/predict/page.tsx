@@ -33,6 +33,10 @@ import type {
   BrainRecommendation,
 } from "@/lib/brain";
 import type { GrowthTarget } from "@/lib/predict-model";
+import {
+  derivePredictRecommendation,
+  isPredictRecommendationApplied,
+} from "@/lib/predict-recommendation";
 import type { SetPrediction } from "@/lib/predict";
 import type { MlCardContext, MlRankingStatus } from "@/lib/ml-experience";
 import {
@@ -62,6 +66,65 @@ const riskProfiles: Array<{
   { id: "growth", label: { en: "Growth", es: "Crecimiento" } },
   { id: "aggressive", label: { en: "Aggressive", es: "Agresivo" } },
 ];
+
+const profileLabels = {
+  en: {
+    risk: {
+      preservation: "preservation",
+      conservative: "conservative",
+      balanced: "balanced",
+      growth: "growth",
+      aggressive: "aggressive",
+    },
+    horizon: { short: "short", medium: "medium", long: "long" },
+    strategy: {
+      diversified: "diversified",
+      momentum: "momentum",
+      stability: "stability",
+      collectible: "collectible",
+    },
+    marketTrend: {
+      any: "any trend",
+      rising: "rising",
+      stable: "stable",
+      recovering: "recovering",
+    },
+    releaseEra: {
+      any: "all eras",
+      classic: "classic",
+      established: "established",
+      recent: "recent",
+    },
+  },
+  es: {
+    risk: {
+      preservation: "preservación",
+      conservative: "conservador",
+      balanced: "equilibrado",
+      growth: "crecimiento",
+      aggressive: "agresivo",
+    },
+    horizon: { short: "corto", medium: "medio", long: "largo" },
+    strategy: {
+      diversified: "diversificada",
+      momentum: "momentum",
+      stability: "estabilidad",
+      collectible: "coleccionismo",
+    },
+    marketTrend: {
+      any: "cualquier tendencia",
+      rising: "alcista",
+      stable: "estable",
+      recovering: "en recuperación",
+    },
+    releaseEra: {
+      any: "todas las épocas",
+      classic: "clásica",
+      established: "consolidada",
+      recent: "reciente",
+    },
+  },
+} as const;
 
 const signed = (value: number | null) =>
   value === null ? "—" : `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
@@ -126,6 +189,7 @@ export default function PredictPage() {
   const [buyerProfile, setBuyerProfile] = useState<UserPreferences>(
     defaultUserPreferences,
   );
+  const [accountAuthenticated, setAccountAuthenticated] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [autoBudget, setAutoBudget] = useState(
     defaultUserPreferences.defaultBudget,
@@ -141,16 +205,29 @@ export default function PredictPage() {
   >("ready");
   const [autoError, setAutoError] = useState("");
   const autoRequestId = useRef(0);
+  const recommendationEdited = useRef(false);
 
   useEffect(() => {
     const controller = new AbortController();
     fetch("/api/account", { signal: controller.signal })
       .then((response) => response.json())
-      .then((account: { preferences?: UserPreferences }) => {
+      .then((account: {
+        authenticated?: boolean;
+        preferences?: UserPreferences;
+      }) => {
+        setAccountAuthenticated(account.authenticated === true);
         if (!account.preferences) return;
         setBuyerProfile(account.preferences);
-        setAutoBudget(account.preferences.defaultBudget);
-        setAutoRisk(account.preferences.risk);
+        if (!recommendationEdited.current) {
+          const recommended = derivePredictRecommendation(account.preferences);
+          setTarget(recommended.target);
+          setHorizon(recommended.horizon);
+          setDemand(recommended.demand);
+          setScarcity(recommended.scarcity);
+          setReprints(recommended.reprints);
+          setAutoBudget(recommended.budget);
+          setAutoRisk(recommended.risk);
+        }
       })
       .catch(() => undefined)
       .finally(() => {
@@ -158,6 +235,43 @@ export default function PredictPage() {
       });
     return () => controller.abort();
   }, []);
+
+  const recommendation = useMemo(
+    () =>
+      accountAuthenticated
+        ? derivePredictRecommendation(buyerProfile)
+        : null,
+    [accountAuthenticated, buyerProfile],
+  );
+  const recommendationApplied = recommendation
+    ? autoScope === "market" && isPredictRecommendationApplied(recommendation, {
+        target,
+        horizon,
+        demand,
+        scarcity,
+        reprints,
+        budget: autoBudget,
+        risk: autoRisk,
+      })
+    : false;
+
+  const markRecommendationEdited = () => {
+    recommendationEdited.current = true;
+  };
+
+  const applyRecommendation = () => {
+    if (!recommendation) return;
+    recommendationEdited.current = false;
+    setTarget(recommendation.target);
+    setHorizon(recommendation.horizon);
+    setDemand(recommendation.demand);
+    setScarcity(recommendation.scarcity);
+    setReprints(recommendation.reprints);
+    setAutoBudget(recommendation.budget);
+    setAutoRisk(recommendation.risk);
+    setAutoScope("market");
+    resetAutomaticPortfolio();
+  };
 
   const requestUrl = useMemo(() => {
     const params = new URLSearchParams({
@@ -172,6 +286,7 @@ export default function PredictPage() {
   }, [demand, horizon, reprints, scarcity, setCodes, target]);
 
   useEffect(() => {
+    if (!profileLoaded) return;
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
       setLoading(true);
@@ -198,7 +313,7 @@ export default function PredictPage() {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [requestUrl]);
+  }, [profileLoaded, requestUrl]);
 
   const prediction = result?.prediction;
   const automaticSetCode =
@@ -513,6 +628,135 @@ export default function PredictPage() {
           </p>
         </aside>
 
+        {recommendation && (
+          <section
+            className={`${styles.recommendation} ${recommendationApplied ? "" : styles.recommendationModified}`}
+            aria-labelledby="predict-recommendation-title"
+          >
+            <header>
+              <div className={styles.recommendationIcon}>
+                <Sparkles size={18} aria-hidden="true" />
+              </div>
+              <div>
+                <span>
+                  {es
+                    ? "RECOMENDADO PARA TI · ACCESO ANTICIPADO PRO"
+                    : "RECOMMENDED FOR YOU · PRO EARLY ACCESS"}
+                </span>
+                <h2 id="predict-recommendation-title">
+                  {es
+                    ? "Tu configuración Predict"
+                    : "Your Predict configuration"}
+                </h2>
+                <p>
+                  {es
+                    ? "Una configuración conservadora y editable calculada con reglas transparentes desde tus preferencias guardadas."
+                    : "An editable, conservative configuration calculated with transparent rules from your saved preferences."}
+                </p>
+              </div>
+              <div className={styles.recommendationStatus} role="status">
+                {recommendationApplied
+                  ? es ? "Aplicada" : "Applied"
+                  : es ? "Editada manualmente" : "Manually edited"}
+              </div>
+            </header>
+
+            <div className={styles.recommendationGrid}>
+              <div>
+                <span>{es ? "ESCENARIO" : "SCENARIO"}</span>
+                <strong>
+                  {targets.find((option) => option.id === recommendation.target)?.label[locale]}
+                  {" · "}{recommendation.horizon / 12}
+                  {es ? " años" : recommendation.horizon === 12 ? " year" : " years"}
+                </strong>
+                <small>
+                  {es ? "Demanda" : "Demand"} {recommendation.demand}/5 ·{" "}
+                  {es ? "Escasez" : "Scarcity"} {recommendation.scarcity}/5 ·{" "}
+                  {es ? "Reimpresión" : "Reprint resilience"} {recommendation.reprints}/5
+                </small>
+              </div>
+              <div>
+                <span>{es ? "LÍMITES" : "LIMITS"}</span>
+                <strong>
+                  €{recommendation.budget.toLocaleString(locale)} ·{" "}
+                  {recommendation.positions} {es ? "posiciones" : "positions"}
+                </strong>
+                <small>
+                  {es ? "Máximo por carta" : "Maximum per card"}: €
+                  {recommendation.maxCardPrice.toLocaleString(locale)}
+                </small>
+              </div>
+              <div>
+                <span>{es ? "MERCADO" : "MARKET"}</span>
+                <strong>
+                  {profileLabels[locale].strategy[recommendation.profile.strategy]}
+                  {" · "}
+                  {profileLabels[locale].marketTrend[recommendation.profile.marketTrend]}
+                </strong>
+                <small>
+                  {profileLabels[locale].releaseEra[recommendation.profile.releaseEra]}
+                  {recommendation.profile.reservedOnly
+                    ? es ? " · solo Reserved List" : " · Reserved List only"
+                    : ""}
+                  {recommendation.profile.setCodes.length
+                    ? ` · ${recommendation.profile.setCodes.map((code) => code.toUpperCase()).join(", ")}`
+                    : ""}
+                </small>
+                <small>
+                  {recommendation.profile.colors.length
+                    ? `${es ? "Colores" : "Colours"}: ${recommendation.profile.colors.join("/")}`
+                    : es ? "Todos los colores" : "All colours"}
+                  {" · "}
+                  {recommendation.profile.rarities.length
+                    ? recommendation.profile.rarities.join("/")
+                    : es ? "todas las rarezas" : "all rarities"}
+                  {recommendation.profile.cardTypes.length
+                    ? ` · ${recommendation.profile.cardTypes.join("/")}`
+                    : ""}
+                </small>
+              </div>
+            </div>
+
+            <div className={styles.recommendationReasons}>
+              <div>
+                <strong>{es ? "Por qué" : "Why this configuration"}</strong>
+                <ul>
+                  <li>
+                    {es
+                      ? `Riesgo ${profileLabels.es.risk[recommendation.risk]}: define el objetivo y el nivel base de los supuestos.`
+                      : `${profileLabels.en.risk[recommendation.risk]} risk sets the objective and baseline assumptions.`}
+                  </li>
+                  <li>
+                    {es
+                      ? `Horizonte ${profileLabels.es.horizon[recommendation.profile.horizon]} y estrategia ${profileLabels.es.strategy[recommendation.profile.strategy]}: ajustan plazo, demanda y oferta.`
+                      : `${profileLabels.en.horizon[recommendation.profile.horizon]}-term horizon and ${profileLabels.en.strategy[recommendation.profile.strategy]} strategy adjust timing, demand, and supply.`}
+                  </li>
+                  <li>
+                    {es
+                      ? `Tendencia ${profileLabels.es.marketTrend[recommendation.profile.marketTrend]}, época ${profileLabels.es.releaseEra[recommendation.profile.releaseEra]} y filtros guardados definen el universo de la cartera automática.`
+                      : `${profileLabels.en.marketTrend[recommendation.profile.marketTrend]} trend, ${profileLabels.en.releaseEra[recommendation.profile.releaseEra]} era, and saved filters define the automatic portfolio universe.`}
+                  </li>
+                </ul>
+              </div>
+              <p>
+                {es
+                  ? "Los supuestos siguen siendo editables. Son escenarios, no garantías. Esta configuración usa reglas deterministas; el orden por carta solo usa ML cuando se muestra un modelo verificado, y recurre a reglas transparentes en caso contrario."
+                  : "Assumptions remain editable. These are scenarios, not guarantees. This configuration uses deterministic rules; card ordering uses ML only when a verified model is shown, with transparent-rule fallback otherwise."}
+              </p>
+              <button
+                type="button"
+                onClick={applyRecommendation}
+                disabled={recommendationApplied}
+              >
+                <Sparkles size={14} aria-hidden="true" />
+                {recommendationApplied
+                  ? es ? "Recomendación aplicada" : "Recommendation applied"
+                  : es ? "Restaurar recomendación" : "Restore recommendation"}
+              </button>
+            </div>
+          </section>
+        )}
+
         <section className={styles.workspace}>
           <div className={styles.controls}>
             <div className={styles.sectionTitle}>
@@ -524,7 +768,11 @@ export default function PredictPage() {
                 <button
                   key={option.id}
                   className={target === option.id ? styles.active : ""}
-                  onClick={() => setTarget(option.id)}
+                  aria-pressed={target === option.id}
+                  onClick={() => {
+                    markRecommendationEdited();
+                    setTarget(option.id);
+                  }}
                 >
                   <strong>{option.label[locale]}</strong>
                   <span>{option.rate}</span>
@@ -539,7 +787,15 @@ export default function PredictPage() {
             </div>
             <div className={styles.horizons}>
               {([12, 24, 36] as const).map((months) => (
-                <button key={months} className={horizon === months ? styles.active : ""} onClick={() => setHorizon(months)}>
+                <button
+                  key={months}
+                  className={horizon === months ? styles.active : ""}
+                  aria-pressed={horizon === months}
+                  onClick={() => {
+                    markRecommendationEdited();
+                    setHorizon(months);
+                  }}
+                >
                   {months} {es ? "meses" : "months"}
                 </button>
               ))}
@@ -556,7 +812,17 @@ export default function PredictPage() {
             ].map((control) => (
               <label className={styles.slider} key={control.label}>
                 <span><strong>{control.label}</strong><b>{control.value}/5</b></span>
-                <input type="range" min="1" max="5" step="1" value={control.value} onChange={(event) => control.setter(Number(event.target.value))} />
+                <input
+                  type="range"
+                  min="1"
+                  max="5"
+                  step="1"
+                  value={control.value}
+                  onChange={(event) => {
+                    markRecommendationEdited();
+                    control.setter(Number(event.target.value));
+                  }}
+                />
               </label>
             ))}
           </div>
@@ -720,6 +986,7 @@ export default function PredictPage() {
                       type="button"
                       className={autoBudget === amount ? styles.active : ""}
                       onClick={() => {
+                        markRecommendationEdited();
                         setAutoBudget(amount);
                         resetAutomaticPortfolio();
                       }}
@@ -740,6 +1007,7 @@ export default function PredictPage() {
                       value={autoBudget}
                       aria-invalid={!autoBudgetValid}
                       onChange={(event) => {
+                        markRecommendationEdited();
                         setAutoBudget(Number(event.target.value));
                         resetAutomaticPortfolio();
                       }}
@@ -763,8 +1031,8 @@ export default function PredictPage() {
                   <h3>{es ? "Brain construye la asignación" : "Brain builds the allocation"}</h3>
                   <p>
                     {es
-                      ? `Usa tus preferencias guardadas: horizonte ${buyerProfile.horizon}, estrategia ${buyerProfile.strategy}, máximo ${buyerProfile.maxCardPrice.toFixed(0)} € por carta y ${buyerProfile.positions} posiciones.`
-                      : `Uses your saved preferences: ${buyerProfile.horizon}-term ${buyerProfile.strategy} strategy, up to €${buyerProfile.maxCardPrice.toFixed(0)} per card and ${buyerProfile.positions} positions.`}
+                      ? `Usa tus preferencias guardadas: horizonte ${buyerProfile.horizon}, estrategia ${buyerProfile.strategy}, tendencia ${buyerProfile.marketTrend}, época ${buyerProfile.releaseEra}, máximo ${buyerProfile.maxCardPrice.toFixed(0)} € por carta y ${buyerProfile.positions} posiciones. También aplica tus filtros de color, rareza, tipo, edición y Reserved List.`
+                      : `Uses your saved preferences: ${buyerProfile.horizon}-term ${buyerProfile.strategy} strategy, ${buyerProfile.marketTrend} trend, ${buyerProfile.releaseEra} era, up to €${buyerProfile.maxCardPrice.toFixed(0)} per card and ${buyerProfile.positions} positions. Your colour, rarity, type, set, and Reserved List filters also apply.`}
                   </p>
                 </div>
                 <label>
@@ -772,6 +1040,7 @@ export default function PredictPage() {
                   <select
                     value={autoRisk}
                     onChange={(event) => {
+                      markRecommendationEdited();
                       setAutoRisk(event.target.value as UserPreferences["risk"]);
                       resetAutomaticPortfolio();
                     }}
@@ -806,17 +1075,19 @@ export default function PredictPage() {
                   type="button"
                   className={!automaticSetCode ? styles.active : ""}
                   onClick={() => {
+                    markRecommendationEdited();
                     setAutoScope("market");
                     resetAutomaticPortfolio();
                   }}
                 >
-                  {es ? "Todo el mercado con precio" : "Whole priced market"}
+                  {es ? "Tus filtros de mercado guardados" : "Your saved market filters"}
                 </button>
                 <button
                   type="button"
                   className={automaticSetCode ? styles.active : ""}
                   disabled={!result || result.marketEvidence.isUpcoming}
                   onClick={() => {
+                    markRecommendationEdited();
                     setAutoScope("set");
                     resetAutomaticPortfolio();
                   }}
