@@ -7663,7 +7663,7 @@ button:active,
     z-index: 70;
     height: 64px;
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     align-items: center;
     padding: 5px 7px;
     border: 1px solid rgba(255, 255, 255, 0.11);

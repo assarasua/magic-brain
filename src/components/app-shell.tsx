@@ -46,7 +46,6 @@ const workspaceNav = [
 ];
 
 const brainNav = [
-  { label: "Brain Pro", href: "/brain-pro", icon: Crown },
   { label: "Predict", href: "/predict", icon: Target },
   { label: "Portfolio Builder", href: "/brain", icon: BrainCircuit },
   { label: "Brain Signals", href: "/signals", icon: TrendingUp },
@@ -63,9 +62,9 @@ function routeIsActive(pathname: string, href: string) {
 function DesktopSidebar() {
   const pathname = usePathname();
   const { locale, t } = useLanguage();
-  const brainRouteActive = brainNav.some(({ href }) =>
-    routeIsActive(pathname, href),
-  );
+  const brainRouteActive =
+    routeIsActive(pathname, "/brain-pro") ||
+    brainNav.some(({ href }) => routeIsActive(pathname, href));
   const [brainExpanded, setBrainExpanded] = useState(brainRouteActive);
   const [watchlistCount, setWatchlistCount] = useState<number | null>(null);
 
@@ -111,15 +110,12 @@ function DesktopSidebar() {
         <div className={`sidebar-section-group ${showBrainNav ? "open" : ""}`}>
           <button
             type="button"
-            className={`nav-item premium-feature-link sidebar-section-trigger${brainRouteActive ? " active" : ""}`}
+            className={`nav-item sidebar-section-trigger${brainRouteActive ? " active" : ""}`}
             aria-expanded={showBrainNav}
             onClick={() => setBrainExpanded((current) => !current)}
           >
             <Sparkles size={18} />
-            Brain Pro
-            <span className="nav-pro-label">
-              <Crown size={10} /> {locale === "es" ? "GRATIS" : "FREE"}
-            </span>
+            {t("Brain tools")}
             <ChevronDown className="sidebar-section-chevron" size={14} />
           </button>
           {showBrainNav && (

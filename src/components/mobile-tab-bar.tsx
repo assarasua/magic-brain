@@ -2,7 +2,6 @@
 
 import {
   ChartNoAxesCombined,
-  BrainCircuit,
   House,
   Menu,
   WalletCards,
@@ -17,10 +16,9 @@ const tabs = [
   { href: "/", label: "Overview", icon: House },
   { href: "/market", label: "Market", icon: ChartNoAxesCombined },
   { href: "/portfolio", label: "Portfolio", icon: WalletCards },
-  { href: "/brain-pro", label: "Brain Pro", icon: BrainCircuit, premium: true },
 ];
 
-const moreRoutes = ["/news", "/graph", "/inventory", "/discover", "/watchlist", "/reserved", "/brain", "/signals", "/analyst", "/predict", "/pro", "/settings", "/donate", "/developers"];
+const moreRoutes = ["/news", "/graph", "/inventory", "/discover", "/watchlist", "/reserved", "/brain-pro", "/brain", "/signals", "/analyst", "/predict", "/pro", "/settings", "/donate", "/developers"];
 
 export function MobileTabBar() {
   const pathname = usePathname();
@@ -33,13 +31,13 @@ export function MobileTabBar() {
 
   return (
     <nav className="mobile-tab-bar" aria-label="Primary navigation">
-      {tabs.map(({ href, label, icon: Icon, premium = false }) => {
+      {tabs.map(({ href, label, icon: Icon }) => {
         const active =
           href === "/"
             ? pathname === "/"
             : pathname === href || pathname.startsWith(`${href}/`);
         return (
-          <Link href={href} className={[active ? "active" : "", premium ? "premium" : ""].filter(Boolean).join(" ")} aria-current={active ? "page" : undefined} key={href}>
+          <Link href={href} className={active ? "active" : undefined} aria-current={active ? "page" : undefined} key={href}>
             <Icon size={20} strokeWidth={active ? 2.3 : 1.8} />
             <span>{t(label)}</span>
           </Link>
