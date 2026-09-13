@@ -38,9 +38,8 @@ const groups = [
     ],
   },
   {
-    label: "Brain",
+    label: "Brain tools",
     links: [
-      { href: "/brain-pro", label: "Brain Pro", icon: Crown, premium: true },
       { href: "/predict", label: "Predict", icon: Target, premium: true },
       { href: "/brain", label: "Portfolio Builder", icon: BrainCircuit, premium: true },
       { href: "/signals", label: "Brain Signals", icon: TrendingUp, premium: true },
@@ -130,8 +129,8 @@ export function MobileMoreSheet({
 
         <div className="mobile-more-groups">
           {groups.map((group) => (
-            <nav key={group.label} aria-label={group.label}>
-              <span>{group.label}</span>
+            <nav key={group.label} aria-label={t(group.label)}>
+              <span>{t(group.label)}</span>
               {group.links.map(({ href, label, icon: Icon, premium = false }) => {
                 const active = pathname === href || pathname.startsWith(`${href}/`);
                 return (
