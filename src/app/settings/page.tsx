@@ -134,7 +134,7 @@ export default function SettingsPage() {
     <main className="account-page settings-page">
       <header className="account-topbar">
         <Link href="/" className="inventory-brand"><MagicBrainLogo /></Link>
-        <nav><Link href="/portfolio">{t("Portfolio")}</Link><Link href="/watchlist">{t("Watchlist")}</Link><Link href="/brain">Brain Pro</Link></nav>
+        <nav><Link href="/portfolio">{t("Portfolio")}</Link><Link href="/watchlist">{t("Watchlist")}</Link><Link href="/brain-pro">Brain Pro</Link></nav>
         <LanguageToggle />
         <AuthControl compact />
         <Link href="/" className="back-dashboard"><ArrowLeft size={15} /> {t("Dashboard")}</Link>

@@ -327,7 +327,7 @@ export default function SignalsPage() {
     <main className="account-page signals-page">
       <header className="account-topbar">
         <Link href="/" className="inventory-brand"><MagicBrainLogo /></Link>
-        <nav><Link href="/market">{t("Market")}</Link><Link href="/brain">Brain Pro</Link><Link href="/analyst">Ask Brain</Link></nav>
+        <nav><Link href="/market">{t("Market")}</Link><Link href="/brain-pro">Brain Pro</Link><Link href="/analyst">Ask Brain</Link></nav>
         <LanguageToggle />
         <AuthControl compact />
         <Link href="/" className="back-dashboard"><ArrowLeft size={15} /> {locale === "es" ? "Panel" : "Dashboard"}</Link>

@@ -29,7 +29,8 @@ const groups = [
   {
     label: "Brain",
     links: [
-      { href: "/brain", label: "Brain Pro", icon: BrainCircuit, premium: true },
+      { href: "/brain-pro", label: "Brain Pro", icon: Crown, premium: true },
+      { href: "/brain", label: "Portfolio Builder", icon: BrainCircuit, premium: true },
       { href: "/signals", label: "Brain Signals", icon: TrendingUp, premium: true },
       { href: "/analyst", label: "Ask Brain", icon: Sparkles, premium: true },
       { href: "/pro", label: "Pro plan", icon: Crown, premium: true },

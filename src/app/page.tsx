@@ -403,7 +403,7 @@ export default function Home() {
                   Discover: "/discover",
                   Portfolio: "/portfolio",
                   Watchlist: "/watchlist",
-                  "Brain Pro": "/brain",
+                  "Brain Pro": "/brain-pro",
                 "Brain Signals": "/signals",
                   "Ask Brain": "/analyst",
                   Support: "/donate",

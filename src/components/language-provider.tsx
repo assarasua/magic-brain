@@ -56,6 +56,7 @@ const spanish: Record<string, string> = {
   "View on Cardmarket": "Ver en Cardmarket",
   "My portfolio": "Mi cartera",
   "Brain Pro": "Brain Pro",
+  "Portfolio Builder": "Constructor de cartera",
   "Brain Signals": "Señales Brain",
   "Pro plan": "Plan Pro",
   "Ask Brain": "Pregunta a Brain",
