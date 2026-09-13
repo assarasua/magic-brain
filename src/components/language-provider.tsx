@@ -14,6 +14,7 @@ const spanish: Record<string, string> = {
   "Watchlist": "Seguimiento",
   "Alerts": "Alertas",
   "Settings": "Ajustes",
+  "Support": "Apoyar",
   "Workspace": "Espacio",
   "Account": "Cuenta",
   "Add holding": "Añadir posición",

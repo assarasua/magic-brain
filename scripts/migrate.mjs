@@ -25,6 +25,7 @@ try {
       "006_product_tour.sql",
       "007_catalog_search.sql",
       "008_watchlist_price_alerts.sql",
+      "009_donations.sql",
     ].map((file) =>
       readFile(new URL(`../db/${file}`, import.meta.url), "utf8"),
     ),

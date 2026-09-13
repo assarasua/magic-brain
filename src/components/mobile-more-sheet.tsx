@@ -5,6 +5,7 @@ import {
   Compass,
   Crown,
   Heart,
+  HeartHandshake,
   ListChecks,
   Settings,
   Sparkles,
@@ -36,7 +37,10 @@ const groups = [
   },
   {
     label: "Account",
-    links: [{ href: "/settings", label: "Settings", icon: Settings, premium: false }],
+    links: [
+      { href: "/settings", label: "Settings", icon: Settings, premium: false },
+      { href: "/donate", label: "Support", icon: HeartHandshake, premium: false },
+    ],
   },
 ];
 

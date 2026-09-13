@@ -37,6 +37,38 @@ export async function POST(request: Request) {
     case "checkout.session.async_payment_succeeded": {
       const session = event.data.object;
       const userId = session.metadata?.userId ?? session.client_reference_id;
+      if (session.metadata?.kind === "donation") {
+        if (userId && session.payment_status !== "unpaid") {
+          const paymentIntentId =
+            typeof session.payment_intent === "string"
+              ? session.payment_intent
+              : session.payment_intent?.id ?? null;
+          await query(
+            `
+              insert into app_donations (
+                user_id, stripe_session_id, stripe_payment_intent_id,
+                amount_cents, currency, status, paid_at
+              )
+              values ($1, $2, $3, $4, $5, 'paid', now())
+              on conflict (stripe_session_id) do update
+              set stripe_payment_intent_id = excluded.stripe_payment_intent_id,
+                  amount_cents = excluded.amount_cents,
+                  currency = excluded.currency,
+                  status = 'paid',
+                  paid_at = coalesce(app_donations.paid_at, now()),
+                  updated_at = now()
+            `,
+            [
+              userId,
+              session.id,
+              paymentIntentId,
+              session.amount_total ?? Number(session.metadata.amountCents ?? 0),
+              session.currency ?? "eur",
+            ],
+          );
+        }
+        break;
+      }
       const customerId =
         typeof session.customer === "string" ? session.customer : null;
       const subscriptionId =
@@ -52,6 +84,29 @@ export async function POST(request: Request) {
             where id = $3
           `,
           [customerId, subscriptionId, userId],
+        );
+      }
+      break;
+    }
+    case "checkout.session.async_payment_failed": {
+      const session = event.data.object;
+      const userId = session.metadata?.userId ?? session.client_reference_id;
+      if (session.metadata?.kind === "donation" && userId) {
+        await query(
+          `
+            insert into app_donations (
+              user_id, stripe_session_id, amount_cents, currency, status
+            )
+            values ($1, $2, $3, $4, 'failed')
+            on conflict (stripe_session_id) do update
+            set status = 'failed', updated_at = now()
+          `,
+          [
+            userId,
+            session.id,
+            session.amount_total ?? Number(session.metadata.amountCents ?? 0),
+            session.currency ?? "eur",
+          ],
         );
       }
       break;

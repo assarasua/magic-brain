@@ -20,7 +20,7 @@ const tabs = [
   { href: "/portfolio", label: "Portfolio", icon: WalletCards },
 ];
 
-const moreRoutes = ["/discover", "/watchlist", "/reserved", "/brain", "/signals", "/analyst", "/pro", "/settings"];
+const moreRoutes = ["/discover", "/watchlist", "/reserved", "/brain", "/signals", "/analyst", "/pro", "/settings", "/donate"];
 
 export function MobileTabBar() {
   const pathname = usePathname();

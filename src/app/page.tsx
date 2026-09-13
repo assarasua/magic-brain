@@ -54,6 +54,7 @@ const nav = [
   { label: "Brain Pro", icon: Sparkles },
   { label: "Brain Signals", icon: TrendingUp },
   { label: "Ask Brain", icon: MessageCircleQuestion },
+  { label: "Support", icon: CircleDollarSign },
 ];
 
 function Brand({ compact = false }: { compact?: boolean }) {
@@ -405,6 +406,7 @@ export default function Home() {
                   "Brain Pro": "/brain",
                 "Brain Signals": "/signals",
                   "Ask Brain": "/analyst",
+                  Support: "/donate",
                 };
                 if (routes[label]) {
                   router.push(routes[label]);
