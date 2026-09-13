@@ -32,8 +32,9 @@ cost basis.
 Public reads remain anonymous. API keys always have `data:read`; personal
 scopes are explicit. Interactive clients use OAuth authorization code with S256
 PKCE, exact registered redirects, RFC 8707 resource indicators, 5-minute
-single-use codes, 15-minute access tokens, and rotating 30-day refresh tokens.
-Tokens and codes are stored only as SHA-256 hashes. Revocation is immediate.
+single-use codes, 15-minute one-time consent requests, 15-minute access tokens,
+and rotating 30-day refresh tokens. Tokens, codes, and consent request handles
+are stored only as SHA-256 hashes. Revocation is immediate.
 
 OAuth scopes are `public:read`, `portfolio:read`, `portfolio:write`,
 `lists:read`, `lists:write`, `alerts:manage`, `shares:manage`, and
@@ -55,7 +56,7 @@ Remaining deployment configuration (not performed by this change):
    `MAGIC_BRAIN_MCP_DELEGATION_SECRET` on the web deployment.
 2. Add the same introspection client ID/secret and delegation secret as
    encrypted bindings on the `magic-brain-mcp` Worker.
-3. Apply migrations `021` and `022` through the existing migration runner
+3. Apply migrations `021`, `022`, and `023` through the existing migration runner
    before deploying either component.
 4. Verify both well-known metadata URLs, anonymous tool calls, and one
    consented personal read. No external Google OAuth client registration is
