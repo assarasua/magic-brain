@@ -19,6 +19,7 @@ import { SetSelector } from "@/components/set-selector";
 import { CARD_COLORS, CARD_RARITIES, CARD_TYPES } from "@/lib/card-filters";
 import {
   defaultUserPreferences,
+  parseUserPreferences,
   type UserPreferences,
 } from "@/lib/user-preferences";
 
@@ -84,6 +85,14 @@ export default function SettingsPage() {
   };
 
   const save = async () => {
+    if (!parseUserPreferences(preferences)) {
+      setNotice(
+        es
+          ? "Revisa los límites. El máximo por carta no puede superar el presupuesto."
+          : "Check the limits. Maximum card price cannot exceed the budget.",
+      );
+      return;
+    }
     setSaving(true);
     setNotice("");
     const response = await fetch("/api/account", {
@@ -172,7 +181,7 @@ export default function SettingsPage() {
             <div className="settings-section-title"><span><SlidersHorizontal size={19} /></span><div><h2>{es ? "Límites predeterminados" : "Default boundaries"}</h2><p>{es ? "Estos valores aparecerán precargados en Brain." : "These values will be prefilled in Brain."}</p></div></div>
             <div className="settings-number-grid">
               <label>{es ? "Presupuesto" : "Budget"}<div><span>€</span><input type="number" min="25" max="1000000" value={preferences.defaultBudget} onChange={(event) => update("defaultBudget", Number(event.target.value))} /></div></label>
-              <label>{es ? "Máximo por carta" : "Maximum per card"}<div><span>€</span><input type="number" min="2" max="1000000" value={preferences.maxCardPrice} onChange={(event) => update("maxCardPrice", Number(event.target.value))} /></div></label>
+              <label>{es ? "Máximo por carta" : "Maximum per card"}<div><span>€</span><input type="number" min="2" max={preferences.defaultBudget} value={preferences.maxCardPrice} onChange={(event) => update("maxCardPrice", Number(event.target.value))} /></div></label>
               <label>{es ? "Número de posiciones" : "Number of positions"}<input type="number" min="3" max="20" value={preferences.positions} onChange={(event) => update("positions", Number(event.target.value))} /></label>
             </div>
 

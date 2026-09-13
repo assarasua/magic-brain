@@ -13,6 +13,7 @@ export type AppUser = {
   avatarUrl: string | null;
   authenticated: boolean;
   productTourCompleted: boolean;
+  preferencesOnboardingCompleted: boolean;
   preferences: UserPreferences;
 };
 
@@ -24,6 +25,7 @@ type UserRow = {
   avatar_url: string | null;
   authenticated_at: string | null;
   product_tour_completed: boolean;
+  preferences_onboarding_completed: boolean;
   preferences: unknown;
 };
 
@@ -35,12 +37,13 @@ const mapUser = (row: UserRow): AppUser => ({
   avatarUrl: row.avatar_url,
   authenticated: row.authenticated_at !== null,
   productTourCompleted: row.product_tour_completed,
+  preferencesOnboardingCompleted: row.preferences_onboarding_completed,
   preferences: normalizeUserPreferences(row.preferences),
 });
 
 const userFields = `
   id, locale, email, display_name, avatar_url, authenticated_at,
-  product_tour_completed, preferences
+  product_tour_completed, preferences_onboarding_completed, preferences
 `;
 
 export async function getOrCreateUser(_request: NextRequest) {

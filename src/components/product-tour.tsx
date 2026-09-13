@@ -22,16 +22,21 @@ const steps = [
   { icon: BrainCircuit, accent: "brain", destination: "/discover" },
 ] as const;
 
-export function ProductTour() {
+export function ProductTour({
+  initialCompleted,
+}: {
+  initialCompleted?: boolean;
+} = {}) {
   const pathname = usePathname();
   const router = useRouter();
   const { locale } = useLanguage();
   const es = locale === "es";
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initialCompleted === false);
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    if (initialCompleted !== undefined) return;
     if (pathname === "/login") return;
     const controller = new AbortController();
     fetch("/api/account", { signal: controller.signal })
@@ -41,7 +46,7 @@ export function ProductTour() {
       })
       .catch(() => undefined);
     return () => controller.abort();
-  }, [pathname]);
+  }, [initialCompleted, pathname]);
 
   const complete = async (destination?: string) => {
     if (saving) return;
