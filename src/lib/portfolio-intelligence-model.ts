@@ -10,6 +10,8 @@ type Candidate = {
   imageUrl: string | null;
   price: number | null;
   change7d: number | null;
+  change30d?: number | null;
+  priceDate?: string | null;
   ml?: MlCardContext | null;
 };
 
@@ -78,14 +80,10 @@ export function buildPortfolioIntelligence<
     .slice(0, 3)
     .map((holding) => ({ ...holding, reviewSignal: "cooling" as const }));
 
-  const holdingReviews = cooling.length
-    ? cooling
-    : pricedHoldings
-        .toSorted(
-          (a, b) => (b.currentValue ?? 0) - (a.currentValue ?? 0),
-        )
-        .slice(0, 1)
-        .map((holding) => ({ ...holding, reviewSignal: "hold" as const }));
+  const holdingReviews = cooling;
+  const momentumHoldings = pricedHoldings.filter(
+    (holding) => holding.change7d !== null || holding.change30d !== null,
+  ).length;
 
   return {
     mode,
@@ -98,5 +96,16 @@ export function buildPortfolioIntelligence<
           : "no_candidates_after_constraints",
     candidateAdditions,
     holdingReviews,
+    coverage: {
+      pricedHoldings: pricedHoldings.length,
+      totalHoldings: input.holdings.length,
+      momentumHoldings,
+    },
+    thresholds: {
+      minimumCandidatePrice: 2,
+      maximumCandidatePrice: input.maximumCandidatePrice,
+      cooling7dPercent: DETERMINISTIC_COOLING_7D_PERCENT,
+      cooling30dPercent: DETERMINISTIC_COOLING_30D_PERCENT,
+    },
   };
 }
