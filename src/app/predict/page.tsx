@@ -18,16 +18,18 @@ import {
   ShieldAlert,
   Sparkles,
   Target,
-  TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
 import { useCardDetail } from "@/components/card-detail-provider";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { SetSelector } from "@/components/set-selector";
-import type { BrainRecommendation } from "@/lib/brain";
+import type {
+  BrainMarketInsight,
+  BrainRecommendation,
+} from "@/lib/brain";
 import type { GrowthTarget } from "@/lib/predict-model";
 import type { SetPrediction } from "@/lib/predict";
 import {
@@ -84,8 +86,10 @@ type AutomaticPortfolio = {
   name: string;
   budget: number;
   invested: number;
+  unallocated: number;
   expectedValue: number;
   recommendations: BrainRecommendation[];
+  lostMomentum: BrainMarketInsight[];
 };
 
 export default function PredictPage() {
@@ -108,10 +112,11 @@ export default function PredictPage() {
     null,
   );
   const [actionNotice, setActionNotice] = useState("");
-  const [buildMode, setBuildMode] = useState<"manual" | "automatic">("manual");
+  const [buildMode, setBuildMode] = useState<"manual" | "automatic">("automatic");
   const [buyerProfile, setBuyerProfile] = useState<UserPreferences>(
     defaultUserPreferences,
   );
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const [autoBudget, setAutoBudget] = useState(
     defaultUserPreferences.defaultBudget,
   );
@@ -120,7 +125,12 @@ export default function PredictPage() {
   );
   const [autoPortfolio, setAutoPortfolio] =
     useState<AutomaticPortfolio | null>(null);
-  const [generatingPortfolio, setGeneratingPortfolio] = useState(false);
+  const [autoScope, setAutoScope] = useState<"market" | "set">("market");
+  const [autoStatus, setAutoStatus] = useState<
+    "ready" | "loading" | "generated" | "error"
+  >("ready");
+  const [autoError, setAutoError] = useState("");
+  const autoRequestId = useRef(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -132,7 +142,10 @@ export default function PredictPage() {
         setAutoBudget(account.preferences.defaultBudget);
         setAutoRisk(account.preferences.risk);
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        if (!controller.signal.aborted) setProfileLoaded(true);
+      });
     return () => controller.abort();
   }, []);
 
@@ -162,7 +175,6 @@ export default function PredictPage() {
         .then((nextResult) => {
           setResult(nextResult);
           setSelectedCardIds(new Set());
-          setAutoPortfolio(null);
           setActionNotice("");
         })
         .catch((requestError: Error) => {
@@ -179,6 +191,14 @@ export default function PredictPage() {
   }, [requestUrl]);
 
   const prediction = result?.prediction;
+  const automaticSetCode =
+    autoScope === "set" && result && !result.marketEvidence.isUpcoming
+      ? result.set.code
+      : undefined;
+  const autoBudgetValid =
+    Number.isFinite(autoBudget) &&
+    autoBudget >= 25 &&
+    autoBudget <= 1_000_000;
   const verdict = prediction
     ? {
         favorable: es ? "Sí, escenario favorable" : "Yes, favorable scenario",
@@ -285,18 +305,25 @@ export default function PredictPage() {
     setSavingTo(null);
   };
 
-  const generateAutomaticPortfolio = async () => {
-    if (!result || result.marketEvidence.isUpcoming || generatingPortfolio) {
+  const generateAutomaticPortfolio = useCallback(async () => {
+    if (
+      !profileLoaded ||
+      !Number.isFinite(autoBudget) ||
+      autoBudget < 25 ||
+      autoBudget > 1_000_000
+    ) {
       return;
     }
-    setGeneratingPortfolio(true);
+    const requestId = ++autoRequestId.current;
+    setAutoStatus("loading");
+    setAutoError("");
     setActionNotice("");
     try {
       const response = await fetch("/api/predict/portfolio", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          setCode: result.set.code,
+          ...(automaticSetCode ? { setCode: automaticSetCode } : {}),
           budget: autoBudget,
           risk: autoRisk,
           locale,
@@ -308,24 +335,36 @@ export default function PredictPage() {
       if (!response.ok) {
         throw new Error(payload.error ?? "Unable to generate portfolio");
       }
+      if (requestId !== autoRequestId.current) return;
       setAutoPortfolio(payload);
-      setActionNotice(
-        es
-          ? `Cartera automática generada con ${payload.recommendations.length} posiciones.`
-          : `Automatic portfolio generated with ${payload.recommendations.length} positions.`,
-      );
+      setAutoStatus("generated");
     } catch (generationError) {
+      if (requestId !== autoRequestId.current) return;
       setAutoPortfolio(null);
-      setActionNotice(
+      setAutoStatus("error");
+      setAutoError(
         generationError instanceof Error
           ? generationError.message
           : es
             ? "No se pudo generar la cartera."
             : "Unable to generate the portfolio.",
       );
-    } finally {
-      setGeneratingPortfolio(false);
     }
+  }, [
+    autoBudget,
+    autoRisk,
+    automaticSetCode,
+    es,
+    locale,
+    profileLoaded,
+  ]);
+
+  const resetAutomaticPortfolio = () => {
+    autoRequestId.current += 1;
+    setAutoPortfolio(null);
+    setAutoError("");
+    setAutoStatus("ready");
+    setActionNotice("");
   };
 
   const saveAutomaticPortfolio = async (
@@ -373,6 +412,34 @@ export default function PredictPage() {
         : es
           ? `Se añadieron ${saved} de ${total} posiciones.`
           : `${saved} of ${total} positions were added.`,
+    );
+    setSavingTo(null);
+  };
+
+  const saveLostMomentum = async () => {
+    if (!autoPortfolio?.lostMomentum.length || savingTo) return;
+    setSavingTo("watchlist");
+    setActionNotice("");
+    const saved = (
+      await Promise.all(
+        autoPortfolio.lostMomentum.map(async (item) => {
+          try {
+            const response = await fetch("/api/watchlist", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ cardId: item.cardId }),
+            });
+            return response.ok;
+          } catch {
+            return false;
+          }
+        }),
+      )
+    ).filter(Boolean).length;
+    setActionNotice(
+      es
+        ? `${saved} de ${autoPortfolio.lostMomentum.length} cartas de vigilancia añadidas.`
+        : `${saved} of ${autoPortfolio.lostMomentum.length} watch cards added.`,
     );
     setSavingTo(null);
   };
@@ -596,16 +663,76 @@ export default function PredictPage() {
             </div>
           )}
 
-          {buildMode === "automatic" && result && (
+          {buildMode === "automatic" && (
             <div className={styles.autoBuilder}>
+              <section className={styles.budgetSelector}>
+                <div>
+                  <span className="eyebrow">
+                    {es ? "01 · PRESUPUESTO" : "01 · BUDGET"}
+                  </span>
+                  <h3>
+                    {es
+                      ? "¿Cuánto quieres invertir?"
+                      : "How much do you want to invest?"}
+                  </h3>
+                  <p>
+                    {es
+                      ? "Elige el importe exacto antes de generar. Las cantidades nunca superarán este presupuesto."
+                      : "Choose the exact amount before generating. Quantities will never exceed this budget."}
+                  </p>
+                </div>
+                <div className={styles.budgetChoices}>
+                  {[250, 500, 1000, 2500, 5000].map((amount) => (
+                    <button
+                      key={amount}
+                      type="button"
+                      className={autoBudget === amount ? styles.active : ""}
+                      onClick={() => {
+                        setAutoBudget(amount);
+                        resetAutomaticPortfolio();
+                      }}
+                    >
+                      €{amount.toLocaleString(locale)}
+                    </button>
+                  ))}
+                </div>
+                <label className={styles.budgetInput}>
+                  <span>{es ? "Importe personalizado" : "Custom amount"}</span>
+                  <span className={styles.moneyInput}>
+                    €{" "}
+                    <input
+                      type="number"
+                      min="25"
+                      max="1000000"
+                      step="1"
+                      value={autoBudget}
+                      aria-invalid={!autoBudgetValid}
+                      onChange={(event) => {
+                        setAutoBudget(Number(event.target.value));
+                        resetAutomaticPortfolio();
+                      }}
+                    />
+                  </span>
+                  <small className={!autoBudgetValid ? styles.invalidBudget : ""}>
+                    {autoBudgetValid
+                      ? es
+                        ? `Entre 25 € y 1.000.000 €. Máximo guardado por carta: ${buyerProfile.maxCardPrice.toFixed(2)} €.`
+                        : `€25–€1,000,000. Saved maximum per card: €${buyerProfile.maxCardPrice.toFixed(2)}.`
+                      : es
+                        ? "Introduce un presupuesto entre 25 € y 1.000.000 €."
+                        : "Enter a budget from €25 to €1,000,000."}
+                  </small>
+                </label>
+              </section>
+
               <div className={styles.autoControls}>
                 <div>
                   <span className="eyebrow">{es ? "PERFIL DEL COMPRADOR" : "BUYER PROFILE"}</span>
                   <h3>{es ? "Brain construye la asignación" : "Brain builds the allocation"}</h3>
                   <p>
                     {es
-                      ? `Parte de tus preferencias guardadas: máximo ${buyerProfile.maxCardPrice.toFixed(0)} € por carta y hasta ${buyerProfile.positions} posiciones.`
-                      : `Starts from your saved preferences: up to €${buyerProfile.maxCardPrice.toFixed(0)} per card and ${buyerProfile.positions} positions.`}
+                      ? `Usa tus preferencias guardadas: horizonte ${buyerProfile.horizon}, estrategia ${buyerProfile.strategy}, máximo ${buyerProfile.maxCardPrice.toFixed(0)} € por carta y ${buyerProfile.positions} posiciones.`
+                      : `Uses your saved preferences: ${buyerProfile.horizon}-term ${buyerProfile.strategy} strategy, up to €${buyerProfile.maxCardPrice.toFixed(0)} per card and ${buyerProfile.positions} positions.`}
                   </p>
                 </div>
                 <label>
@@ -614,7 +741,7 @@ export default function PredictPage() {
                     value={autoRisk}
                     onChange={(event) => {
                       setAutoRisk(event.target.value as UserPreferences["risk"]);
-                      setAutoPortfolio(null);
+                      resetAutomaticPortfolio();
                     }}
                   >
                     {riskProfiles.map((profile) => (
@@ -624,63 +751,122 @@ export default function PredictPage() {
                     ))}
                   </select>
                 </label>
-                <label>
-                  {es ? "Presupuesto" : "Budget"}
-                  <span className={styles.moneyInput}>
-                    €{" "}
-                    <input
-                      type="number"
-                      min="25"
-                      max="1000000"
-                      value={autoBudget}
-                      onChange={(event) => {
-                        setAutoBudget(Number(event.target.value));
-                        setAutoPortfolio(null);
-                      }}
-                    />
-                  </span>
-                </label>
                 <button
                   type="button"
                   disabled={
-                    generatingPortfolio ||
-                    autoBudget < 25 ||
-                    result.marketEvidence.isUpcoming
+                    autoStatus === "loading" ||
+                    !autoBudgetValid ||
+                    !profileLoaded
                   }
                   onClick={() => void generateAutomaticPortfolio()}
                 >
-                  {generatingPortfolio ? <LoaderCircle className="spin" size={15} /> : <Sparkles size={15} />}
-                  {es ? "Generar cartera" : "Generate portfolio"}
+                  {autoStatus === "loading" ? <LoaderCircle className="spin" size={15} /> : <Sparkles size={15} />}
+                  {autoStatus === "error"
+                    ? (es ? "Reintentar" : "Retry")
+                    : autoStatus === "generated"
+                      ? (es ? "Regenerar" : "Regenerate")
+                      : (es ? "Generar cartera" : "Generate portfolio")}
                 </button>
               </div>
 
-              {result.marketEvidence.isUpcoming && (
-                <div className={styles.autoEmpty}>
-                  <strong>
-                    {es
-                      ? "La cartera automática necesita precios observados."
-                      : "Automatic portfolios require observed prices."}
-                  </strong>
-                  <span>
-                    {es
-                      ? "Esta edición todavía no se ha lanzado. Selecciona una edición publicada para que Brain pueda calcular cantidades y asignaciones reales."
-                      : "This set has not been released yet. Select a released set so Brain can calculate real quantities and allocations."}
-                  </span>
+              <div className={styles.autoScope} aria-label={es ? "Alcance de mercado" : "Market scope"}>
+                <button
+                  type="button"
+                  className={!automaticSetCode ? styles.active : ""}
+                  onClick={() => {
+                    setAutoScope("market");
+                    resetAutomaticPortfolio();
+                  }}
+                >
+                  {es ? "Todo el mercado con precio" : "Whole priced market"}
+                </button>
+                <button
+                  type="button"
+                  className={automaticSetCode ? styles.active : ""}
+                  disabled={!result || result.marketEvidence.isUpcoming}
+                  onClick={() => {
+                    setAutoScope("set");
+                    resetAutomaticPortfolio();
+                  }}
+                >
+                  {result && !result.marketEvidence.isUpcoming
+                    ? `${es ? "Solo" : "Only"} ${result.set.name}`
+                    : (es ? "Edición publicada opcional" : "Optional released set")}
+                </button>
+              </div>
+
+              {autoStatus === "ready" && (
+                <div className={styles.autoState}>
+                  <Sparkles size={18} />
+                  <div>
+                    <strong>
+                      {profileLoaded
+                        ? es
+                          ? `Listo para asignar ${autoBudgetValid ? `€${autoBudget.toLocaleString(locale)}` : "tu presupuesto"}.`
+                          : `Ready to allocate ${autoBudgetValid ? `€${autoBudget.toLocaleString(locale)}` : "your budget"}.`
+                        : es
+                          ? "Cargando tus preferencias guardadas…"
+                          : "Loading your saved preferences…"}
+                    </strong>
+                    <span>
+                      {es
+                        ? "Confirma el importe y genera la lista cuando estés listo."
+                        : "Confirm the amount, then generate the list when ready."}
+                    </span>
+                  </div>
                 </div>
               )}
 
-              {!result.marketEvidence.isUpcoming && autoPortfolio && (
+              {autoStatus === "loading" && (
+                <div className={styles.autoState}>
+                  <LoaderCircle className="spin" size={18} />
+                  <div>
+                    <strong>{es ? "Generando lista automática…" : "Generating automatic list…"}</strong>
+                    <span>{es ? "Clasificando crecimiento, recuperación y pérdida de momentum." : "Classifying growth, recovery, and lost momentum."}</span>
+                  </div>
+                </div>
+              )}
+
+              {autoStatus === "error" && (
+                <div className={`${styles.autoState} ${styles.autoError}`}>
+                  <CircleAlert size={18} />
+                  <div>
+                    <strong>{es ? "No se pudo generar la lista." : "The list could not be generated."}</strong>
+                    <span>{autoError}</span>
+                  </div>
+                  <button type="button" onClick={() => void generateAutomaticPortfolio()}>
+                    {es ? "Reintentar" : "Retry"}
+                  </button>
+                </div>
+              )}
+
+              {autoStatus === "generated" && autoPortfolio && (
                 <div className={styles.autoResult}>
                   <header>
                     <div>
-                      <span>{es ? "LISTA AI GUARDADA" : "SAVED AI LIST"}</span>
-                      <h3>{autoPortfolio.name} · {result.set.name}</h3>
-                    </div>
-                    <div>
-                      <strong>€{autoPortfolio.invested.toFixed(2)}</strong>
-                      <small>{es ? `de €${autoPortfolio.budget.toFixed(2)}` : `of €${autoPortfolio.budget.toFixed(2)}`}</small>
+                      <span>{es ? "LISTA AI GENERADA" : "GENERATED AI LIST"}</span>
+                      <h3>
+                        {autoPortfolio.name} ·{" "}
+                        {automaticSetCode && result
+                          ? result.set.name
+                          : (es ? "mercado completo" : "whole market")}
+                      </h3>
                     </div>
                   </header>
+                  <div className={styles.autoTotals}>
+                    <article>
+                      <span>{es ? "Presupuesto" : "Budget"}</span>
+                      <strong>€{autoPortfolio.budget.toFixed(2)}</strong>
+                    </article>
+                    <article>
+                      <span>{es ? "Invertido" : "Invested"}</span>
+                      <strong>€{autoPortfolio.invested.toFixed(2)}</strong>
+                    </article>
+                    <article>
+                      <span>{es ? "Efectivo sin asignar" : "Unallocated cash"}</span>
+                      <strong>€{autoPortfolio.unallocated.toFixed(2)}</strong>
+                    </article>
+                  </div>
                   {autoPortfolio.recommendations.length === 0 ? (
                     <div className={styles.autoEmpty}>
                       {es
@@ -696,7 +882,12 @@ export default function PredictPage() {
                             {item.imageUrl && <img src={item.imageUrl} alt="" />}
                             <div>
                               <strong>{item.name}</strong>
-                              <small>{item.quantity}× · €{item.price.toFixed(2)} · score {item.score}</small>
+                              <small>
+                                {item.quantity}× · €{item.price.toFixed(2)} ·{" "}
+                                {item.classification === "strong_growth"
+                                  ? (es ? "crecimiento fuerte" : "strong growth")
+                                  : (es ? "oportunidad de recuperación" : "recovery opportunity")}
+                              </small>
                             </div>
                             <b>€{item.allocation.toFixed(2)}</b>
                           </article>
@@ -722,13 +913,59 @@ export default function PredictPage() {
                       </div>
                     </>
                   )}
+
+                  <section className={styles.watchSection}>
+                    <div>
+                      <span>{es ? "VIGILAR / EVITAR" : "WATCH / AVOID"}</span>
+                      <h3>{es ? "Momentum perdido" : "Lost momentum"}</h3>
+                      <p>
+                        {es
+                          ? "Estas cartas se explican aparte y nunca reciben asignación automática."
+                          : "These cards are explained separately and never receive an automatic allocation."}
+                      </p>
+                    </div>
+                    {autoPortfolio.lostMomentum.length === 0 ? (
+                      <div className={styles.autoEmpty}>
+                        {es
+                          ? "No se detectaron cartas con momentum perdido dentro de tus límites."
+                          : "No lost-momentum cards were found within your limits."}
+                      </div>
+                    ) : (
+                      <>
+                        <div className={styles.watchList}>
+                          {autoPortfolio.lostMomentum.map((item) => (
+                            <article key={item.cardId} className="card-surface" {...cardSurfaceProps(item.cardId)}>
+                              {item.imageUrl && <img src={item.imageUrl} alt="" />}
+                              <div>
+                                <strong>{item.name}</strong>
+                                <small>{signed(item.change7d)} 7D · {signed(item.change30d)} 30D</small>
+                                <p>{item.rationale}</p>
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                        <div className={styles.autoActions}>
+                          <button
+                            type="button"
+                            disabled={savingTo !== null}
+                            onClick={() => void saveLostMomentum()}
+                          >
+                            {savingTo === "watchlist" ? <LoaderCircle className="spin" size={14} /> : <Bell size={14} />}
+                            {es ? "Añadir vigilancia a watchlist" : "Add watch list to watchlist"}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </section>
                 </div>
               )}
             </div>
           )}
           {actionNotice && <div className={styles.actionNotice}><CheckCircle2 size={15} /> {actionNotice}</div>}
 
-          {!loading && result?.cardPredictions.length === 0 && (
+          {buildMode === "manual" &&
+            !loading &&
+            result?.cardPredictions.length === 0 && (
             <div className={styles.noCards}>
               <CircleAlert size={20} />
               <div>

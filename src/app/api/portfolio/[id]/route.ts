@@ -3,8 +3,9 @@ import { isCardLanguage } from "@/lib/card-languages";
 import {
   deletePortfolioItem,
   getPortfolio,
-  updatePortfolioItemLanguage,
+  updatePortfolioItem,
 } from "@/lib/portfolio";
+import { parsePortfolioUpdate } from "@/lib/portfolio-model";
 import { attachSessionCookie, getOrCreateUser } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -13,7 +14,14 @@ export async function DELETE(
   request: NextRequest,
   context: RouteContext<"/api/portfolio/[id]">,
 ) {
-  const { user, newToken } = await getOrCreateUser(request);
+  const session = await getOrCreateUser(request).catch(() => null);
+  if (!session) {
+    return NextResponse.json(
+      { error: "Authentication required" },
+      { status: 401 },
+    );
+  }
+  const { user, newToken } = session;
   const { id } = await context.params;
   const itemId = Number(id);
 
@@ -21,7 +29,10 @@ export async function DELETE(
     return NextResponse.json({ error: "Invalid holding ID" }, { status: 400 });
   }
 
-  await deletePortfolioItem(user.id, itemId);
+  const deleted = await deletePortfolioItem(user.id, itemId);
+  if (!deleted) {
+    return NextResponse.json({ error: "Holding not found" }, { status: 404 });
+  }
   return attachSessionCookie(
     NextResponse.json(await getPortfolio(user.id)),
     newToken,
@@ -32,15 +43,29 @@ export async function PATCH(
   request: NextRequest,
   context: RouteContext<"/api/portfolio/[id]">,
 ) {
-  const { user, newToken } = await getOrCreateUser(request);
+  const session = await getOrCreateUser(request).catch(() => null);
+  if (!session) {
+    return NextResponse.json(
+      { error: "Authentication required" },
+      { status: 401 },
+    );
+  }
+  const { user, newToken } = session;
   const { id } = await context.params;
   const itemId = Number(id);
-  const body = (await request.json()) as { language?: unknown };
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
 
   if (
     !Number.isInteger(itemId) ||
     itemId < 1 ||
-    !isCardLanguage(body.language)
+    body === null ||
+    typeof body !== "object" ||
+    Array.isArray(body)
   ) {
     return NextResponse.json(
       { error: "Invalid portfolio update" },
@@ -48,7 +73,18 @@ export async function PATCH(
     );
   }
 
-  await updatePortfolioItemLanguage(user.id, itemId, body.language);
+  const update = parsePortfolioUpdate(body, isCardLanguage);
+  if (!update) {
+    return NextResponse.json(
+      { error: "Invalid portfolio update" },
+      { status: 400 },
+    );
+  }
+
+  const updated = await updatePortfolioItem(user.id, itemId, update);
+  if (!updated) {
+    return NextResponse.json({ error: "Holding not found" }, { status: 404 });
+  }
   return attachSessionCookie(
     NextResponse.json(await getPortfolio(user.id)),
     newToken,

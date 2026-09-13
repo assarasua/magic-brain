@@ -4,6 +4,8 @@
 
 import {
   ArrowLeft,
+  Check,
+  Pencil,
   Plus,
   Search,
   Sparkles,
@@ -24,6 +26,12 @@ import type { CatalogCard } from "@/lib/catalog";
 import { formatCurrency } from "@/lib/data";
 import { calculateSeriesMetrics } from "@/lib/financial-analytics";
 import type { PortfolioHolding } from "@/lib/portfolio";
+import {
+  calculateOpportunityAnalytics,
+  calculatePortfolioSummary,
+  type PortfolioOpportunityClassification,
+} from "@/lib/portfolio-model";
+import styles from "./portfolio.module.css";
 
 type PortfolioData = {
   holdings: PortfolioHolding[];
@@ -35,12 +43,57 @@ type PortfolioData = {
     cardCount: number;
   };
   history: Array<{ date: string; value: number; invested: number }>;
+  opportunities: {
+    comparableHoldings: number;
+    coveragePercent: number;
+    classifications: Record<
+      PortfolioOpportunityClassification,
+      {
+        count: number;
+        holdingsPercent: number;
+        marketValue: number;
+        exposurePercent: number;
+      }
+    >;
+  };
+};
+
+const emptyOpportunity = {
+  count: 0,
+  holdingsPercent: 0,
+  marketValue: 0,
+  exposurePercent: 0,
 };
 
 const emptyPortfolio: PortfolioData = {
   holdings: [],
   summary: { invested: 0, value: 0, gain: 0, gainPercent: 0, cardCount: 0 },
   history: [],
+  opportunities: {
+    comparableHoldings: 0,
+    coveragePercent: 0,
+    classifications: {
+      strong_growth: emptyOpportunity,
+      recovery_opportunity: emptyOpportunity,
+      lost_momentum: emptyOpportunity,
+    },
+  },
+};
+
+const opportunityLabel = (
+  classification: PortfolioOpportunityClassification | null,
+  locale: "en" | "es",
+) => {
+  if (classification === "strong_growth") {
+    return locale === "es" ? "Crecimiento fuerte" : "Strong growth";
+  }
+  if (classification === "recovery_opportunity") {
+    return locale === "es" ? "Recuperación" : "Recovery";
+  }
+  if (classification === "lost_momentum") {
+    return locale === "es" ? "Impulso perdido" : "Lost momentum";
+  }
+  return locale === "es" ? "Datos insuficientes" : "Insufficient data";
 };
 
 function PortfolioChart({
@@ -126,6 +179,9 @@ export default function PortfolioPage() {
   const [selectedCard, setSelectedCard] = useState<CatalogCard | null>(null);
   const [saving, setSaving] = useState(false);
   const [updatingHolding, setUpdatingHolding] = useState<number | null>(null);
+  const [editingHolding, setEditingHolding] = useState<number | null>(null);
+  const [editQuantity, setEditQuantity] = useState("");
+  const [editPurchasePrice, setEditPurchasePrice] = useState("");
   const [error, setError] = useState("");
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -328,23 +384,105 @@ export default function PortfolioPage() {
     if (response.ok) setData((await response.json()) as PortfolioData);
   };
 
-  const updateHoldingLanguage = async (
+  const patchHolding = async (
     id: number,
-    language: CardLanguage,
+    update: {
+      language?: CardLanguage;
+      quantity?: number;
+      purchasePrice?: number;
+    },
   ) => {
+    const previous = data;
     setUpdatingHolding(id);
     setError("");
-    const response = await fetch(`/api/portfolio/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ language }),
+    setData((current) => {
+      const holdings = current.holdings.map((holding) => {
+        if (holding.id !== id) return holding;
+        const quantity = update.quantity ?? holding.quantity;
+        const purchasePrice =
+          update.purchasePrice ?? holding.purchasePrice;
+        const currentValue =
+          holding.currentPrice === null
+            ? null
+            : holding.currentPrice * quantity;
+        const costBasis = purchasePrice * quantity;
+        const gain =
+          currentValue === null ? null : currentValue - costBasis;
+        const gainPercent =
+          holding.currentPrice === null || purchasePrice === 0
+            ? null
+            : ((holding.currentPrice - purchasePrice) / purchasePrice) * 100;
+        return {
+          ...holding,
+          ...update,
+          quantity,
+          purchasePrice,
+          currentValue,
+          costBasis,
+          gain,
+          gainPercent,
+          returnSincePurchasePercent: gainPercent,
+        };
+      });
+      const summary = calculatePortfolioSummary(holdings);
+      return {
+        ...current,
+        holdings,
+        summary,
+        opportunities: calculateOpportunityAnalytics(
+          holdings,
+          summary.value,
+        ),
+      };
     });
-    if (response.ok) {
+    try {
+      const response = await fetch(`/api/portfolio/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(update),
+      });
+      if (!response.ok) throw new Error("Update failed");
       setData((await response.json()) as PortfolioData);
-    } else {
-      setError(locale === "es" ? "No se pudo actualizar el idioma" : "Unable to update language");
+      setEditingHolding(null);
+    } catch {
+      setData(previous);
+      setError(
+        locale === "es"
+          ? "No se pudo actualizar la posición"
+          : "Unable to update holding",
+      );
+    } finally {
+      setUpdatingHolding(null);
     }
-    setUpdatingHolding(null);
+  };
+
+  const startEditingHolding = (holding: PortfolioHolding) => {
+    setEditingHolding(holding.id);
+    setEditQuantity(String(holding.quantity));
+    setEditPurchasePrice(holding.purchasePrice.toFixed(2));
+    setError("");
+  };
+
+  const saveHolding = (id: number) => {
+    const quantity = Number(editQuantity);
+    const purchasePrice = Number(editPurchasePrice);
+    if (
+      !Number.isInteger(quantity) ||
+      quantity < 1 ||
+      quantity > 1_000_000 ||
+      !Number.isFinite(purchasePrice) ||
+      purchasePrice < 0 ||
+      purchasePrice > 999_999_999_999.99 ||
+      Math.abs(purchasePrice * 100 - Math.round(purchasePrice * 100)) >= 1e-7
+    ) {
+      setError(
+        locale === "es"
+          ? "Usa una cantidad entera positiva y un precio con hasta 2 decimales"
+          : "Use a positive whole quantity and a price with up to 2 decimals",
+      );
+      return;
+    }
+    void patchHolding(id, { quantity, purchasePrice });
   };
 
   return (
@@ -395,6 +533,24 @@ export default function PortfolioPage() {
               <article><span>{locale === "es" ? "Posición media" : "Average position"}</span><strong>{formatCurrency(analytics.averagePosition)}</strong><small>{locale === "es" ? "valor por activo" : "value per asset"}</small></article>
             </section>
 
+            <section className={`fintech-panel ${styles.opportunityPanel}`}>
+              <div className="section-title">
+                <div><span className="eyebrow">{locale === "es" ? "Analítica explicable" : "Explainable analytics"}</span><h2>{locale === "es" ? "Oportunidades por impulso" : "Momentum opportunities"}</h2></div>
+                <small>{data.opportunities.comparableHoldings}/{data.holdings.length} {locale === "es" ? "lotes con datos 7D y 30D" : "lots with 7D and 30D data"} · {data.opportunities.coveragePercent.toFixed(0)}%</small>
+              </div>
+              <p className={styles.methodology}>{locale === "es" ? "Clasificación descriptiva de precios registrados: crecimiento fuerte = 7D y 30D positivos; recuperación = 7D positivo y 30D no positivo; impulso perdido = 7D no positivo. No es una previsión." : "Descriptive classification of recorded prices: strong growth = positive 7D and 30D; recovery = positive 7D and non-positive 30D; lost momentum = non-positive 7D. This is not a forecast."}</p>
+              <div className={styles.opportunityGrid}>
+                {([
+                  ["strong_growth", locale === "es" ? "Crecimiento fuerte" : "Strong growth"],
+                  ["recovery_opportunity", locale === "es" ? "Oportunidad de recuperación" : "Recovery opportunity"],
+                  ["lost_momentum", locale === "es" ? "Impulso perdido" : "Lost momentum"],
+                ] as const).map(([key, label]) => {
+                  const metric = data.opportunities.classifications[key];
+                  return <article key={key} data-classification={key}><span>{label}</span><strong>{metric.count}</strong><small>{metric.holdingsPercent.toFixed(0)}% {locale === "es" ? "de comparables" : "of comparable lots"} · {formatCurrency(metric.marketValue)}</small><em>{metric.exposurePercent.toFixed(1)}% {locale === "es" ? "de exposición" : "portfolio exposure"}</em></article>;
+                })}
+              </div>
+            </section>
+
             <section className="fintech-panel portfolio-risk-panel">
               <div className="section-title">
                 <div><span className="eyebrow">{locale === "es" ? "Diagnóstico de riesgo" : "Risk diagnostics"}</span><h2>{locale === "es" ? "Calidad de la cartera" : "Portfolio quality"}</h2></div>
@@ -411,26 +567,36 @@ export default function PortfolioPage() {
             <section className="fintech-panel holdings-table">
               <div className="section-title"><div><span className="eyebrow">{t("Your collection")}</span><h2>{locale === "es" ? "Posiciones" : "Holdings"}</h2></div><span>{data.holdings.length} {locale === "es" ? "lotes" : "lots"}</span></div>
             <div className="holdings-list">
-              {data.holdings.map((holding) => <div className="portfolio-row card-surface" key={holding.id} {...cardSurfaceProps(holding.cardId)}>
+              {data.holdings.map((holding) => <div className={`portfolio-row card-surface ${styles.holdingRow} ${updatingHolding === holding.id ? styles.updating : ""}`} key={holding.id} {...cardSurfaceProps(holding.cardId)}>
                 {holding.imageUrl && <img src={holding.imageUrl} alt="" />}
                 <div className="holding-identity">
                   <strong>{holding.name}</strong>
                   <span>{holding.setCode.toUpperCase()} · {holding.condition.replace("_", " ")} · {holding.quantity}×</span>
+                  <span className={styles.momentum}>
+                    7D {holding.change7d === null ? "—" : `${holding.change7d >= 0 ? "+" : ""}${holding.change7d.toFixed(1)}%`}
+                    {" · "}30D {holding.change30d === null ? "—" : `${holding.change30d >= 0 ? "+" : ""}${holding.change30d.toFixed(1)}%`}
+                    {" · "}{locale === "es" ? "Desde compra" : "Since purchase"} {holding.returnSincePurchasePercent === null ? "—" : `${holding.returnSincePurchasePercent >= 0 ? "+" : ""}${holding.returnSincePurchasePercent.toFixed(1)}%`}
+                    {" · "}{opportunityLabel(holding.opportunityClassification, locale)}
+                  </span>
                   <label className="holding-language">
                     <span>{locale === "es" ? "Idioma" : "Language"}</span>
                     <select
                       value={holding.language}
                       disabled={updatingHolding === holding.id}
-                      onChange={(event) => void updateHoldingLanguage(holding.id, event.target.value as CardLanguage)}
+                      onChange={(event) => void patchHolding(holding.id, { language: event.target.value as CardLanguage })}
                     >
                       {CARD_LANGUAGES.map((language) => <option key={language.code} value={language.code}>{language[locale]}</option>)}
                     </select>
                   </label>
                 </div>
-                <div><span>{locale === "es" ? "Coste" : "Cost"}</span><strong>{formatCurrency(holding.costBasis)}</strong></div>
+                <div className={styles.costCell}><span>{locale === "es" ? "Coste" : "Cost"}</span>{editingHolding === holding.id ? <div className={styles.editFields}><label><span>{locale === "es" ? "Cantidad" : "Quantity"}</span><input aria-label={locale === "es" ? "Cantidad" : "Quantity"} type="number" min="1" max="1000000" step="1" value={editQuantity} disabled={updatingHolding === holding.id} onChange={(event) => setEditQuantity(event.target.value)} /></label><label><span>{locale === "es" ? "Precio unitario" : "Unit price"}</span><input aria-label={locale === "es" ? "Precio unitario" : "Unit price"} type="number" min="0" max="999999999999.99" step=".01" value={editPurchasePrice} disabled={updatingHolding === holding.id} onChange={(event) => setEditPurchasePrice(event.target.value)} /></label></div> : <strong>{formatCurrency(holding.costBasis)}</strong>}</div>
                 <div><span>{locale === "es" ? "Valor" : "Value"}</span><strong>{holding.currentValue === null ? "—" : formatCurrency(holding.currentValue)}</strong></div>
                 <div><span>P&L</span><strong className={(holding.gain ?? 0) >= 0 ? "up" : "down"}>{holding.gain === null ? "—" : `${holding.gain >= 0 ? "+" : ""}${formatCurrency(holding.gain)}`}</strong></div>
-                <button onClick={() => removeHolding(holding.id)} aria-label={`Remove ${holding.name}`}><Trash2 size={15} /></button>
+                <div className={styles.actions}>
+                  {updatingHolding === holding.id && <span className={styles.savingIndicator} role="status">{locale === "es" ? "Guardando" : "Saving"}</span>}
+                  {editingHolding === holding.id ? <><button disabled={updatingHolding === holding.id} onClick={() => saveHolding(holding.id)} aria-label={`Save ${holding.name}`}><Check size={15} /></button><button disabled={updatingHolding === holding.id} onClick={() => setEditingHolding(null)} aria-label={`Cancel editing ${holding.name}`}><X size={15} /></button></> : <button onClick={() => startEditingHolding(holding)} aria-label={`Edit ${holding.name}`}><Pencil size={14} /></button>}
+                  <button disabled={updatingHolding === holding.id} onClick={() => removeHolding(holding.id)} aria-label={`Remove ${holding.name}`}><Trash2 size={15} /></button>
+                </div>
               </div>)}
             </div>
             </section>
