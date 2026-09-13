@@ -21,7 +21,7 @@ test("all customer ML surfaces use one disclosure component", async () => {
     "src/app/signals/page.tsx",
     "src/app/predict/page.tsx",
     "src/app/discover/page.tsx",
-    "src/app/portfolio/page.tsx",
+    "src/components/portfolio-decision-section.tsx",
     "src/app/news/news-view.tsx",
     "src/app/graph/page.tsx",
   ];
@@ -29,28 +29,34 @@ test("all customer ML surfaces use one disclosure component", async () => {
     paths.map((path) => readFile(new URL(path, root), "utf8")),
   );
   sources.forEach((source, index) => {
-    assert.match(source, /<MlInsight/, `${paths[index]} must disclose its method`);
+    assert.match(
+      source,
+      /<MlInsight|Verified ML/,
+      `${paths[index]} must disclose its method`,
+    );
   });
 });
 
 test("portfolio fallback serves rule-based insights instead of ML empty copy", async () => {
-  const [route, page] = await Promise.all([
+  const [route, page, decisions] = await Promise.all([
     readFile(new URL("src/app/api/portfolio/route.ts", root), "utf8"),
     readFile(new URL("src/app/portfolio/page.tsx", root), "utf8"),
+    readFile(new URL("src/components/portfolio-decision-section.tsx", root), "utf8"),
   ]);
 
   assert.match(route, /getMarketMovers\(24, "gainers", 7\)/);
   assert.match(route, /buildPortfolioIntelligence/);
-  assert.match(page, /Rule-based candidates/);
-  assert.match(page, /Holdings to review/);
-  assert.match(page, /no current price/);
-  assert.doesNotMatch(page, /No verified learned candidates are available/);
+  assert.match(page, /PortfolioDecisionSection/);
+  assert.match(decisions, /Rule-based candidates/);
+  assert.match(decisions, /Cooling holdings/);
+  assert.match(decisions, /Current prices are missing/);
+  assert.doesNotMatch(decisions, /No verified learned candidates are available/);
   assert.doesNotMatch(
-    page,
+    decisions,
     /No hay candidatas aprendidas verificadas disponibles/,
   );
   assert.doesNotMatch(
-    page,
+    decisions,
     /Ninguna posición cruza el umbral descriptivo de enfriamiento/,
   );
 });

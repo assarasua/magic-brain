@@ -48,8 +48,12 @@ test("screenshot fallback state returns useful rules-based insights", () => {
   assert.deepEqual(result.candidateAdditions.map((item) => item.id), [
     "candidate-card",
   ]);
-  assert.equal(result.holdingReviews.length, 1);
-  assert.equal(result.holdingReviews[0].reviewSignal, "hold");
+  assert.equal(result.holdingReviews.length, 0);
+  assert.deepEqual(result.coverage, {
+    pricedHoldings: 1,
+    totalHoldings: 1,
+    momentumHoldings: 1,
+  });
 });
 
 test("21 fully priced lots never collapse into the reported double-empty state", () => {
@@ -78,9 +82,9 @@ test("21 fully priced lots never collapse into the reported double-empty state",
   assert.equal(result.state, "active");
   assert.equal(result.candidateState, "no_candidates_after_constraints");
   assert.deepEqual(result.candidateAdditions, []);
-  assert.equal(result.holdingReviews.length, 1);
-  assert.equal(result.holdingReviews[0].name, "Held card 21");
-  assert.equal(result.holdingReviews[0].reviewSignal, "hold");
+  assert.deepEqual(result.holdingReviews, []);
+  assert.equal(result.thresholds.cooling7dPercent, -2);
+  assert.equal(result.thresholds.cooling30dPercent, -5);
 });
 
 test("fallback enforces identity, price, and positive momentum constraints", () => {
