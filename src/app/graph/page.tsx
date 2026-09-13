@@ -68,12 +68,13 @@ const signedPercent = (value: number) =>
 
 export default function OpportunityGraphPage() {
   const { locale } = useLanguage();
-  const { openCard } = useCardDetail();
+  const { openCard, cardSurfaceProps } = useCardDetail();
   const viewportRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ x: number; y: number; originX: number; originY: number } | null>(null);
   const [graph, setGraph] = useState<GraphPayload | null>(null);
   const [selectedId, setSelectedId] = useState("");
   const [query, setQuery] = useState("");
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -172,8 +173,17 @@ export default function OpportunityGraphPage() {
     }
   };
 
+  const activateNode = (node: OpportunityGraphNode) => {
+    if (node.id === selectedId) {
+      openCard(node.id);
+      return;
+    }
+    focusNode(node);
+  };
+
   const submitSearch = (event: FormEvent) => {
     event.preventDefault();
+    setSuggestionsOpen(false);
     const local = suggestions[0];
     if (local) {
       focusNode(local);
@@ -274,13 +284,25 @@ export default function OpportunityGraphPage() {
             <Search size={16} />
             <input
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setSuggestionsOpen(true);
+              }}
+              onFocus={() => {
+                if (query.trim().length >= 2) setSuggestionsOpen(true);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") setSuggestionsOpen(false);
+              }}
               placeholder="Find a card or set…"
               aria-label="Find a card or set"
+              aria-autocomplete="list"
+              aria-controls="graph-search-suggestions"
+              aria-expanded={suggestionsOpen && suggestions.length > 0}
             />
             <button type="submit">Focus</button>
-            {suggestions.length > 0 && (
-              <div className={styles.suggestions}>
+            {suggestionsOpen && suggestions.length > 0 && (
+              <div id="graph-search-suggestions" className={styles.suggestions}>
                 {suggestions.map((node) => (
                   <button
                     key={node.id}
@@ -288,6 +310,7 @@ export default function OpportunityGraphPage() {
                     onClick={() => {
                       focusNode(node);
                       setQuery(node.name);
+                      setSuggestionsOpen(false);
                     }}
                   >
                     <span>{node.name}</span>
@@ -370,15 +393,17 @@ export default function OpportunityGraphPage() {
                           data-node
                           role="button"
                           tabIndex={0}
-                          aria-label={`${node.name}, ${classificationLabels[node.classification]}`}
+                          aria-label={`${node.name}, ${classificationLabels[node.classification]}. ${
+                            active ? "Open card details" : "Select card"
+                          }`}
+                          aria-pressed={active}
                           className={`${styles.node} ${active ? styles.selectedNode : ""} ${selectedId && !active && !related ? styles.dimmedNode : ""}`}
                           transform={`translate(${node.x} ${node.y})`}
-                          onClick={() => focusNode(node)}
-                          onDoubleClick={() => openCard(node.id)}
+                          onClick={() => activateNode(node)}
                           onKeyDown={(event) => {
                             if (event.key === "Enter" || event.key === " ") {
                               event.preventDefault();
-                              focusNode(node);
+                              activateNode(node);
                             }
                           }}
                         >
@@ -397,12 +422,12 @@ export default function OpportunityGraphPage() {
                   <button onClick={() => zoom(-0.2)} aria-label="Zoom out"><Minus size={16} /></button>
                   <button onClick={() => setTransform({ x: 0, y: 0, scale: 1 })} aria-label="Reset view"><Focus size={16} /></button>
                 </div>
-                <p className={styles.graphHint}>Drag to pan · scroll to zoom · double-click for card details</p>
+                <p className={styles.graphHint}>Drag to pan · scroll to zoom · activate a selected card for details</p>
               </div>
             </section>
 
             {selected && (
-              <aside className={styles.detail}>
+              <aside className={styles.detail} {...cardSurfaceProps(selected.id)}>
                 <div className={styles.cardHead}>
                   {selected.imageUrl && <img src={selected.imageUrl} alt="" />}
                   <div>
