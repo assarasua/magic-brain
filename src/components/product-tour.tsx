@@ -88,7 +88,7 @@ export function ProductTour({
         {
           eyebrow: "PASO 4 · BRAIN PRO",
           title: "Haz que las recomendaciones se adapten a ti.",
-          body: "Configura presupuesto, riesgo, estrategia y tipos de carta. Brain Pro usa ese perfil para construir y descubrir ideas gratis por ahora.",
+          body: "Configura presupuesto, riesgo, estrategia y tipos de carta. Magic Brain Pro usa ese perfil para construir y descubrir ideas. Actualmente es gratis para usuarios pioneros.",
           points: ["Preferencias personalizadas", "Portfolio generado por estrategia", "Discover con gestos rápidos"],
         },
       ]
@@ -114,7 +114,7 @@ export function ProductTour({
         {
           eyebrow: "STEP 4 · BRAIN PRO",
           title: "Make every recommendation personal.",
-          body: "Set your budget, risk, strategy, and card types. Brain Pro uses that profile to build and discover ideas, free for now.",
+          body: "Set your budget, risk, strategy, and card types. Magic Brain Pro uses that profile to build and discover ideas. It is currently free for early adopters.",
           points: ["Personal preferences", "Strategy-built portfolios", "Fast swipe discovery"],
         },
       ];

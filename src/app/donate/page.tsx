@@ -46,7 +46,7 @@ export default function DonatePage() {
     <main className="account-page donate-page">
       <header className="account-topbar">
         <Link href="/" className="inventory-brand"><MagicBrainLogo /></Link>
-        <nav><Link href="/brain-pro">Brain Pro</Link><Link href="/signals">Brain Signals</Link><Link href="/portfolio">{t("Portfolio")}</Link></nav>
+        <nav><Link href="/predict">Predict</Link><Link href="/signals">Brain Signals</Link><Link href="/portfolio">{t("Portfolio")}</Link></nav>
         <LanguageToggle />
         <AuthControl compact />
         <Link href="/" className="back-dashboard"><ArrowLeft size={15} /> {t("Dashboard")}</Link>

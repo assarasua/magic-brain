@@ -18,6 +18,7 @@ import { FormEvent, useState } from "react";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
+import { ProBadge } from "@/components/magic-brain-pro";
 import { formatCurrency } from "@/lib/data";
 
 type Analysis = {
@@ -125,7 +126,7 @@ export default function AnalystPage() {
     <main className="account-page analyst-page">
       <header className="account-topbar">
         <Link href="/" className="inventory-brand"><MagicBrainLogo /></Link>
-        <nav><Link href="/signals">Brain Signals</Link><Link href="/market">{t("Market")}</Link><Link href="/brain-pro">Brain Pro</Link></nav>
+        <nav><Link href="/signals">Brain Signals</Link><Link href="/market">{t("Market")}</Link><Link href="/discover">Discover</Link></nav>
         <LanguageToggle />
         <AuthControl compact />
         <Link href="/" className="back-dashboard"><ArrowLeft size={15} /> {t("Dashboard")}</Link>
@@ -134,7 +135,7 @@ export default function AnalystPage() {
       <div className="analyst-content">
         <div className="analyst-hero">
           <span className="analyst-icon"><MessageCircleQuestion size={28} /></span>
-          <span className="eyebrow premium-feature-badge"><Sparkles size={12} /> Ask Brain · Pro {locale === "es" ? "gratis" : "free"}</span>
+          <ProBadge />
           <h1>{locale === "es" ? "Pregunta a tus datos." : "Ask your market data."}</h1>
           <p>{locale === "es" ? "Consulta subidas, fechas clave y movimientos diarios usando todo el historial de precios." : "Ask about rises, key dates, and daily movements using the complete price history."}</p>
           <form onSubmit={ask}>

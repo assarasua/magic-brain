@@ -11,7 +11,6 @@ import {
   Lightbulb,
   LoaderCircle,
   ShieldCheck,
-  Sparkles,
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
@@ -21,6 +20,7 @@ import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
 import { useCardDetail } from "@/components/card-detail-provider";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
+import { ProBadge } from "@/components/magic-brain-pro";
 import type { CatalogCard } from "@/lib/catalog";
 import { formatCurrency } from "@/lib/data";
 
@@ -171,7 +171,7 @@ function SignalsContent() {
   return (
     <div className="account-content signals-content">
       <div className="signals-hero">
-        <span className="pro-pill"><Sparkles size={13} /> Brain Pro · {locale === "es" ? "Gratis" : "Free"}</span>
+        <ProBadge />
         <h1>{es ? "Brain Signals" : "Brain Signals"}</h1>
         <p>
           {es
@@ -326,7 +326,7 @@ export default function SignalsPage() {
     <main className="account-page signals-page">
       <header className="account-topbar">
         <Link href="/" className="inventory-brand"><MagicBrainLogo /></Link>
-        <nav><Link href="/market">{t("Market")}</Link><Link href="/brain-pro">Brain Pro</Link><Link href="/analyst">Ask Brain</Link></nav>
+        <nav><Link href="/market">{t("Market")}</Link><Link href="/predict">Predict</Link><Link href="/analyst">Ask Brain</Link></nav>
         <LanguageToggle />
         <AuthControl compact />
         <Link href="/" className="back-dashboard"><ArrowLeft size={15} /> {locale === "es" ? "Panel" : "Dashboard"}</Link>

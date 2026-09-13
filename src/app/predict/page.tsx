@@ -25,6 +25,7 @@ import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
 import { useCardDetail } from "@/components/card-detail-provider";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
+import { ProBadge } from "@/components/magic-brain-pro";
 import { SetSelector } from "@/components/set-selector";
 import type {
   BrainMarketInsight,
@@ -450,7 +451,7 @@ export default function PredictPage() {
         <Link href="/" className="inventory-brand"><MagicBrainLogo /></Link>
         <nav>
           <Link href="/predict" aria-current="page">Predict</Link>
-          <Link href="/brain-pro">Brain Pro</Link>
+          <Link href="/brain">Portfolio Builder</Link>
           <Link href="/signals">Brain Signals</Link>
           <Link href="/market">{t("Market")}</Link>
         </nav>
@@ -462,7 +463,7 @@ export default function PredictPage() {
       <div className={styles.content}>
         <section className={styles.hero}>
           <div>
-            <span className="pro-badge"><Sparkles size={13} /> BRAIN PRO · {es ? "GRATIS" : "FREE"}</span>
+            <ProBadge />
             <h1>Predict</h1>
             <p>
               {es

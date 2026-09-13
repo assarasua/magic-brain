@@ -231,7 +231,7 @@ function RequiredDialog({
           eyebrow: "PASO 5 · REVISIÓN",
           title: "Tu perfil está listo.",
           description:
-            "Magic Brain utilizará estas preferencias en Predict, Discover, Brain Pro y las carteras automáticas.",
+            "Magic Brain utilizará estas preferencias en Predict, Discover, Magic Brain Pro y las carteras automáticas.",
         },
       ]
     : [
@@ -269,7 +269,7 @@ function RequiredDialog({
           eyebrow: "STEP 5 · REVIEW",
           title: "Your profile is ready.",
           description:
-            "Magic Brain will use these preferences across Predict, Discover, Brain Pro, and automatic portfolios.",
+            "Magic Brain will use these preferences across Predict, Discover, Magic Brain Pro, and automatic portfolios.",
         },
       ];
   const currentCopy = stepCopy[step];
