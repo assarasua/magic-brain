@@ -118,6 +118,10 @@ not download or grant rights to any third-party dataset. After setting
 then follow the
 [data import guide](docs/data-import.md).
 
+Ranking and evaluation work must follow the
+[ML data contract](docs/ml-data-contract.md), including its point-in-time and
+walk-forward leakage rules.
+
 `AUTH_SECRET` is mandatory in production and should also be set locally for
 stable sessions. Generate it with `openssl rand -base64 32`. Google OAuth is
 optional for local development.
