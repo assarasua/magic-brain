@@ -159,6 +159,29 @@ const mcpInstallers = [
   },
 ] as const;
 
+const mcpToolGroups = [
+  {
+    name: "Card & price data",
+    summary: "Resolve exact printings, inspect catalogue metadata, and compare sourced EUR observations.",
+    tools: ["search_cards", "get_card", "get_latest_prices", "get_price_history"],
+  },
+  {
+    name: "Sets & opportunities",
+    summary: "Browse normalized sets and retrieve transparent, bounded latest-set research signals.",
+    tools: ["list_sets", "get_latest_set_opportunities"],
+  },
+  {
+    name: "Comprehensive Rules",
+    summary: "Search pinned official excerpts and build clearly non-authoritative explanations from citations.",
+    tools: ["search_rules", "ask_rules"],
+  },
+  {
+    name: "Product & strategy",
+    summary: "Retrieve source-cited diligence evidence while preserving fact, hypothesis, roadmap, and unknown status.",
+    tools: ["search_product_knowledge", "get_product_context", "ask_product_question"],
+  },
+] as const;
+
 function CodeSample() {
   const [language, setLanguage] = useState<keyof typeof examples>("curl");
   const [copied, setCopied] = useState(false);
@@ -246,6 +269,33 @@ function McpInstall() {
             </div>
           </article>
         ))}
+      </div>
+
+      <div className={styles.toolCatalogue}>
+        <div className={styles.toolCatalogueHeading}>
+          <div>
+            <span>11 read-only tools</span>
+            <h3>Evidence for data, rules, and diligence.</h3>
+            <p>Explore the surface at a glance, then use the canonical reference for exact schemas, outputs, examples, caveats, and errors.</p>
+          </div>
+          <a href="https://github.com/assarasua/magic-brain/blob/main/docs/mcp-tools.md" target="_blank" rel="noreferrer">
+            Open the tool reference <ArrowRight size={14} />
+          </a>
+        </div>
+        <div className={styles.toolGroupGrid}>
+          {mcpToolGroups.map((group, index) => (
+            <article className={styles.toolGroup} key={group.name}>
+              <div className={styles.toolGroupNumber} aria-hidden="true">
+                {String(index + 1).padStart(2, "0")}
+              </div>
+              <h4>{group.name}</h4>
+              <p>{group.summary}</p>
+              <ul aria-label={`${group.name} tools`}>
+                {group.tools.map((tool) => <li key={tool}><code>{tool}</code></li>)}
+              </ul>
+            </article>
+          ))}
+        </div>
       </div>
 
       <div className={styles.mcpGuideLink}>

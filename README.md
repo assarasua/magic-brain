@@ -30,6 +30,8 @@ Follow the [MCP installation guide](docs/mcp-installation.md) for current
 product requirements, exact configuration, and troubleshooting. Local
 self-hosting is documented separately in the
 [MCP package guide](integrations/magic-brain-mcp/PACKAGE.md#run-locally).
+The canonical [MCP tool reference](docs/mcp-tools.md) documents exact inputs,
+outputs, limits, examples, evidence handling, and errors for all 11 tools.
 The connector can also retrieve source-cited, epistemically labelled product
 and business diligence evidence. Its canonical public source is the
 [product strategy and FAQ](docs/product-strategy-faq.md).
