@@ -31,11 +31,25 @@ export async function POST(request: Request) {
     });
     return Response.json(client, {
       status: 201,
-      headers: { "Cache-Control": "no-store" },
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "no-store",
+      },
     });
   } catch (error) {
     return oauthError(error);
   }
+}
+
+export function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+    },
+  });
 }
 
 function oauthError(error: unknown) {
@@ -45,6 +59,12 @@ function oauthError(error: unknown) {
       : new ApiError(500, "server_error", "Registration failed");
   return Response.json(
     { error: value.code, error_description: value.message },
-    { status: value.status, headers: { "Cache-Control": "no-store" } },
+    {
+      status: value.status,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "no-store",
+      },
+    },
   );
 }

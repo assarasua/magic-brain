@@ -1,9 +1,10 @@
+import { NextRequest } from "next/server";
 import { authorizationServerMetadata } from "@/lib/oauth";
 
 export const runtime = "nodejs";
 
-export function GET() {
-  return Response.json(authorizationServerMetadata(), {
+export function GET(request: NextRequest) {
+  return Response.json(authorizationServerMetadata(request.nextUrl.origin), {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Cache-Control": "public, max-age=300",
