@@ -1,12 +1,19 @@
+import { randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import {
   completeOAuthConsentRequest,
   consumeOAuthRateLimit,
+  createAutoApprovedAuthorizationCode,
   createOAuthConsentRequest,
+  hasDurableOAuthConsent,
   validateAuthorizationRequest,
 } from "@/lib/oauth";
 import { ApiError } from "@/lib/public-api/core";
+import {
+  renderOAuthConsentErrorPage,
+  renderOAuthConsentPage,
+} from "@/lib/oauth-consent-page";
 
 export const runtime = "nodejs";
 
@@ -23,22 +30,42 @@ export async function GET(request: NextRequest) {
         new URL(`/login?callbackUrl=${encodeURIComponent(callback)}`, request.url),
       );
     }
+    if (await hasDurableOAuthConsent(session.user.id, authorization)) {
+      const code = await createAutoApprovedAuthorizationCode(
+        session.user.id,
+        authorization,
+        request.headers.get("x-request-id"),
+      );
+      const redirect = new URL(authorization.redirectUri);
+      redirect.searchParams.set("state", authorization.state);
+      redirect.searchParams.set("code", code);
+      return NextResponse.redirect(redirect, 303);
+    }
     const consentRequest = await createOAuthConsentRequest(
       session.user.id,
       authorization,
     );
-    return new NextResponse(consentHtml(authorization, consentRequest), {
-      headers: {
-        "Content-Type": "text/html; charset=utf-8",
-        "Cache-Control": "no-store",
-        "Content-Security-Policy":
-          "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
-        "Referrer-Policy": "no-referrer",
-        "X-Content-Type-Options": "nosniff",
+    const nonce = randomBytes(18).toString("base64url");
+    return new NextResponse(
+      renderOAuthConsentPage({
+        clientName: authorization.client.client_name,
+        scopes: authorization.scopes,
+        requestToken: consentRequest,
+        nonce,
+      }),
+      {
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "no-store",
+          "Content-Security-Policy":
+            `default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'`,
+          "Referrer-Policy": "no-referrer",
+          "X-Content-Type-Options": "nosniff",
+        },
       },
-    });
+    );
   } catch (error) {
-    return oauthError(error);
+    return oauthError(error, request);
   }
 }
 
@@ -54,7 +81,7 @@ export async function POST(request: NextRequest) {
     if (typeof requestToken !== "string") {
       throw new ApiError(400, "invalid_request", "Consent request is required");
     }
-    const decision = form.get("decision");
+    const decision = form.get("decision") || form.get("decision_button");
     if (decision !== "allow" && decision !== "deny") {
       throw new ApiError(400, "invalid_request", "Consent decision is required");
     }
@@ -74,35 +101,32 @@ export async function POST(request: NextRequest) {
     redirect.searchParams.set("code", completion.code);
     return NextResponse.redirect(redirect, 303);
   } catch (error) {
-    return oauthError(error);
+    return oauthError(error, request, true);
   }
 }
 
-function consentHtml(
-  authorization: Awaited<ReturnType<typeof validateAuthorizationRequest>>,
-  consentRequest: string,
-) {
-  const scopes = authorization.scopes
-    .map((scope) => `<li><code>${escapeHtml(scope)}</code></li>`)
-    .join("");
-  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Authorize Magic Brain</title><style>body{font:16px system-ui;max-width:42rem;margin:4rem auto;padding:1rem;color:#171717}main{border:1px solid #ddd;border-radius:16px;padding:2rem}button{padding:.7rem 1rem;margin-right:.5rem}code{font-size:.9em}</style><main><h1>Authorize ${escapeHtml(authorization.client.client_name)}</h1><p>This client requests the following Magic Brain permissions:</p><ul>${scopes}</ul><p>You can revoke access later. Magic Brain never sends your Google credentials to the client.</p><form method="post"><input type="hidden" name="consent_request" value="${escapeHtml(consentRequest)}"><button name="decision" value="allow" type="submit">Allow</button><button name="decision" value="deny" type="submit">Deny</button></form></main></html>`;
-}
-
-function escapeHtml(value: string) {
-  return value.replace(
-    /[&<>"']/g,
-    (character) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
-        character
-      ]!,
-  );
-}
-
-function oauthError(error: unknown) {
+function oauthError(error: unknown, request: NextRequest, consentPost = false) {
   const value =
     error instanceof ApiError
       ? error
       : new ApiError(500, "server_error", "Authorization failed");
+  if (
+    consentPost &&
+    request.headers.get("accept")?.includes("text/html") &&
+    (value.code === "invalid_request" || value.code === "login_required")
+  ) {
+    return new NextResponse(renderOAuthConsentErrorPage(value.message), {
+      status: value.status,
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store",
+        "Content-Security-Policy":
+          "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+        "Referrer-Policy": "no-referrer",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
+  }
   return NextResponse.json(
     { error: value.code, error_description: value.message },
     { status: value.status, headers: { "Cache-Control": "no-store" } },

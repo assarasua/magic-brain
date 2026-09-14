@@ -56,12 +56,22 @@ class FakeConsentStore {
           this.consumed = true;
           return grant;
         },
-        issueAuthorizationCode: async () => {
+        recover: async (ownerId, token, decision) => {
+          if (
+            ownerId === "owner" &&
+            token === "mbcr_token" &&
+            this.consumed &&
+            decision === "allow" &&
+            this.codes.length === 1
+          ) {
+            return grant;
+          }
+          return null;
+        },
+        issueAuthorizationCode: async (_ownerId, _consent, code) => {
           if (this.failCodeInsert) throw new Error("insert failed");
-          const code = `code-${this.codes.length + 1}`;
           this.codes.push(code);
           this.audits.push("authorization_granted");
-          return code;
         },
         recordDenial: async () => {
           this.audits.push("authorization_denied");
@@ -84,6 +94,8 @@ const allow = (store) =>
     requestToken: "mbcr_token",
     decision: "allow",
     requestId: null,
+    authorizationCode: "code-1",
+    authorizationCodeHash: "code-hash-1",
   });
 
 test("Claude login round-trip and repeated consent reads do not consume", async () => {
@@ -99,11 +111,13 @@ test("Claude login round-trip and repeated consent reads do not consume", async 
   assert.deepEqual(store.audits, ["authorization_granted"]);
 });
 
-test("duplicate Allow is rejected without issuing another code", async () => {
+test("duplicate Allow recovers the same pending code without issuing another", async () => {
   const store = new FakeConsentStore();
-  await allow(store);
-  await assert.rejects(() => allow(store), OAuthConsentLifecycleError);
+  const first = await allow(store);
+  const duplicate = await allow(store);
+  assert.equal(duplicate.code, first.code);
   assert.deepEqual(store.codes, ["code-1"]);
+  assert.deepEqual(store.audits, ["authorization_granted"]);
 });
 
 test("consent expiry boundary is exclusive", async () => {
@@ -113,16 +127,12 @@ test("consent expiry boundary is exclusive", async () => {
   assert.equal(store.codes.length, 0);
 });
 
-test("concurrent Allow race issues exactly one authorization code", async () => {
+test("concurrent Allow race returns one shared authorization code", async () => {
   const store = new FakeConsentStore();
   const results = await Promise.allSettled([allow(store), allow(store)]);
   assert.equal(
     results.filter((result) => result.status === "fulfilled").length,
-    1,
-  );
-  assert.equal(
-    results.filter((result) => result.status === "rejected").length,
-    1,
+    2,
   );
   assert.deepEqual(store.codes, ["code-1"]);
 });
