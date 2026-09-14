@@ -40,3 +40,24 @@ jobs:
       - run: npm run test:packages
       - run: npm run build:packages
       - run: npm run metadata:validate --prefix integrations/magic-brain-mcp
+
+  production-migrations:
+    name: production-migrations
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - name: Require the production database secret
+        run: test -n "$DATABASE_URL"
+      - name: Apply production migrations
+        run: npm run db:migrate
