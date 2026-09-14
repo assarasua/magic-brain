@@ -33,6 +33,7 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - run: npm run test:browser
       - run: npm run build
       - run: npm run rules:build --prefix integrations/magic-brain-mcp
       - run: npm run check:packages

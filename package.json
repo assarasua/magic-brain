@@ -34,6 +34,7 @@
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "node --test test/*.test.mjs src/lib/*.test.mjs",
+    "test:browser": "node --test test/browser/*.test.mjs",
     "test:packages": "npm test --prefix integrations/magic-brain-mcp && npm test --prefix tools/magic-brain-cli && npm test --prefix integrations/magic-brain-dev-mcp",
     "build:packages": "npm run build --prefix integrations/magic-brain-mcp && npm run build --prefix tools/magic-brain-cli && npm run build --prefix integrations/magic-brain-dev-mcp",
     "check:packages": "npm run check --prefix integrations/magic-brain-mcp && npm run check --prefix tools/magic-brain-cli && npm run check --prefix integrations/magic-brain-dev-mcp",
@@ -73,6 +74,7 @@
     "@types/react-dom": "^19.3.0",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.5",
+    "playwright-core": "^1.55.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
     "wrangler": "^4.131.1"
