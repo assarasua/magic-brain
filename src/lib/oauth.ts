@@ -50,8 +50,10 @@ export function oauthConfiguration() {
   };
 }
 
-export function authorizationServerMetadata() {
-  const { issuer } = oauthConfiguration();
+export function authorizationServerMetadata(requestOrigin?: string) {
+  const issuer = requestOrigin
+    ? new URL(requestOrigin).origin
+    : oauthConfiguration().issuer;
   return {
     issuer,
     authorization_endpoint: `${issuer}/oauth/authorize`,
