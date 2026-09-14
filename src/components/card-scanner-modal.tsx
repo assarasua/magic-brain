@@ -11,7 +11,7 @@ import type { PortfolioList } from "@/lib/portfolio";
 import { formatCurrency } from "@/lib/data";
 import styles from "./card-scanner-modal.module.css";
 
-type Stage = "choose" | "camera" | "recognizing" | "confirm" | "success" | "error";
+type Stage = "choose" | "camera" | "review" | "recognizing" | "confirm" | "success" | "error";
 
 type Props = {
   locale: "en" | "es";
@@ -39,6 +39,8 @@ export function CardScannerModal({
   const [manualResults, setManualResults] = useState<IdentifiedCatalogCard[]>([]);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [capturing, setCapturing] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const terminateWorkerRef = useRef<(() => Promise<unknown>) | null>(null);
@@ -46,6 +48,7 @@ export function CardScannerModal({
   const fileRef = useRef<HTMLInputElement>(null);
   const cancelledRef = useRef(false);
   const previewUrlRef = useRef("");
+  const capturedImageRef = useRef<Blob | null>(null);
 
   const copy = {
     title: locale === "es" ? "Escanear cartas" : "Scan cards",
@@ -74,6 +77,64 @@ export function CardScannerModal({
       document.body.style.overflow = previousOverflow;
     };
   }, []);
+
+  useEffect(() => {
+    if (stage !== "camera") return;
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (!video || !stream) return;
+
+    let active = true;
+    const markReady = () => {
+      if (
+        active &&
+        video.videoWidth > 0 &&
+        video.videoHeight > 0 &&
+        stream.getVideoTracks().some((track) => track.readyState === "live")
+      ) {
+        setCameraReady(true);
+        setMessage("");
+      }
+    };
+    const markEnded = () => {
+      if (!active) return;
+      setCameraReady(false);
+      setMessage(
+        locale === "es"
+          ? "La cámara se ha detenido. Vuelve a iniciarla o sube una foto."
+          : "The camera stopped. Start it again or upload a photo.",
+      );
+    };
+
+    video.muted = true;
+    video.playsInline = true;
+    video.srcObject = stream;
+    video.addEventListener("loadedmetadata", markReady);
+    video.addEventListener("canplay", markReady);
+    video.addEventListener("playing", markReady);
+    stream.getVideoTracks().forEach((track) =>
+      track.addEventListener("ended", markEnded),
+    );
+    void video.play().then(markReady).catch(() => {
+      if (!active) return;
+      setMessage(
+        locale === "es"
+          ? "La vista previa está pausada. Toca “Iniciar vista previa”."
+          : "The preview is paused. Tap “Start preview”.",
+      );
+    });
+
+    return () => {
+      active = false;
+      video.removeEventListener("loadedmetadata", markReady);
+      video.removeEventListener("canplay", markReady);
+      video.removeEventListener("playing", markReady);
+      stream.getVideoTracks().forEach((track) =>
+        track.removeEventListener("ended", markEnded),
+      );
+      if (video.srcObject === stream) video.srcObject = null;
+    };
+  }, [locale, stage]);
 
   useEffect(() => {
     if (manualQuery.trim().length < 2 || stage !== "confirm") {
@@ -130,6 +191,7 @@ export function CardScannerModal({
 
   const beginCamera = async () => {
     setMessage("");
+    setCameraReady(false);
     if (!navigator.mediaDevices?.getUserMedia) {
       setMessage(
         locale === "es"
@@ -139,18 +201,31 @@ export function CardScannerModal({
       return;
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } },
-        audio: false,
-      });
+      stopCamera();
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false,
+        });
+      } catch (error) {
+        if (
+          error instanceof DOMException &&
+          (error.name === "NotAllowedError" || error.name === "SecurityError")
+        ) {
+          throw error;
+        }
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      }
+      if (!stream.getVideoTracks().some((track) => track.readyState === "live")) {
+        stream.getTracks().forEach((track) => track.stop());
+        throw new Error("camera_stream_inactive");
+      }
       streamRef.current = stream;
       setStage("camera");
-      window.setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          void videoRef.current.play();
-        }
-      }, 0);
     } catch {
       setMessage(
         locale === "es"
@@ -162,16 +237,43 @@ export function CardScannerModal({
 
   const capture = async () => {
     const video = videoRef.current;
-    if (!video?.videoWidth) return;
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext("2d")?.drawImage(video, 0, 0);
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/jpeg", 0.92),
-    );
-    stopCamera();
-    if (blob) await recognize(blob);
+    if (!cameraReady || !video || video.videoWidth <= 0 || video.videoHeight <= 0) {
+      setMessage(
+        locale === "es"
+          ? "La cámara aún se está preparando. Espera un momento."
+          : "The camera is still getting ready. Wait a moment.",
+      );
+      return;
+    }
+    setCapturing(true);
+    setMessage("");
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("capture_context_unavailable");
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/jpeg", 0.92),
+      );
+      if (!blob) throw new Error("capture_failed");
+      stopCamera();
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+      const nextPreviewUrl = URL.createObjectURL(blob);
+      previewUrlRef.current = nextPreviewUrl;
+      capturedImageRef.current = blob;
+      setPreviewUrl(nextPreviewUrl);
+      setStage("review");
+    } catch {
+      setMessage(
+        locale === "es"
+          ? "No se pudo capturar la imagen. Inténtalo de nuevo o sube una foto."
+          : "The image could not be captured. Try again or upload a photo.",
+      );
+    } finally {
+      setCapturing(false);
+    }
   };
 
   const chooseFile = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -191,10 +293,11 @@ export function CardScannerModal({
 
   const recognize = async (image: Blob) => {
     stopCamera();
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    const nextPreviewUrl = URL.createObjectURL(image);
-    previewUrlRef.current = nextPreviewUrl;
-    setPreviewUrl(nextPreviewUrl);
+    if (!previewUrlRef.current) {
+      const nextPreviewUrl = URL.createObjectURL(image);
+      previewUrlRef.current = nextPreviewUrl;
+      setPreviewUrl(nextPreviewUrl);
+    }
     setStage("recognizing");
     setProgress(0);
     setMessage("");
@@ -294,6 +397,7 @@ export function CardScannerModal({
   const scanNext = () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     previewUrlRef.current = "";
+    capturedImageRef.current = null;
     setPreviewUrl("");
     setCandidates([]);
     setSelected(null);
@@ -356,10 +460,30 @@ export function CardScannerModal({
 
         {stage === "camera" && (
           <div className={styles.camera}>
-            <video ref={videoRef} muted playsInline aria-label={locale === "es" ? "Vista de cámara" : "Camera preview"} />
-            <div className={styles.frame} aria-hidden="true" />
-            <p>{locale === "es" ? "Alinea la carta dentro del marco." : "Align the card inside the frame."}</p>
-            <button type="button" className={styles.primary} onClick={() => void capture()}><Camera size={18} /> {locale === "es" ? "Capturar" : "Capture"}</button>
+            <div className={styles.cameraViewport} data-ready={cameraReady}>
+              <video ref={videoRef} muted playsInline autoPlay aria-label={locale === "es" ? "Vista de cámara" : "Camera preview"} />
+              <div className={styles.frame} aria-hidden="true" />
+              {!cameraReady && <span className={styles.cameraStatus} role="status">{locale === "es" ? "Preparando cámara…" : "Preparing camera…"}</span>}
+            </div>
+            <p>{locale === "es" ? "Alinea la carta dentro del marco vertical." : "Align the card inside the portrait frame."}</p>
+            {message && <p className={styles.warning} role="alert">{message}</p>}
+            <div className={styles.cameraActions}>
+              {!cameraReady && <button type="button" onClick={() => void videoRef.current?.play()}>{locale === "es" ? "Iniciar vista previa" : "Start preview"}</button>}
+              <button type="button" onClick={() => fileRef.current?.click()}>{locale === "es" ? "Subir foto" : "Upload photo"}</button>
+              <button type="button" className={styles.primary} disabled={!cameraReady || capturing} onClick={() => void capture()}><Camera size={18} /> {capturing ? (locale === "es" ? "Capturando…" : "Capturing…") : (locale === "es" ? "Capturar" : "Capture")}</button>
+            </div>
+          </div>
+        )}
+
+        {stage === "review" && previewUrl && (
+          <div className={styles.captureReview}>
+            <img src={previewUrl} alt={locale === "es" ? "Carta capturada" : "Captured card"} />
+            <strong>{locale === "es" ? "Comprueba la foto" : "Review the photo"}</strong>
+            <span>{locale === "es" ? "La carta debe verse nítida y completa." : "The card should be sharp and fully visible."}</span>
+            <div className={styles.actions}>
+              <button type="button" onClick={() => { scanNext(); void beginCamera(); }}>{locale === "es" ? "Repetir" : "Retake"}</button>
+              <button type="button" className={styles.primary} onClick={() => { if (capturedImageRef.current) void recognize(capturedImageRef.current); }}>{locale === "es" ? "Reconocer" : "Recognize"}</button>
+            </div>
           </div>
         )}
 

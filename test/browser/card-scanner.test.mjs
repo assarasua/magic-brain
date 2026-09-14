@@ -36,6 +36,12 @@ test(
       await page.addInitScript(() => {
         window.__magicBrainTestRecognizeCard = async (source, language) => {
           window.__scannerUploadType = source.type;
+          const bitmap = await createImageBitmap(source);
+          window.__scannerImageSize = {
+            width: bitmap.width,
+            height: bitmap.height,
+          };
+          bitmap.close();
           return {
             text: "Dragón de fuego SET TST Collector 123/300",
             language,
@@ -55,13 +61,22 @@ test(
         context.fillText("Dragón de fuego", 40, 80);
         context.font = "26px sans-serif";
         context.fillText("SET: TST Collector #123/300", 40, 760);
-        const stream = canvas.captureStream(5);
         Object.defineProperty(navigator, "mediaDevices", {
           configurable: true,
           value: {
-            getUserMedia: async () => {
+            getUserMedia: async (constraints) => {
               window.__scannerCameraRequested = true;
+              window.__scannerConstraints ??= [];
+              window.__scannerConstraints.push(constraints);
+              await new Promise((resolve) => setTimeout(resolve, 75));
+              if (typeof constraints.video === "object") {
+                throw new DOMException("Rear camera unavailable", "OverconstrainedError");
+              }
+              const stream = canvas.captureStream(5);
               window.__scannerTrack = stream.getVideoTracks()[0];
+              context.fillStyle = "#111";
+              context.fillRect(0, 899, 1, 1);
+              window.__scannerTrack.requestFrame?.();
               return stream;
             },
           },
@@ -151,6 +166,7 @@ test(
         });
       });
 
+      await page.setViewportSize({ width: 390, height: 844 });
       await page.goto(`http://localhost:${port}/portfolio`);
       await page.waitForTimeout(1_000);
       const scanButton = page.locator("button").filter({ hasText: "Scan cards" });
@@ -163,12 +179,70 @@ test(
       await page.getByRole("button", { name: "Use camera" }).click();
       await page.getByLabel("Camera preview").waitFor();
       assert.equal(await page.evaluate(() => window.__scannerCameraRequested), true);
+      await page.waitForFunction(() => {
+        const video = document.querySelector("video");
+        return Boolean(video?.srcObject && !video.paused && video.videoWidth > 0 && video.videoHeight > 0);
+      });
+      assert.deepEqual(
+        await page.evaluate(() => window.__scannerConstraints.map((value) => value.video)),
+        [{ facingMode: { ideal: "environment" } }, true],
+      );
+      const videoAttributes = await page.getByLabel("Camera preview").evaluate((video) => ({
+        autoplay: video.autoplay,
+        muted: video.muted,
+        playsInline: video.playsInline,
+        width: video.videoWidth,
+        height: video.videoHeight,
+      }));
+      assert.deepEqual(videoAttributes, {
+        autoplay: true,
+        muted: true,
+        playsInline: true,
+        width: 640,
+        height: 900,
+      });
+      assert.equal(await page.getByRole("button", { name: "Capture" }).isEnabled(), true);
+      const cameraBounds = await page.locator('[class*="cameraViewport"]').boundingBox();
+      assert.ok(cameraBounds && Math.abs(cameraBounds.width / cameraBounds.height - 63 / 88) < 0.03);
+      const captureBounds = await page.getByRole("button", { name: "Capture" }).boundingBox();
+      assert.ok(captureBounds && captureBounds.y + captureBounds.height <= 844);
+      await page.screenshot({ path: "/tmp/magic-brain-scanner-mobile-camera.png" });
 
       await page.getByRole("button", { name: "Close" }).click();
       assert.equal(await page.evaluate(() => window.__scannerTrack.readyState), "ended");
       await page.locator("button").filter({ hasText: "Scan cards" }).click();
       await page.getByLabel("Printed language").selectOption("es");
       await page.getByLabel("Destination list").selectOption("00000000-0000-4000-8000-000000000002");
+      await page.getByRole("button", { name: "Use camera" }).click();
+      await page.waitForFunction(() => {
+        const video = document.querySelector("video");
+        return Boolean(video?.srcObject && video.videoWidth > 0 && video.videoHeight > 0);
+      });
+      await page.getByRole("button", { name: "Capture" }).click();
+      const capturedPreview = page.getByAltText("Captured card");
+      await capturedPreview.waitFor();
+      assert.equal(await capturedPreview.isVisible(), true);
+      await page.getByRole("button", { name: "Retake" }).waitFor();
+      await page.getByRole("button", { name: "Recognize" }).waitFor();
+      assert.equal(await page.evaluate(() => window.__scannerTrack.readyState), "ended");
+      await page.evaluate(() => {
+        window.__firstCaptureTrack = window.__scannerTrack;
+      });
+      await page.getByRole("button", { name: "Retake" }).click();
+      await page.waitForFunction(() => {
+        const video = document.querySelector("video");
+        return Boolean(video?.srcObject && video.videoWidth > 0 && video.videoHeight > 0);
+      });
+      assert.equal(await page.evaluate(() => window.__firstCaptureTrack.readyState), "ended");
+      assert.equal(await page.evaluate(() => window.__scannerTrack.readyState), "live");
+      await page.getByRole("button", { name: "Capture" }).click();
+      await page.getByRole("button", { name: "Recognize" }).click();
+      await page.getByRole("heading", { name: "Confirm the exact printing" }).waitFor();
+      assert.deepEqual(await page.evaluate(() => window.__scannerImageSize), { width: 640, height: 900 });
+      assert.equal(await page.evaluate(() => window.__scannerTrack.readyState), "ended");
+      await page.getByRole("button", { name: "Confirm and add" }).click();
+      await page.getByRole("button", { name: "Scan next card" }).click();
+
       await page.evaluate(() => {
         navigator.mediaDevices.getUserMedia = async () => {
           throw new DOMException("Denied", "NotAllowedError");
@@ -207,15 +281,14 @@ test(
       assert.doesNotMatch(JSON.stringify(identifyBody), /data:image|base64|synthetic-spanish-card/i);
       await page.getByLabel("Not correct? Search manually").fill("Relámpago");
       await page.getByRole("button", { name: /Relámpago/ }).click();
-      await page.setViewportSize({ width: 390, height: 844 });
       const bounds = await page.getByRole("dialog").boundingBox();
       assert.ok(bounds && bounds.width <= 390 && bounds.height <= 844);
       await page.getByRole("button", { name: "Confirm and add" }).click();
       await page.getByRole("button", { name: "Scan next card" }).waitFor();
-      assert.equal(holdingPosts.length, 1);
-      assert.equal(holdingPosts[0].cardId, "00000000-0000-4000-8000-000000000124");
-      assert.equal(holdingPosts[0].listId, "00000000-0000-4000-8000-000000000002");
-      assert.equal("photo" in holdingPosts[0], false);
+      assert.equal(holdingPosts.length, 2);
+      assert.equal(holdingPosts[1].cardId, "00000000-0000-4000-8000-000000000124");
+      assert.equal(holdingPosts[1].listId, "00000000-0000-4000-8000-000000000002");
+      assert.equal("photo" in holdingPosts[1], false);
     } finally {
       await browser?.close();
       server.kill("SIGTERM");
