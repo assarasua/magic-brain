@@ -1,10 +1,14 @@
-const DEPLOYMENT_STEPS = {
-  production: [
+const MANUAL_PRODUCTION_STEPS = [
     [process.execPath, ["scripts/migrate.mjs"]],
     ["npx", ["--no-install", "opennextjs-cloudflare", "deploy"]],
-  ],
-  preview: [["npx", ["--no-install", "opennextjs-cloudflare", "upload"]]],
-};
+];
+const CONNECTED_PRODUCTION_STEPS = [
+  [process.execPath, ["scripts/wait-for-production-migrations.mjs"]],
+  ["npx", ["--no-install", "opennextjs-cloudflare", "deploy"]],
+];
+const PREVIEW_STEPS = [
+  ["npx", ["--no-install", "opennextjs-cloudflare", "upload"]],
+];
 
 export function resolveDeploymentTarget(
   requestedTarget,
@@ -31,14 +35,17 @@ export function resolveDeploymentTarget(
   return "production";
 }
 
-export function getDeploymentSteps(target) {
-  const steps = DEPLOYMENT_STEPS[target];
-  if (!steps) {
-    throw new Error(
-      `Unknown deployment target "${target ?? ""}". Use "production" or "preview".`,
-    );
+export function getDeploymentSteps(
+  target,
+  { workersCi = process.env.WORKERS_CI } = {},
+) {
+  if (target === "production") {
+    return workersCi ? CONNECTED_PRODUCTION_STEPS : MANUAL_PRODUCTION_STEPS;
   }
-  return steps;
+  if (target === "preview") return PREVIEW_STEPS;
+  throw new Error(
+    `Unknown deployment target "${target ?? ""}". Use "production" or "preview".`,
+  );
 }
 
 const TRANSIENT_CONNECTION_CODES = new Set([

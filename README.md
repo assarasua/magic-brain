@@ -157,18 +157,28 @@ Workers Builds must use the following separate commands:
 - Production deploy command: `npm run deploy:production`
 - Non-production branch deploy command: `npm run deploy:preview`
 
-The production command applies migrations before publishing the Worker and
-stops if migrations fail. The preview command only uploads the already-built
-Worker, so pull request builds never connect to or mutate the production
-database. The maintainer-facing `npm run deploy` alias also fails closed in
-Workers Builds and uses Cloudflare's documented `WORKERS_CI_BRANCH` value to
-keep non-`main` branches on the preview path, but the explicit trigger commands
-above are the canonical configuration.
+On a `main` push, GitHub Actions first runs the complete `checks` job and then
+the `production-migrations` job in the protected `production` environment.
+That job owns `DATABASE_URL`, applies migrations under the database advisory
+lock, and publishes a commit-specific GitHub check result.
 
-Keep `DATABASE_URL` as a secret on the production build trigger only;
-because Workers Builds runs outside Railway, it must use Railway's external TCP
-proxy URL (the database service's `DATABASE_PUBLIC_URL`), not a
-`.railway.internal` address. See the official
+The connected Cloudflare production command never opens a database connection.
+It uses Cloudflare's documented `WORKERS_CI`, `WORKERS_CI_BRANCH`, and
+`WORKERS_CI_COMMIT_SHA` values, derives the public repository slug from
+`package.json`, and waits for that exact commit's `production-migrations`
+GitHub Actions check. It fails closed if the check is missing, pending beyond
+the bounded wait, unsuccessful, from another app, or for another commit.
+`GITHUB_REPOSITORY` is intentionally not required in Workers Builds.
+
+This sequencing means a pending or failed migration leaves the current Worker
+serving traffic. If deployment fails after a successful additive migration,
+the previous Worker continues serving and the connected build can be retried.
+Manual `npm run deploy:production` remains safe: outside Workers Builds it runs
+the same idempotent migration runner before deployment. Preview builds only
+upload and never query or mutate production data.
+
+`DATABASE_URL` belongs only in the GitHub `production` environment (and local
+maintainer secrets), not in the Cloudflare build environment. See the official
 [Workers Builds configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/)
 and [Railway PostgreSQL connection](https://docs.railway.com/databases/postgresql#connecting-externally)
 guides.
