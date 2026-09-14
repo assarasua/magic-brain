@@ -1,3 +1,41 @@
+const CANONICAL_APP_ORIGIN = "https://magicbrain.es";
+
+export function trustedOAuthAppOrigin(
+  configured = process.env.NEXT_PUBLIC_APP_URL,
+) {
+  try {
+    const url = new URL(configured ?? CANONICAL_APP_ORIGIN);
+    const isOriginOnly =
+      !url.username &&
+      !url.password &&
+      url.pathname === "/" &&
+      !url.search &&
+      !url.hash;
+    const isCanonical = url.origin === CANONICAL_APP_ORIGIN;
+    const isLoopback =
+      url.protocol === "http:" &&
+      (url.hostname === "localhost" ||
+        url.hostname === "127.0.0.1" ||
+        url.hostname === "[::1]");
+    return isOriginOnly && (isCanonical || isLoopback)
+      ? url.origin
+      : CANONICAL_APP_ORIGIN;
+  } catch {
+    return CANONICAL_APP_ORIGIN;
+  }
+}
+
+export function consentContentSecurityPolicy(
+  nonce?: string,
+  configuredOrigin?: string,
+) {
+  const scriptSource =
+    nonce && /^[A-Za-z0-9_-]+$/.test(nonce)
+      ? `'nonce-${nonce}'`
+      : "'none'";
+  return `default-src 'none'; style-src 'unsafe-inline'; script-src ${scriptSource}; form-action 'self' ${trustedOAuthAppOrigin(configuredOrigin)}; base-uri 'none'; frame-ancestors 'none'`;
+}
+
 export function renderOAuthConsentPage(input: {
   clientName: string;
   scopes: readonly string[];

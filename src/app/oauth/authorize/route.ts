@@ -11,6 +11,7 @@ import {
 } from "@/lib/oauth";
 import { ApiError } from "@/lib/public-api/core";
 import {
+  consentContentSecurityPolicy,
   renderOAuthConsentErrorPage,
   renderOAuthConsentPage,
 } from "@/lib/oauth-consent-page";
@@ -57,8 +58,7 @@ export async function GET(request: NextRequest) {
         headers: {
           "Content-Type": "text/html; charset=utf-8",
           "Cache-Control": "no-store",
-          "Content-Security-Policy":
-            `default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'`,
+          "Content-Security-Policy": consentContentSecurityPolicy(nonce),
           "Referrer-Policy": "no-referrer",
           "X-Content-Type-Options": "nosniff",
         },
@@ -120,8 +120,7 @@ function oauthError(error: unknown, request: NextRequest, consentPost = false) {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
         "Cache-Control": "no-store",
-        "Content-Security-Policy":
-          "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+        "Content-Security-Policy": consentContentSecurityPolicy(),
         "Referrer-Policy": "no-referrer",
         "X-Content-Type-Options": "nosniff",
       },
