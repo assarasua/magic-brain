@@ -13,11 +13,14 @@ export type FrameMetrics = {
   glareRatio: number;
   sharpness: number;
   motion: number;
+  guideConfidence: number;
+  skinRatio: number;
   hash: string;
 };
 
 export type ScanGuidance =
   | "move_closer"
+  | "align_card"
   | "hold_steady"
   | "too_dark"
   | "glare"
@@ -25,7 +28,18 @@ export type ScanGuidance =
 
 export const BULK_SCAN_LIMIT = 24;
 export const REQUIRED_STABLE_FRAMES = 4;
+export const FALLBACK_STABLE_FRAMES = 8;
 export const CAPTURE_COOLDOWN_MS = 1_400;
+
+export type CaptureBlockReason =
+  | "card_not_in_guide"
+  | "moderate_contour"
+  | "too_dark"
+  | "glare"
+  | "moving"
+  | "blurry"
+  | "stabilizing"
+  | "ready";
 
 function rangePeak(values: number[], start: number, end: number) {
   let index = start;
@@ -55,8 +69,10 @@ export function analyzeCardFrame(
 
   const luma = new Uint8Array(width * height);
   let lumaTotal = 0;
+  let lumaSquaredTotal = 0;
   let darkPixels = 0;
   let glarePixels = 0;
+  let skinPixels = 0;
   let motionTotal = 0;
   for (let pixel = 0; pixel < luma.length; pixel += 1) {
     const source = pixel * 4;
@@ -67,8 +83,23 @@ export function analyzeCardFrame(
     );
     luma[pixel] = value;
     lumaTotal += value;
+    lumaSquaredTotal += value * value;
     if (value < 40) darkPixels += 1;
     if (value > 247) glarePixels += 1;
+    const red = rgba[source];
+    const green = rgba[source + 1];
+    const blue = rgba[source + 2];
+    if (
+      red > 95 &&
+      green > 40 &&
+      blue > 20 &&
+      Math.max(red, green, blue) - Math.min(red, green, blue) > 15 &&
+      Math.abs(red - green) > 15 &&
+      red > green &&
+      red > blue
+    ) {
+      skinPixels += 1;
+    }
     if (previousLuma?.length === luma.length) {
       motionTotal += Math.abs(value - previousLuma[pixel]);
     }
@@ -78,6 +109,8 @@ export function analyzeCardFrame(
   const horizontalEdges = new Array<number>(height).fill(0);
   let laplacianTotal = 0;
   let samples = 0;
+  let edgePixels = 0;
+  let structuredEdgePixels = 0;
   for (let y = 1; y < height - 1; y += 2) {
     for (let x = 1; x < width - 1; x += 2) {
       const index = y * width + x;
@@ -85,6 +118,12 @@ export function analyzeCardFrame(
       const vertical = Math.abs(luma[index + width] - luma[index - width]);
       verticalEdges[x] += horizontal;
       horizontalEdges[y] += vertical;
+      if (horizontal + vertical > 30) {
+        edgePixels += 1;
+        if (y < height * 0.28 || y > height * 0.68) {
+          structuredEdgePixels += 1;
+        }
+      }
       laplacianTotal += Math.abs(
         luma[index] * 4 -
         luma[index - 1] -
@@ -128,12 +167,34 @@ export function analyzeCardFrame(
           coverage,
         }
       : null;
+  const meanLuma = lumaTotal / luma.length;
+  const deviation = Math.sqrt(
+    Math.max(0, lumaSquaredTotal / luma.length - meanLuma * meanLuma),
+  );
+  const edgeDensity = edgePixels / Math.max(1, samples);
+  const structuredRatio = structuredEdgePixels / Math.max(1, edgePixels);
+  const varianceScore = Math.max(0, Math.min(1, (deviation - 14) / 34));
+  const edgeScore = Math.max(0, Math.min(1, (edgeDensity - 0.035) / 0.2));
+  const structureScore = Math.max(
+    0,
+    Math.min(1, (structuredRatio - 0.34) / 0.34),
+  );
+  const skinRatio = skinPixels / luma.length;
+  const skinPenalty = Math.max(0, Math.min(0.75, (skinRatio - 0.12) * 3));
+  const guideConfidence = Math.max(
+    0,
+    Math.min(
+      0.9,
+      (varianceScore * 0.35 + edgeScore * 0.45 + structureScore * 0.2) *
+        (1 - skinPenalty),
+    ),
+  );
 
   return {
     luma,
     metrics: {
       geometry,
-      meanLuma: lumaTotal / luma.length,
+      meanLuma,
       darkRatio: darkPixels / luma.length,
       glareRatio: glarePixels / luma.length,
       sharpness: laplacianTotal / Math.max(1, samples),
@@ -141,6 +202,8 @@ export function analyzeCardFrame(
         previousLuma?.length === luma.length
           ? motionTotal / luma.length
           : Number.POSITIVE_INFINITY,
+      guideConfidence,
+      skinRatio,
       hash: averageHash(luma, width, height),
     },
   };
@@ -187,28 +250,75 @@ export function evaluateCapture(frames: FrameMetrics[]): {
   guidance: ScanGuidance;
   ready: boolean;
   confidence: number;
+  reason: CaptureBlockReason;
+  fallback: boolean;
 } {
   const current = frames.at(-1);
-  if (!current?.geometry || current.geometry.coverage < 0.38) {
-    return { guidance: "move_closer", ready: false, confidence: 0 };
+  if (!current) {
+    return {
+      guidance: "move_closer",
+      ready: false,
+      confidence: 0,
+      reason: "card_not_in_guide",
+      fallback: false,
+    };
   }
   if (current.meanLuma < 58 || current.darkRatio > 0.58) {
-    return { guidance: "too_dark", ready: false, confidence: 0.15 };
+    return { guidance: "too_dark", ready: false, confidence: 0.15, reason: "too_dark", fallback: false };
   }
   if (current.glareRatio > 0.13) {
-    return { guidance: "glare", ready: false, confidence: 0.25 };
+    return { guidance: "glare", ready: false, confidence: 0.25, reason: "glare", fallback: false };
   }
-  const stable = geometryIsStable(frames);
-  if (!stable || current.motion > 8 || current.sharpness < 7) {
-    return { guidance: "hold_steady", ready: false, confidence: 0.5 };
+  const hasStrongGeometry =
+    Boolean(current.geometry) && current.geometry!.coverage >= 0.38;
+  const isGuideCandidate =
+    current.guideConfidence >= 0.54 &&
+    current.skinRatio < 0.2 &&
+    current.sharpness >= 5;
+  if (!hasStrongGeometry && !isGuideCandidate) {
+    return {
+      guidance: current.guideConfidence > 0.2 ? "align_card" : "move_closer",
+      ready: false,
+      confidence: current.guideConfidence,
+      reason: "card_not_in_guide",
+      fallback: false,
+    };
+  }
+  const fallback = !hasStrongGeometry;
+  const stable = fallback
+    ? frames.slice(-FALLBACK_STABLE_FRAMES).length === FALLBACK_STABLE_FRAMES &&
+      frames
+        .slice(-FALLBACK_STABLE_FRAMES)
+        .every(
+          (frame) =>
+            frame.guideConfidence >= 0.54 &&
+            frame.skinRatio < 0.2 &&
+            frame.motion <= 4,
+        )
+    : geometryIsStable(frames);
+  if (current.motion > (fallback ? 4 : 8)) {
+    return { guidance: "hold_steady", ready: false, confidence: Math.max(0.45, current.guideConfidence), reason: "moving", fallback };
+  }
+  if (current.sharpness < (fallback ? 5 : 7)) {
+    return { guidance: "hold_steady", ready: false, confidence: Math.max(0.4, current.guideConfidence), reason: "blurry", fallback };
+  }
+  if (!stable) {
+    return { guidance: "hold_steady", ready: false, confidence: Math.max(0.5, current.guideConfidence), reason: fallback ? "moderate_contour" : "stabilizing", fallback };
   }
   const confidence = Math.min(
-    0.99,
-    current.geometry.confidence * 0.65 +
+    fallback ? 0.82 : 0.99,
+    (fallback ? current.guideConfidence : current.geometry!.confidence) * 0.65 +
       Math.min(1, current.sharpness / 28) * 0.2 +
-      Math.max(0, 1 - current.motion / 8) * 0.15,
+      Math.max(0, 1 - current.motion / (fallback ? 4 : 8)) * 0.15,
   );
-  return { guidance: "detected", ready: confidence >= 0.72, confidence };
+  const ready = confidence >= (fallback ? 0.66 : 0.72);
+  return {
+    guidance: ready ? "detected" : "hold_steady",
+    ready,
+    confidence,
+    reason: ready ? "ready" : fallback ? "moderate_contour" : "stabilizing",
+    fallback,
+  };
 }
 
 export type DedupeState = {

@@ -1,4 +1,8 @@
 import type { CardGeometry, ScanPoint } from "@/lib/card-scan-cv";
+import {
+  mapGeometryToVideo,
+  type VideoRoi,
+} from "@/lib/card-scan-viewport";
 
 const OUTPUT_WIDTH = 756;
 const OUTPUT_HEIGHT = 1056;
@@ -28,6 +32,7 @@ function interpolate(
 export async function capturePerspectiveCard(
   video: HTMLVideoElement,
   geometry: CardGeometry,
+  roi?: VideoRoi,
 ) {
   if (video.videoWidth <= 0 || video.videoHeight <= 0) {
     throw new Error("video_not_ready");
@@ -55,7 +60,9 @@ export async function capturePerspectiveCard(
   const outputContext = outputCanvas.getContext("2d");
   if (!outputContext) throw new Error("capture_context_unavailable");
   const output = outputContext.createImageData(OUTPUT_WIDTH, OUTPUT_HEIGHT);
-  const [topLeft, topRight, bottomRight, bottomLeft] = geometry.corners;
+  const [topLeft, topRight, bottomRight, bottomLeft] = (
+    roi ? mapGeometryToVideo(geometry, roi) : geometry
+  ).corners;
 
   for (let y = 0; y < OUTPUT_HEIGHT; y += 1) {
     const v = y / (OUTPUT_HEIGHT - 1);

@@ -14,13 +14,21 @@ import {
   BULK_SCAN_LIMIT,
   canAutoCapture,
   evaluateCapture,
+  FALLBACK_STABLE_FRAMES,
   recordCapture,
   updateDeparture,
+  type CaptureBlockReason,
   type CardGeometry,
   type DedupeState,
   type FrameMetrics,
   type ScanGuidance,
 } from "@/lib/card-scan-cv";
+import {
+  CARD_GUIDE_INSET,
+  coverVideoRoi,
+  drawVideoRoi,
+  type VideoRoi,
+} from "@/lib/card-scan-viewport";
 import {
   BoundedSerialQueue,
   enqueueBounded,
@@ -49,16 +57,71 @@ type VideoWithFrameCallback = HTMLVideoElement & {
 
 const ANALYSIS_WIDTH = 160;
 const ANALYSIS_HEIGHT = 224;
+const GUIDE_GEOMETRY: CardGeometry = {
+  corners: [
+    { x: 0, y: 0 },
+    { x: 1, y: 0 },
+    { x: 1, y: 1 },
+    { x: 0, y: 1 },
+  ],
+  confidence: 0.68,
+  coverage: 1,
+};
 
 function guidanceCopy(guidance: ScanGuidance, locale: Props["locale"]) {
   const copy = {
     move_closer: ["Move closer", "Acerca la carta"],
+    align_card: ["Align card with guide", "Alinea la carta con el marco"],
     hold_steady: ["Hold steady", "Mantén la carta quieta"],
     too_dark: ["Too dark", "Demasiado oscuro"],
     glare: ["Glare detected", "Hay reflejos"],
     detected: ["Detected — capturing", "Detectada — capturando"],
   } as const;
   return copy[guidance][locale === "es" ? 1 : 0];
+}
+
+function reasonCopy(reason: CaptureBlockReason, locale: Props["locale"]) {
+  const copy = {
+    card_not_in_guide: ["No card-like content in guide", "No se detecta una carta en el marco"],
+    moderate_contour: ["Moderate edges — keep still", "Bordes suaves — mantén la carta quieta"],
+    too_dark: ["More light needed", "Se necesita más luz"],
+    glare: ["Tilt to reduce reflection", "Inclina para reducir reflejos"],
+    moving: ["Motion is blocking capture", "El movimiento impide la captura"],
+    blurry: ["Improve focus or move back", "Mejora el enfoque o aléjala"],
+    stabilizing: ["Checking stable card edges", "Comprobando bordes estables"],
+    ready: ["Capture quality accepted", "Calidad de captura aceptada"],
+  } as const;
+  return copy[reason][locale === "es" ? 1 : 0];
+}
+
+function drawDetectionOverlay(
+  canvas: HTMLCanvasElement,
+  viewport: HTMLElement,
+  geometry: CardGeometry | null,
+  fallback: boolean,
+) {
+  const bounds = viewport.getBoundingClientRect();
+  const ratio = Math.max(1, window.devicePixelRatio || 1);
+  canvas.width = Math.max(1, Math.round(bounds.width * ratio));
+  canvas.height = Math.max(1, Math.round(bounds.height * ratio));
+  const context = canvas.getContext("2d");
+  if (!context) return;
+  context.scale(ratio, ratio);
+  context.clearRect(0, 0, bounds.width, bounds.height);
+  const target = geometry ?? (fallback ? GUIDE_GEOMETRY : null);
+  if (!target) return;
+  const contentScale = 1 - CARD_GUIDE_INSET * 2;
+  context.beginPath();
+  target.corners.forEach((corner, index) => {
+    const x = (CARD_GUIDE_INSET + corner.x * contentScale) * bounds.width;
+    const y = (CARD_GUIDE_INSET + corner.y * contentScale) * bounds.height;
+    if (index === 0) context.moveTo(x, y);
+    else context.lineTo(x, y);
+  });
+  context.closePath();
+  context.strokeStyle = fallback ? "#f0cf7a" : "#76e6ae";
+  context.lineWidth = 2;
+  context.stroke();
 }
 
 function initialItem(
@@ -100,6 +163,12 @@ export function BulkCardScanner({
   const [cameraReady, setCameraReady] = useState(false);
   const [paused, setPaused] = useState(false);
   const [guidance, setGuidance] = useState<ScanGuidance>("move_closer");
+  const [captureConfidence, setCaptureConfidence] = useState(0);
+  const [blockReason, setBlockReason] =
+    useState<CaptureBlockReason>("card_not_in_guide");
+  const [videoInputs, setVideoInputs] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState("");
+  const [mirrored, setMirrored] = useState(false);
   const [queue, setQueue] = useState<BulkScanItem[]>([]);
   const [message, setMessage] = useState("");
   const [analysisDelay, setAnalysisDelay] = useState(140);
@@ -108,6 +177,8 @@ export function BulkCardScanner({
   const [manualQuery, setManualQuery] = useState("");
   const [manualResults, setManualResults] = useState<IdentifiedCatalogCard[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const sessionRef = useRef<CardOcrSession | null>(null);
   const queueRef = useRef<BulkScanItem[]>([]);
@@ -118,6 +189,7 @@ export function BulkCardScanner({
   const captureLockRef = useRef(false);
   const metricsRef = useRef<FrameMetrics[]>([]);
   const geometryRef = useRef<CardGeometry | null>(null);
+  const roiRef = useRef<VideoRoi | null>(null);
   const previousLumaRef = useRef<Uint8Array | undefined>(undefined);
   const delayRef = useRef(140);
   const lastAnalysisRef = useRef(0);
@@ -143,7 +215,7 @@ export function BulkCardScanner({
     if (videoRef.current) videoRef.current.srcObject = null;
   };
 
-  const startCamera = async () => {
+  const startCamera = async (deviceId = "") => {
     setMessage("");
     setCameraReady(false);
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -159,7 +231,9 @@ export function BulkCardScanner({
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            facingMode: { ideal: "environment" },
+            ...(deviceId
+              ? { deviceId: { exact: deviceId } }
+              : { facingMode: { ideal: "environment" } }),
             width: { ideal: 1280 },
             height: { ideal: 720 },
           },
@@ -182,6 +256,23 @@ export function BulkCardScanner({
         return;
       }
       streamRef.current = stream;
+      const videoTrack = stream.getVideoTracks()[0];
+      const settings = videoTrack?.getSettings?.();
+      const nextDeviceId = settings?.deviceId ?? deviceId;
+      if (nextDeviceId) setSelectedDeviceId(nextDeviceId);
+      const nextFacingMode = settings?.facingMode;
+      setMirrored(
+        nextFacingMode === "user" ||
+          (!nextFacingMode && /front|facetime|user/i.test(videoTrack?.label ?? "")),
+      );
+      if (navigator.mediaDevices.enumerateDevices) {
+        const devices = await navigator.mediaDevices
+          .enumerateDevices()
+          .catch(() => []);
+        if (activeRef.current) {
+          setVideoInputs(devices.filter((device) => device.kind === "videoinput"));
+        }
+      }
       const video = videoRef.current;
       if (!video) throw new Error("video_unavailable");
       video.srcObject = stream;
@@ -256,8 +347,9 @@ export function BulkCardScanner({
     captureLockRef.current = true;
     try {
       const video = videoRef.current;
-      if (!video) return;
-      const blob = await capturePerspectiveCard(video, geometry);
+      const roi = roiRef.current;
+      if (!video || !roi) return;
+      const blob = await capturePerspectiveCard(video, geometry, roi);
       const id = crypto.randomUUID();
       const previewUrl = URL.createObjectURL(blob);
       const result = enqueueBounded(
@@ -331,7 +423,24 @@ export function BulkCardScanner({
       }
       lastAnalysisRef.current = now;
       const started = performance.now();
-      context.drawImage(video, 0, 0, ANALYSIS_WIDTH, ANALYSIS_HEIGHT);
+      const viewport = viewportRef.current;
+      if (
+        !viewport ||
+        video.videoWidth <= 0 ||
+        video.videoHeight <= 0
+      ) {
+        return;
+      }
+      const bounds = viewport.getBoundingClientRect();
+      const roi = coverVideoRoi({
+        videoWidth: video.videoWidth,
+        videoHeight: video.videoHeight,
+        viewportWidth: bounds.width,
+        viewportHeight: bounds.height,
+        mirrored,
+      });
+      roiRef.current = roi;
+      drawVideoRoi(context, video, roi, ANALYSIS_WIDTH, ANALYSIS_HEIGHT);
       const image = context.getImageData(0, 0, ANALYSIS_WIDTH, ANALYSIS_HEIGHT);
       const { metrics, luma } = analyzeCardFrame(
         image.data,
@@ -341,9 +450,24 @@ export function BulkCardScanner({
       );
       previousLumaRef.current = luma;
       geometryRef.current = metrics.geometry;
-      metricsRef.current = [...metricsRef.current.slice(-5), metrics];
-      dedupeRef.current = updateDeparture(dedupeRef.current, Boolean(metrics.geometry));
+      metricsRef.current = [
+        ...metricsRef.current.slice(-(FALLBACK_STABLE_FRAMES - 1)),
+        metrics,
+      ];
+      dedupeRef.current = updateDeparture(
+        dedupeRef.current,
+        Boolean(metrics.geometry) ||
+          (metrics.guideConfidence >= 0.54 && metrics.skinRatio < 0.2),
+      );
       const decision = evaluateCapture(metricsRef.current);
+      if (overlayRef.current) {
+        drawDetectionOverlay(
+          overlayRef.current,
+          viewport,
+          metrics.geometry,
+          decision.fallback,
+        );
+      }
       if (process.env.NODE_ENV !== "production") {
         (
           window as typeof window & {
@@ -354,9 +478,13 @@ export function BulkCardScanner({
           decision,
           dedupe: dedupeRef.current,
           queueLength: queueRef.current.length,
+          roi,
+          viewport: { width: bounds.width, height: bounds.height },
         };
       }
       setGuidance(decision.guidance);
+      setCaptureConfidence(decision.confidence);
+      setBlockReason(decision.reason);
       const nextDelay = adaptiveAnalysisDelay(performance.now() - started, delayRef.current);
       if (nextDelay !== delayRef.current) {
         delayRef.current = nextDelay;
@@ -364,12 +492,15 @@ export function BulkCardScanner({
       }
       if (
         decision.ready &&
-        metrics.geometry &&
         canAutoCapture(dedupeRef.current, metrics.hash, Date.now())
       ) {
         dedupeRef.current = recordCapture(dedupeRef.current, metrics.hash, Date.now());
         metricsRef.current = [];
-        void enqueueCapture(metrics.geometry, metrics.hash, decision.confidence);
+        void enqueueCapture(
+          metrics.geometry ?? GUIDE_GEOMETRY,
+          metrics.hash,
+          decision.confidence,
+        );
       }
     };
     const frameLoop = (now: number) => {
@@ -394,7 +525,7 @@ export function BulkCardScanner({
     };
     // enqueueCapture uses refs for current queue state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cameraReady]);
+  }, [cameraReady, mirrored]);
 
   useEffect(() => {
     if (!manualItemId || manualQuery.trim().length < 2) {
@@ -483,20 +614,59 @@ export function BulkCardScanner({
   return (
     <div className={styles.bulkLayout}>
       <section className={styles.bulkCamera} aria-label={locale === "es" ? "Escáner continuo" : "Continuous scanner"}>
-        <div className={styles.cameraViewport} data-ready={cameraReady}>
+        <div
+          ref={viewportRef}
+          className={styles.cameraViewport}
+          data-ready={cameraReady}
+        >
           <video
             ref={videoRef}
             muted
             playsInline
             autoPlay
+            data-mirrored={mirrored}
             onLoadedMetadata={() => setCameraReady(true)}
             aria-label={locale === "es" ? "Vista de cámara para escaneo masivo" : "Bulk scan camera preview"}
+          />
+          <canvas
+            ref={overlayRef}
+            className={styles.analysisOverlay}
+            aria-hidden="true"
           />
           <div className={styles.frame} aria-hidden="true" />
           <strong className={styles.liveGuidance} data-guidance={guidance} role="status" aria-live="polite">
             {guidanceCopy(guidance, locale)}
+            <small>
+              {Math.round(captureConfidence * 100)}% · {reasonCopy(blockReason, locale)}
+            </small>
           </strong>
         </div>
+        {videoInputs.length > 1 && (
+          <label className={styles.cameraSelect}>
+            {locale === "es" ? "Cámara" : "Camera"}
+            <select
+              value={selectedDeviceId}
+              onChange={(event) => {
+                const deviceId = event.target.value;
+                setSelectedDeviceId(deviceId);
+                setCameraReady(false);
+                stopCamera();
+                metricsRef.current = [];
+                previousLumaRef.current = undefined;
+                void startCamera(deviceId);
+              }}
+            >
+              {videoInputs.map((device, index) => (
+                <option key={device.deviceId} value={device.deviceId}>
+                  {device.label ||
+                    (locale === "es"
+                      ? `Cámara ${index + 1}`
+                      : `Camera ${index + 1}`)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <div className={styles.bulkStats}>
           <span>{locale === "es" ? `${Math.round(1000 / analysisDelay)} análisis/s` : `${Math.round(1000 / analysisDelay)} analyses/s`}</span>
           <span>{queue.length}/{BULK_SCAN_LIMIT}</span>
