@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  calculatePortfolioSaleAmounts,
   calculateOpportunityAnalytics,
   calculatePortfolioSummary,
   classifyPortfolioOpportunity,
+  isValidCalendarDate,
   isValidPortfolioQuantity,
   isValidPortfolioUnitPrice,
+  parsePortfolioSale,
   parsePortfolioUpdate,
 } from "./portfolio-model.ts";
 import { buildPortfolioForecast } from "./portfolio-forecast-model.ts";
@@ -38,6 +41,36 @@ test("accepts only known, non-empty patch properties", () => {
   assert.equal(parsePortfolioUpdate({ quantity: 2, id: 4 }, isLanguage), null);
   assert.equal(parsePortfolioUpdate({ quantity: "2" }, isLanguage), null);
   assert.equal(parsePortfolioUpdate({ language: "xx" }, isLanguage), null);
+});
+
+test("validates sale requests and calendar dates deterministically", () => {
+  const sale = {
+    quantity: 2,
+    saleUnitPrice: 12.34,
+    soldAt: "2026-09-14",
+    listId: "11111111-1111-4111-8111-111111111111",
+    requestId: "22222222-2222-4222-8222-222222222222",
+  };
+  assert.deepEqual(parsePortfolioSale(sale, "2026-09-14"), sale);
+  assert.equal(parsePortfolioSale({ ...sale, quantity: 1.5 }, "2026-09-14"), null);
+  assert.equal(parsePortfolioSale({ ...sale, saleUnitPrice: 1.234 }, "2026-09-14"), null);
+  assert.equal(parsePortfolioSale({ ...sale, soldAt: "2026-09-15" }, "2026-09-14"), null);
+  assert.equal(parsePortfolioSale({ ...sale, extra: true }, "2026-09-14"), null);
+  assert.equal(isValidCalendarDate("2024-02-29", "2026-09-14"), true);
+  assert.equal(isValidCalendarDate("2025-02-29", "2026-09-14"), false);
+});
+
+test("calculates sale proceeds, allocated basis, and realized pnl in cents", () => {
+  assert.deepEqual(calculatePortfolioSaleAmounts(3, 10.15, 12.34), {
+    proceeds: 37.02,
+    costBasis: 30.45,
+    realizedPnl: 6.57,
+  });
+  assert.deepEqual(calculatePortfolioSaleAmounts(2, 8.4, 0), {
+    proceeds: 0,
+    costBasis: 16.8,
+    realizedPnl: -16.8,
+  });
 });
 
 test("uses the established three-way momentum semantics", () => {
