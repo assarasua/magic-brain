@@ -129,7 +129,6 @@ function SessionGate({ children }: { children: React.ReactNode }) {
   const isPublic =
     pathname === "/developers" ||
     pathname.startsWith("/developers/") ||
-    pathname === "/console" ||
     pathname.startsWith("/shared/portfolio/");
 
   useEffect(() => {
