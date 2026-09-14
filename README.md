@@ -160,15 +160,18 @@ Workers Builds must use the following separate commands:
 On a `main` push, GitHub Actions first runs the complete `checks` job and then
 the `production-migrations` job in the protected `production` environment.
 That job owns `DATABASE_URL`, applies migrations under the database advisory
-lock, and publishes a commit-specific GitHub check result.
+lock, and verifies every recorded migration checksum.
 
 The connected Cloudflare production command never opens a database connection.
 It uses Cloudflare's documented `WORKERS_CI`, `WORKERS_CI_BRANCH`, and
-`WORKERS_CI_COMMIT_SHA` values, derives the public repository slug from
-`package.json`, and waits for that exact commit's `production-migrations`
-GitHub Actions check. It fails closed if the check is missing, pending beyond
-the bounded wait, unsuccessful, from another app, or for another commit.
-`GITHUB_REPOSITORY` is intentionally not required in Workers Builds.
+`WORKERS_CI_COMMIT_SHA` values and waits for the latest checked-in migration to
+appear in the production schema. The check calls the existing production
+Worker over HTTPS; that Worker queries through Hyperdrive. Requests are
+short-lived and HMAC-authenticated with the existing `AUTH_SECRET`, and the
+endpoint only returns a readiness boolean. The connected build fails closed on
+missing or mismatched migrations, invalid authentication, an unavailable
+runtime/database, or a bounded-wait timeout. It does not use `DATABASE_URL`,
+`GITHUB_REPOSITORY`, or a direct Railway hostname.
 
 This sequencing means a pending or failed migration leaves the current Worker
 serving traffic. If deployment fails after a successful additive migration,
@@ -178,7 +181,10 @@ the same idempotent migration runner before deployment. Preview builds only
 upload and never query or mutate production data.
 
 `DATABASE_URL` belongs only in the GitHub `production` environment (and local
-maintainer secrets), not in the Cloudflare build environment. See the official
+maintainer secrets), not in the Cloudflare build environment. `AUTH_SECRET`
+must remain configured as both the Worker runtime secret and a protected
+Workers Builds secret; it is never logged or sent except as a per-request HMAC.
+See the official
 [Workers Builds configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/)
 and [Railway PostgreSQL connection](https://docs.railway.com/databases/postgresql#connecting-externally)
 guides.

@@ -8,9 +8,12 @@ import {
   resolveDeploymentTarget,
 } from "../scripts/deployment-pipeline.mjs";
 import {
-  repositorySlugFromPackage,
-  waitForProductionMigrations,
+  waitForProductionSchema,
 } from "../scripts/release-migration-gate.mjs";
+import {
+  signSchemaReadiness,
+  verifySchemaReadinessSignature,
+} from "../src/lib/schema-readiness.ts";
 
 test("production deployment migrates before deploying", () => {
   assert.deepEqual(getDeploymentSteps("production", { workersCi: "" }), [
@@ -125,18 +128,6 @@ test("database connection does not retry authentication failures", async () => {
   assert.equal(attempts, 1);
 });
 
-test("release gate derives the repository without GitHub-only environment variables", () => {
-  assert.equal(
-    repositorySlugFromPackage({
-      repository: {
-        type: "git",
-        url: "git+https://github.com/assarasua/magic-brain.git",
-      },
-    }),
-    "assarasua/magic-brain",
-  );
-});
-
 test("Cloudflare gate does not depend on GITHUB_REPOSITORY", async () => {
   const source = await readFile(
     new URL("../scripts/wait-for-production-migrations.mjs", import.meta.url),
@@ -145,81 +136,111 @@ test("Cloudflare gate does not depend on GITHUB_REPOSITORY", async () => {
   assert.match(source, /WORKERS_CI_COMMIT_SHA/);
   assert.match(source, /WORKERS_CI_BRANCH/);
   assert.doesNotMatch(source, /GITHUB_REPOSITORY/);
+  assert.doesNotMatch(source, /DATABASE_URL/);
 });
 
 test("connected release waits for a future migration and then deploys", async () => {
-  const responses = [
-    {
-      check_runs: [{
-        name: "production-migrations",
-        head_sha: "a".repeat(40),
-        status: "in_progress",
-        conclusion: null,
-        app: { slug: "github-actions" },
-      }],
-    },
-    {
-      check_runs: [{
-        name: "production-migrations",
-        head_sha: "a".repeat(40),
-        status: "completed",
-        conclusion: "success",
-        app: { slug: "github-actions" },
-      }],
-    },
-  ];
+  const statuses = [409, 200];
   const delays = [];
-  await waitForProductionMigrations({
+  const requests = [];
+  await waitForProductionSchema({
     commitSha: "a".repeat(40),
-    repository: "assarasua/magic-brain",
-    fetchFn: async () => ({
-      ok: true,
-      json: async () => responses.shift(),
-    }),
+    filename: "028_future_migration.sql",
+    checksum: "b".repeat(64),
+    secret: "synthetic-release-secret",
+    fetchFn: async (url, options) => {
+      requests.push({ url: String(url), options });
+      const status = statuses.shift();
+      return {
+        ok: status === 200,
+        status,
+        json: async () => ({ ready: status === 200 }),
+      };
+    },
     sleep: async (delay) => delays.push(delay),
     pollIntervalMs: 25,
     maxAttempts: 2,
     log: () => {},
   });
   assert.deepEqual(delays, [25]);
+  assert.equal(requests.length, 2);
+  assert.match(requests[0].url, /028_future_migration\.sql/);
+  assert.match(
+    requests[0].options.headers["x-release-signature"],
+    /^[0-9a-f]{64}$/,
+  );
 });
 
 test("connected release fails closed for missing or failed migrations", async () => {
   await assert.rejects(
-    waitForProductionMigrations({
+    waitForProductionSchema({
       commitSha: "b".repeat(40),
-      repository: "assarasua/magic-brain",
+      filename: "028_future_migration.sql",
+      checksum: "c".repeat(64),
+      secret: "synthetic-release-secret",
       fetchFn: async () => ({
-        ok: true,
-        json: async () => ({ check_runs: [] }),
+        ok: false,
+        status: 409,
       }),
       sleep: async () => {},
       maxAttempts: 1,
       log: () => {},
     }),
-    /Timed out waiting/,
+    /schema was not ready/,
   );
   await assert.rejects(
-    waitForProductionMigrations({
+    waitForProductionSchema({
       commitSha: "c".repeat(40),
-      repository: "assarasua/magic-brain",
+      filename: "028_future_migration.sql",
+      checksum: "d".repeat(64),
+      secret: "synthetic-release-secret",
       fetchFn: async () => ({
-        ok: true,
-        json: async () => ({
-          check_runs: [{
-            name: "production-migrations",
-            head_sha: "c".repeat(40),
-            status: "completed",
-            conclusion: "failure",
-            app: { slug: "github-actions" },
-          }],
-        }),
+        ok: false,
+        status: 401,
       }),
       maxAttempts: 1,
       log: () => {},
     }),
-    /did not pass/,
+    /HTTP 401/,
   );
+});
+
+test("schema readiness signatures bind commit, migration, checksum, and expiry", () => {
+  const claim = {
+    commit: "d".repeat(40),
+    filename: "028_future_migration.sql",
+    checksum: "e".repeat(64),
+    expires: 2_000_000_000,
+  };
+  const signature = signSchemaReadiness("synthetic-release-secret", claim);
+  assert.equal(
+    verifySchemaReadinessSignature(
+      "synthetic-release-secret",
+      claim,
+      signature,
+    ),
+    true,
+  );
+  assert.equal(
+    verifySchemaReadinessSignature(
+      "synthetic-release-secret",
+      { ...claim, checksum: "f".repeat(64) },
+      signature,
+    ),
+    false,
+  );
+});
+
+test("runtime schema marker is authenticated and checks migration checksum", async () => {
+  const route = await readFile(
+    new URL("../src/app/api/internal/schema-readiness/route.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(route, /verifySchemaReadinessSignature/);
+  assert.match(route, /x-release-signature/);
+  assert.match(route, /select checksum from app_schema_migrations/);
+  assert.match(route, /status: ready \? 200 : 409/);
+  assert.doesNotMatch(route, /DATABASE_URL|migrationRunner|insert into/i);
 });
 
 test("unreachable production database blocks migration without a connected DB retry", async () => {
