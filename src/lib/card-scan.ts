@@ -1,5 +1,9 @@
 import type { CardLanguage } from "@/lib/card-languages";
 import {
+  correctCardTitleText,
+  prewarmCardTitleCorrector,
+} from "@/lib/card-title-corrector";
+import {
   normalizeOcrText,
   OCR_LANGUAGE_MODELS,
   parseCollectorHints,
@@ -20,6 +24,15 @@ export {
 
 export type CardScanResult = CardScanHints & {
   confidence: number;
+};
+
+export type CardOcrSession = {
+  prewarm: () => Promise<void>;
+  recognize: (
+    source: Blob,
+    onProgress?: (progress: number) => void,
+  ) => Promise<CardScanResult>;
+  terminate: () => Promise<void>;
 };
 
 declare global {
@@ -84,46 +97,112 @@ export async function recognizeCardImage(
       terminate: async () => undefined,
     };
   }
-  const [{ createWorker, PSM }, canvas] = await Promise.all([
-    import("tesseract.js"),
-    prepareCardImage(source),
-  ]);
-  const worker = await createWorker(OCR_LANGUAGE_MODELS[language], undefined, {
-    logger: (message) => {
-      if (message.status === "recognizing text") onProgress?.(message.progress);
-    },
-  });
-  onWorkerReady?.(() => worker.terminate());
+  const session = createCardOcrSession(language, onWorkerReady);
   try {
-    await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT });
-    const width = canvas.width;
-    const height = canvas.height;
-    const [title, details] = await Promise.all([
-      worker.recognize(canvas, {
-        rectangle: { left: 0, top: 0, width, height: Math.round(height * 0.24) },
-      }),
-      worker.recognize(canvas, {
-        rectangle: {
-          left: 0,
-          top: Math.round(height * 0.7),
-          width,
-          height: Math.round(height * 0.3),
-        },
-      }),
-    ]);
-    const text = normalizeOcrText(`${title.data.text} ${details.data.text}`);
-    const hints = parseCollectorHints(details.data.text);
     return {
-      result: {
-        text,
-        language,
-        ...hints,
-        confidence: Math.max(0, Math.min(100, (title.data.confidence + details.data.confidence) / 2)),
-      },
-      terminate: () => worker.terminate(),
+      result: await session.recognize(source, onProgress),
+      terminate: session.terminate,
     };
   } catch (error) {
-    await worker.terminate();
+    await session.terminate();
     throw error;
   }
+}
+
+export function createCardOcrSession(
+  language: CardLanguage,
+  onWorkerReady?: (terminate: () => Promise<unknown>) => void,
+): CardOcrSession {
+  let workerPromise: Promise<Awaited<ReturnType<typeof import("tesseract.js")["createWorker"]>>> | null = null;
+  let terminated = false;
+  let activeProgress: ((progress: number) => void) | undefined;
+
+  const getWorker = async () => {
+    if (terminated) throw new Error("ocr_session_terminated");
+    if (!workerPromise) {
+      workerPromise = import("tesseract.js").then(async ({ createWorker, PSM }) => {
+        const worker = await createWorker(
+          OCR_LANGUAGE_MODELS[language],
+          undefined,
+          {
+            ...(language === "en" || language === "es"
+              ? { langPath: "/models/tesseract" }
+              : {}),
+            logger: (message) => {
+              if (message.status === "recognizing text") activeProgress?.(message.progress);
+            },
+          },
+        );
+        await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT });
+        onWorkerReady?.(() => worker.terminate());
+        return worker;
+      });
+    }
+    return workerPromise;
+  };
+
+  return {
+    prewarm: async () => {
+      if (
+        process.env.NODE_ENV !== "production" &&
+        typeof window !== "undefined" &&
+        window.__magicBrainTestRecognizeCard
+      ) {
+        await prewarmCardTitleCorrector(language);
+        return;
+      }
+      await Promise.all([
+        getWorker(),
+        prewarmCardTitleCorrector(language),
+      ]);
+    },
+    recognize: async (source, onProgress) => {
+      if (
+        process.env.NODE_ENV !== "production" &&
+        typeof window !== "undefined" &&
+        window.__magicBrainTestRecognizeCard
+      ) {
+        return window.__magicBrainTestRecognizeCard(source, language);
+      }
+      const [worker, canvas] = await Promise.all([getWorker(), prepareCardImage(source)]);
+      activeProgress = onProgress;
+      try {
+        const width = canvas.width;
+        const height = canvas.height;
+        const title = await worker.recognize(canvas, {
+          rectangle: { left: 0, top: 0, width, height: Math.round(height * 0.24) },
+        });
+        const details = await worker.recognize(canvas, {
+          rectangle: {
+            left: 0,
+            top: Math.round(height * 0.7),
+            width,
+            height: Math.round(height * 0.3),
+          },
+        });
+        const rawText = normalizeOcrText(`${title.data.text} ${details.data.text}`);
+        const corrections = await correctCardTitleText(rawText, language);
+        const correctedTitle =
+          corrections[0]?.confidence >= 0.72 ? corrections[0].title : "";
+        const text = normalizeOcrText(`${correctedTitle} ${rawText}`);
+        return {
+          text,
+          language,
+          ...parseCollectorHints(details.data.text),
+          confidence: Math.max(
+            0,
+            Math.min(100, (title.data.confidence + details.data.confidence) / 2),
+          ),
+        };
+      } finally {
+        activeProgress = undefined;
+      }
+    },
+    terminate: async () => {
+      if (terminated) return;
+      terminated = true;
+      const worker = await workerPromise;
+      await worker?.terminate();
+    },
+  };
 }

@@ -1,0 +1,118 @@
+{
+  "modelVersion": "card-title-corrector-v1-54feffd50c39",
+  "fixtureCount": 12,
+  "rawExact": 0.6666666666666666,
+  "lexiconTop1": 0.8333333333333334,
+  "lexiconTop3": 0.9166666666666666,
+  "meanEndToEndLatencyMs": 195.70407291666663,
+  "results": [
+    {
+      "lang": "en",
+      "expected": "A-Alrund, God of the Cosmos // A-Hakka, Whispering Raven",
+      "raw": "A-Alrund, God of the Cosmo",
+      "rawExact": false,
+      "lexiconTop1": false,
+      "lexiconTop3": false,
+      "confidence": 94
+    },
+    {
+      "lang": "en",
+      "expected": "A-Ancestral Katana",
+      "raw": "A-Ancestral Katana",
+      "rawExact": true,
+      "lexiconTop1": true,
+      "lexiconTop3": true,
+      "confidence": 92
+    },
+    {
+      "lang": "en",
+      "expected": "Aang and Katara // Aang and Katara",
+      "raw": "Aang and Katara // Aang an",
+      "rawExact": false,
+      "lexiconTop1": false,
+      "lexiconTop3": true,
+      "confidence": 83
+    },
+    {
+      "lang": "en",
+      "expected": "Aang's Iceberg // Aang's Iceberg",
+      "raw": "Aang's Iceberg // Aang's Icel",
+      "rawExact": false,
+      "lexiconTop1": true,
+      "lexiconTop3": true,
+      "confidence": 89
+    },
+    {
+      "lang": "en",
+      "expected": "Aarakocra Sneak",
+      "raw": "Aarakocra Sneak",
+      "rawExact": true,
+      "lexiconTop1": true,
+      "lexiconTop3": true,
+      "confidence": 93
+    },
+    {
+      "lang": "en",
+      "expected": "A-Ardent Dustspeaker",
+      "raw": "A-Ardent Dustspeaker",
+      "rawExact": true,
+      "lexiconTop1": true,
+      "lexiconTop3": true,
+      "confidence": 90
+    },
+    {
+      "lang": "es",
+      "expected": "Aladdin's Ring",
+      "raw": "Aladdin's Ring",
+      "rawExact": true,
+      "lexiconTop1": true,
+      "lexiconTop3": true,
+      "confidence": 93
+    },
+    {
+      "lang": "es",
+      "expected": "Amrou Kithkin",
+      "raw": "Amrou Kithkin",
+      "rawExact": true,
+      "lexiconTop1": true,
+      "lexiconTop3": true,
+      "confidence": 90
+    },
+    {
+      "lang": "es",
+      "expected": "Amulet of Kroog",
+      "raw": "Amulet of Kroog",
+      "rawExact": true,
+      "lexiconTop1": true,
+      "lexiconTop3": true,
+      "confidence": 92
+    },
+    {
+      "lang": "es",
+      "expected": "Angelic Page",
+      "raw": "Amngelic Page",
+      "rawExact": false,
+      "lexiconTop1": true,
+      "lexiconTop3": true,
+      "confidence": 84
+    },
+    {
+      "lang": "es",
+      "expected": "Animate Wall",
+      "raw": "Animate Wall",
+      "rawExact": true,
+      "lexiconTop1": true,
+      "lexiconTop3": true,
+      "confidence": 96
+    },
+    {
+      "lang": "es",
+      "expected": "Ankh of Mishra",
+      "raw": "Ankh of Mishra",
+      "rawExact": true,
+      "lexiconTop1": true,
+      "lexiconTop3": true,
+      "confidence": 91
+    }
+  ]
+}

@@ -105,7 +105,7 @@
 
 .captureChoices {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin-top: 18px;
 }
@@ -227,6 +227,192 @@
 .captureReview .actions {
   width: min(100%, 440px);
   margin-top: 4px;
+}
+
+.bulkLayout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.86fr) minmax(340px, 1.14fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.bulkCamera {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+
+.bulkCamera .cameraViewport {
+  width: min(100%, 390px);
+}
+
+.bulkCamera > p {
+  margin: 0;
+  color: #8793a1;
+  font-size: 10px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.liveGuidance {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  z-index: 2;
+  min-width: 130px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(5, 7, 10, 0.78);
+  font-size: 11px;
+  text-align: center;
+  transform: translateX(-50%);
+}
+
+.liveGuidance[data-guidance="detected"] {
+  border-color: rgba(72, 205, 151, 0.7);
+  background: rgba(15, 96, 67, 0.88);
+}
+
+.bulkStats {
+  display: flex;
+  justify-content: space-between;
+  width: min(100%, 390px);
+  color: #7f8b99;
+  font-size: 9px;
+}
+
+.bulkQueue {
+  min-width: 0;
+}
+
+.queueHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.queueHeader h3 {
+  margin: 0;
+}
+
+.queueHeader span {
+  color: #8793a1;
+  font-size: 10px;
+}
+
+.emptyQueue {
+  min-height: 170px;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  color: #8793a1;
+  font-size: 11px;
+  text-align: center;
+}
+
+.queueItems {
+  display: grid;
+  gap: 8px;
+  max-height: 58dvh;
+  overflow-y: auto;
+}
+
+.queueItem {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  gap: 9px;
+  padding: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.queueItem > img {
+  width: 58px;
+  aspect-ratio: 63 / 88;
+  object-fit: cover;
+  border-radius: 5px;
+}
+
+.queueItem > div:nth-child(2) {
+  display: grid;
+  gap: 4px;
+}
+
+.queueItem span,
+.queueItem em {
+  color: #8793a1;
+  font-size: 9px;
+  font-style: normal;
+}
+
+.queueItem em {
+  color: #e6bd77;
+}
+
+.queueItem label {
+  display: grid;
+  gap: 3px;
+  color: #9ba7b5;
+  font-size: 9px;
+}
+
+.queueItem select,
+.queueItem input,
+.manualMatch input {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 7px;
+  color: #edf2f7;
+  background: #0d1218;
+}
+
+.queueFields {
+  display: grid;
+  grid-template-columns: 0.65fr 1fr 1fr;
+  gap: 5px;
+}
+
+.queueActions {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.queueActions button,
+.manualMatch button {
+  min-width: 38px;
+  min-height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 7px;
+  color: #cbd4df;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+}
+
+.manualMatch {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  border-radius: 10px;
+  background: #10151c;
+}
+
+.manualMatch label {
+  display: grid;
+  gap: 5px;
+  color: #9ba7b5;
+  font-size: 10px;
 }
 
 .primary,
@@ -457,7 +643,8 @@
   }
 
   .captureChoices,
-  .confirmGrid {
+  .confirmGrid,
+  .bulkLayout {
     grid-template-columns: 1fr;
   }
 
@@ -493,6 +680,23 @@
 
   .cameraActions button {
     flex: 1;
+  }
+
+  .bulkCamera .cameraViewport {
+    width: min(
+      calc(100vw - 30px),
+      calc((100dvh - 270px - env(safe-area-inset-bottom)) * 63 / 88),
+      390px
+    );
+  }
+
+  .queueItems {
+    max-height: none;
+  }
+
+  .queueHeader {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .details .settings {

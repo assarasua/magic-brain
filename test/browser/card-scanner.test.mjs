@@ -42,6 +42,17 @@ test(
             height: bitmap.height,
           };
           bitmap.close();
+          if (window.__bulkMode) {
+            const call = (window.__bulkOcrCalls = (window.__bulkOcrCalls ?? 0) + 1);
+            await new Promise((resolve) => setTimeout(resolve, 2_500));
+            return {
+              text: call === 1 ? "Dragón de fuego SET TST 123" : "Relámpago SET TST 124",
+              language,
+              setCode: "tst",
+              collectorNumber: call === 1 ? "123" : "124",
+              confidence: 94,
+            };
+          }
           return {
             text: "Dragón de fuego SET TST Collector 123/300",
             language,
@@ -85,6 +96,7 @@ test(
 
       const portfolio = emptyPortfolio();
       const holdingPosts = [];
+      const batchPosts = [];
       await page.route("**/api/auth/session*", async (route) => {
         await route.fulfill({
           status: 200,
@@ -109,6 +121,11 @@ test(
       });
       await page.route("**/api/portfolio*", async (route) => {
         if (route.request().method() === "POST") {
+          if (new URL(route.request().url()).pathname.endsWith("/batch")) {
+            holdingPosts.push({ batch: route.request().postDataJSON(), idempotencyKey: route.request().headers()["idempotency-key"] });
+            await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ count: 3, clientIds: [] }) });
+            return;
+          }
           holdingPosts.push(route.request().postDataJSON());
           await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(portfolio) });
         } else {
@@ -118,16 +135,17 @@ test(
       let identifyBody;
       await page.route("**/api/cards/identify", async (route) => {
         identifyBody = route.request().postDataJSON();
+        const secondCard = identifyBody.collectorNumber === "124";
         await route.fulfill({
           status: 200,
           contentType: "application/json",
           body: JSON.stringify({
             candidates: [{
-              id: "00000000-0000-4000-8000-000000000123",
-              name: "Dragón de fuego",
+              id: secondCard ? "00000000-0000-4000-8000-000000000124" : "00000000-0000-4000-8000-000000000123",
+              name: secondCard ? "Relámpago" : "Dragón de fuego",
               setCode: "tst",
               setName: "Synthetic Set",
-              collectorNumber: "123",
+              collectorNumber: secondCard ? "124" : "123",
               rarity: "rare",
               typeLine: "Creature",
               imageUrl: null,
@@ -163,6 +181,17 @@ test(
               priceDate: null,
             }],
           }),
+        });
+      });
+      await page.route("**/api/portfolio/batch", async (route) => {
+        batchPosts.push({
+          batch: route.request().postDataJSON(),
+          idempotencyKey: route.request().headers()["idempotency-key"],
+        });
+        await route.fulfill({
+          status: 201,
+          contentType: "application/json",
+          body: JSON.stringify({ count: 3, clientIds: [] }),
         });
       });
 
@@ -289,6 +318,89 @@ test(
       assert.equal(holdingPosts[1].cardId, "00000000-0000-4000-8000-000000000124");
       assert.equal(holdingPosts[1].listId, "00000000-0000-4000-8000-000000000002");
       assert.equal("photo" in holdingPosts[1], false);
+
+      await page.getByRole("button", { name: "Close" }).click();
+      await page.evaluate(() => {
+        window.__bulkMode = true;
+        const canvas = document.createElement("canvas");
+        canvas.width = 630;
+        canvas.height = 880;
+        const context = canvas.getContext("2d");
+        window.__bulkDraw = (mode, variant = 0) => {
+          context.fillStyle = mode === "dark" ? "#050505" : "#444";
+          context.fillRect(0, 0, canvas.width, canvas.height);
+          if (mode === "none") return;
+          const offset = mode === "moving" ? (variant % 2 ? 28 : -28) : 0;
+          context.fillStyle = mode === "dark" ? "#181818" : mode === "second" ? "#d6e7ff" : "#eee4cc";
+          context.fillRect(55 + offset, 55, 520, 726);
+          context.lineWidth = 14;
+          context.strokeStyle = mode === "dark" ? "#dddddd" : "#111";
+          context.strokeRect(55 + offset, 55, 520, 726);
+          context.fillStyle = mode === "dark" ? "#777" : "#181818";
+          context.font = "bold 42px serif";
+          context.fillText(mode === "second" ? "Relámpago" : "Dragón de fuego", 85 + offset, 120);
+          for (let y = 170; y < 700; y += 38) context.fillRect(90 + offset, y, 420, 3);
+          window.__bulkTrack?.requestFrame?.();
+        };
+        window.__bulkDraw("dark");
+        navigator.mediaDevices.getUserMedia = async () => {
+          const stream = canvas.captureStream(15);
+          window.__bulkTrack = stream.getVideoTracks()[0];
+          window.__bulkDraw("dark");
+          clearInterval(window.__bulkTicker);
+          window.__bulkTicker = setInterval(() => {
+            context.fillRect(0, 0, 1, 1);
+            window.__bulkTrack?.requestFrame?.();
+          }, 80);
+          return stream;
+        };
+      });
+      await page.locator("button").filter({ hasText: "Scan cards" }).click();
+      await page.getByLabel("Printed language").selectOption("es");
+      await page.getByLabel("Destination list").selectOption("00000000-0000-4000-8000-000000000002");
+      await page.getByRole("button", { name: "Bulk scan" }).click();
+      await page.getByLabel("Bulk scan camera preview").waitFor();
+      await page.getByText("Too dark", { exact: true }).waitFor();
+      const queueRegion = page.getByLabel("Scan queue");
+      assert.equal(await queueRegion.locator("article").count(), 0);
+
+      for (let frame = 0; frame < 6; frame += 1) {
+        await page.evaluate((value) => window.__bulkDraw("moving", value), frame);
+        await page.waitForTimeout(180);
+      }
+      assert.equal(await queueRegion.locator("article").count(), 0);
+      await page.evaluate(() => window.__bulkDraw("first"));
+      await page.waitForFunction(() => document.querySelectorAll('[aria-label="Scan queue"] article').length === 1);
+      assert.equal(await page.evaluate(() => window.__bulkTrack.readyState), "live");
+
+      await page.evaluate(() => window.__bulkDraw("none"));
+      await page.waitForTimeout(700);
+      await page.evaluate(() => window.__bulkDraw("second"));
+      await page.waitForFunction(() => document.querySelectorAll('[aria-label="Scan queue"] article').length === 2).catch(async () => {
+        throw new Error(`Second card was not queued: ${JSON.stringify(await page.evaluate(() => window.__bulkScanDebug))}`);
+      });
+      assert.equal(await page.evaluate(() => window.__bulkTrack.readyState), "live");
+
+      await page.evaluate(() => window.__bulkDraw("none"));
+      await page.waitForTimeout(1_500);
+      await page.evaluate(() => window.__bulkDraw("second"));
+      await page.waitForFunction(() => document.querySelectorAll('[aria-label="Scan queue"] article').length === 3);
+      await page.waitForFunction(() => {
+        const items = document.querySelectorAll('[aria-label="Scan queue"] article');
+        return items.length === 2 && [...items].some((item) => item.textContent?.includes("Duplicate copy aggregated"));
+      }, { timeout: 15_000 });
+      await page.screenshot({ path: "/tmp/magic-brain-bulk-scanner-mobile-live.png" });
+      await queueRegion.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: "/tmp/magic-brain-bulk-scanner-mobile-queue.png" });
+      await page.getByRole("button", { name: "Add 3 cards to collection" }).click();
+      await page.getByText("Added 3 cards.").waitFor().catch(async () => {
+        throw new Error(`Bulk add did not finish: ${(await page.getByRole("dialog").innerText()).slice(-1_000)} posts=${JSON.stringify(holdingPosts.slice(-2))}`);
+      });
+      const batchPost = batchPosts[0];
+      assert.ok(batchPost);
+      assert.equal(batchPost.batch.items.length, 2);
+      assert.equal(batchPost.batch.items.reduce((sum, item) => sum + item.quantity, 0), 3);
+      assert.match(batchPost.idempotencyKey, /^[0-9a-f-]{36}$/);
     } finally {
       await browser?.close();
       server.kill("SIGTERM");

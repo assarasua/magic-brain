@@ -55,6 +55,7 @@ try {
       "024_oauth_durable_consent.sql",
       "025_portfolio_sales.sql",
       "026_card_scan_lookup.sql",
+      "027_portfolio_batch_requests.sql",
   ];
   let applied = 0;
   for (const filename of filenames) {
