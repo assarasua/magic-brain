@@ -587,6 +587,7 @@ export function DevelopersHub({
           {navItems.slice(0, 6).map(([id, label]) => <a href={`#${id}`} key={id}>{label}</a>)}
         </nav>
         <div className={styles.headerActions}>
+          <Link href="/console">{es ? "Consola" : "Console"}</Link>
           <a href="/api/v1/openapi.json">OpenAPI</a>
           <a className={styles.githubButton} href="https://github.com/assarasua/magic-brain" target="_blank" rel="noreferrer">
             <Code2 size={16} /> GitHub
@@ -616,7 +617,7 @@ export function DevelopersHub({
           <h1>Magic market data,<br /><em>built for builders.</em></h1>
           <p>Query card printings, sets, and EUR price history through a stable, provenance-aware API. Start anonymously, then create a free key when you need more room.</p>
           <div className={styles.heroActions}>
-            <a href="#examples">Make your first request <ArrowRight size={16} /></a>
+            <Link href="/console">{es ? "Abrir consola web" : "Open web console"} <ArrowRight size={16} /></Link>
             <a href="#reference">Explore endpoints</a>
           </div>
           <div className={styles.heroFacts}>

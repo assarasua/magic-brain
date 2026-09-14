@@ -12,6 +12,7 @@ import {
   Newspaper,
   Radar,
   Settings,
+  SquareTerminal,
   Target,
   TrendingUp,
   WalletCards,
@@ -53,6 +54,7 @@ export const navigationGroups = [
     label: "Resources",
     links: [
       { href: "/developers", label: "Developers", icon: Code2 },
+      { href: "/console", label: "Console", icon: SquareTerminal },
       { href: "/donate", label: "Support", icon: CircleDollarSign },
     ],
   },
