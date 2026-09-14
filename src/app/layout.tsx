@@ -17,9 +17,9 @@ const manrope = Manrope({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://magicbrain.es"),
-  title: "Magic Brain AI Pro — Invest smarter in Magic",
+  title: "Magic Brain — Know and enjoy your Magic collection",
   description:
-    "Track card prices, follow market signals and manage your Magic: The Gathering portfolio.",
+    "Organize your Magic: The Gathering collection, explore cards and editions, and understand value with clear market context.",
   authors: [{ name: "Asier Sarasua", url: "https://bizkardolab.com" }],
   creator: "Asier Sarasua",
   publisher: "BizkardoLab",

@@ -14,7 +14,7 @@ import styles from "./page.module.css";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Shared portfolio list · Magic Brain",
+  title: "Shared collection · Magic Brain",
   robots: { index: false, follow: false, noarchive: true },
 };
 
@@ -65,7 +65,7 @@ export default async function SharedPortfolioPage({
       <section className={styles.metrics}>
         <article><span>{locale === "es" ? "Valor público actual" : "Current public value"}</span><strong>{formatCurrency(portfolio.summary.currentValue)}</strong></article>
         <article><span>{locale === "es" ? "Cartas" : "Cards"}</span><strong>{portfolio.summary.cardCount}</strong></article>
-        <article><span>{locale === "es" ? "Posiciones con precio" : "Priced holdings"}</span><strong>{portfolio.summary.pricedHoldings}/{portfolio.summary.holdingCount}</strong></article>
+        <article><span>{locale === "es" ? "Ediciones con precio" : "Priced printings"}</span><strong>{portfolio.summary.pricedHoldings}/{portfolio.summary.holdingCount}</strong></article>
       </section>
       <section className={styles.holdings}>
         <h2>{locale === "es" ? "Contenido de la lista" : "List contents"}</h2>

@@ -433,8 +433,8 @@ export default function PredictPage() {
       addedIds.size === selectedPicks.length
         ? destination === "portfolio"
           ? es
-            ? `${addedIds.size} cartas añadidas a tu cartera.`
-            : `${addedIds.size} cards added to your portfolio.`
+            ? `${addedIds.size} cartas añadidas a tu colección.`
+            : `${addedIds.size} cards added to your collection.`
           : es
             ? `${addedIds.size} cartas añadidas a tu watchlist.`
             : `${addedIds.size} cards added to your watchlist.`
@@ -486,8 +486,8 @@ export default function PredictPage() {
         generationError instanceof Error
           ? generationError.message
           : es
-            ? "No se pudo generar la cartera."
-            : "Unable to generate the portfolio.",
+            ? "No se pudo crear la selección."
+            : "Unable to build the selection.",
       );
     }
   }, [
@@ -544,8 +544,8 @@ export default function PredictPage() {
       saved === total
         ? destination === "portfolio"
           ? es
-            ? "La cartera automática se ha añadido a tus posiciones."
-            : "The automatic portfolio was added to your holdings."
+            ? "La selección se ha añadido a tu colección."
+            : "The selection was added to your collection."
           : es
             ? "La lista automática se ha añadido a tu watchlist."
             : "The automatic list was added to your watchlist."
@@ -590,7 +590,7 @@ export default function PredictPage() {
         <Link href="/" className="inventory-brand"><MagicBrainLogo /></Link>
         <nav>
           <Link href="/predict" aria-current="page">Predict</Link>
-          <Link href="/brain">Portfolio Builder</Link>
+          <Link href="/brain">{es ? "Curador de colección" : "Collection Curator"}</Link>
           <Link href="/signals">Brain Signals</Link>
           <Link href="/market">{t("Market")}</Link>
         </nav>
@@ -603,11 +603,11 @@ export default function PredictPage() {
         <section className={styles.hero}>
           <div>
             <ProBadge />
-            <h1>Predict</h1>
+            <h1>{es ? "Predict · contexto para nuevas ediciones" : "Predict · context for new sets"}</h1>
             <p>
               {es
-                ? "Evalúa si una edición puede encajar con tu objetivo de crecimiento mediante escenarios transparentes."
-                : "Evaluate whether a set may fit your growth objective through transparent scenarios."}
+                ? "Explora cómo podría evolucionar una edición y qué cartas podrían encajar en tu colección mediante escenarios transparentes."
+                : "Explore how a set may evolve and which cards could fit your collection through transparent scenarios."}
             </p>
           </div>
           <SetSelector
@@ -891,7 +891,7 @@ export default function PredictPage() {
           <div className={styles.cardSectionHead}>
             <div>
               <span className="eyebrow">{es ? "PREDICCIONES POR CARTA" : "CARD PREDICTIONS"}</span>
-              <h2>{es ? "Lista generada para esta edición" : "Generated list for this set"}</h2>
+              <h2>{es ? "Cartas destacadas de esta edición" : "Notable cards from this set"}</h2>
             </div>
             {result && !result.marketEvidence.isUpcoming && (
               <Link href={`/market/latest-set-watch?set=${result.set.code}`}>
@@ -915,7 +915,7 @@ export default function PredictPage() {
               onClick={() => setBuildMode("automatic")}
             >
               <Sparkles size={14} />
-              {es ? "Cartera automática" : "Automatic portfolio"}
+              {es ? "Selección guiada" : "Guided selection"}
             </button>
           </div>
 
@@ -940,7 +940,7 @@ export default function PredictPage() {
                   onClick={() => void addSelectedCards("portfolio")}
                 >
                   {savingTo === "portfolio" ? <LoaderCircle className="spin" size={14} /> : <Plus size={14} />}
-                  {es ? "Añadir a cartera" : "Add to portfolio"}
+                  {es ? "Añadir a colección" : "Add to collection"}
                 </button>
                 <button
                   type="button"
@@ -1066,7 +1066,7 @@ export default function PredictPage() {
                     ? (es ? "Reintentar" : "Retry")
                     : autoStatus === "generated"
                       ? (es ? "Regenerar" : "Regenerate")
-                      : (es ? "Generar cartera" : "Generate portfolio")}
+                      : (es ? "Crear selección" : "Build selection")}
                 </button>
               </div>
 
@@ -1147,7 +1147,7 @@ export default function PredictPage() {
                 <div className={styles.autoResult}>
                   <header>
                     <div>
-                      <span>{es ? "LISTA GENERADA" : "GENERATED LIST"}</span>
+                      <span>{es ? "SELECCIÓN GENERADA" : "GENERATED SELECTION"}</span>
                       <h3>
                         {autoPortfolio.name} ·{" "}
                         {automaticSetCode && result
@@ -1203,7 +1203,7 @@ export default function PredictPage() {
                           onClick={() => void saveAutomaticPortfolio("portfolio")}
                         >
                           {savingTo === "portfolio" ? <LoaderCircle className="spin" size={14} /> : <Plus size={14} />}
-                          {es ? "Añadir cartera completa" : "Add complete portfolio"}
+                          {es ? "Añadir selección a colección" : "Add selection to collection"}
                         </button>
                         <button
                           type="button"

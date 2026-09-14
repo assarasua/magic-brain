@@ -1,7 +1,7 @@
 {
   "name": "magic-brain",
   "version": "1.0.0",
-  "description": "Magic Brain — intelligence for Magic: The Gathering collectors and investors.",
+  "description": "Magic Brain — know, organize, and enjoy your Magic: The Gathering collection.",
   "author": {
     "name": "Asier Sarasua",
     "url": "https://bizkardolab.com"
@@ -51,7 +51,7 @@
   },
   "keywords": [
     "magic-the-gathering",
-    "portfolio",
+    "collection",
     "card-prices"
   ],
   "license": "AGPL-3.0-only",

@@ -137,19 +137,19 @@ function EmptyDecisionState({
   const thresholds = data.thresholds;
   let title = es ? "Aún no hay una revisión útil" : "No useful review yet";
   let copy = es
-    ? "Ninguna posición cruza los umbrales de enfriamiento actuales."
-    : "No holdings cross the current cooling thresholds.";
+    ? "Ninguna carta cruza los umbrales de enfriamiento actuales."
+    : "No cards cross the current cooling thresholds.";
 
   if (data.state === "no_portfolio") {
-    title = es ? "Tu cartera aún no tiene posiciones" : "Your portfolio has no holdings yet";
+    title = es ? "Tu colección aún no tiene cartas" : "Your collection has no cards yet";
     copy = es
       ? "Añade una carta para obtener contexto de precio, contribución y movimiento."
       : "Add a card to unlock price, contribution, and movement context.";
   } else if (data.state === "no_priced_holdings") {
     title = es ? "Faltan precios actuales" : "Current prices are missing";
     copy = es
-      ? "Las posiciones existen, pero no podemos calcular movimiento ni contribución hasta tener precios."
-      : "Holdings exist, but movement and contribution cannot be calculated until prices are available.";
+      ? "Las cartas están registradas, pero no podemos calcular movimiento ni contribución hasta tener precios."
+      : "Your cards are recorded, but movement and contribution cannot be calculated until prices are available.";
   } else if (kind === "candidates") {
     title = es ? "Ninguna candidata pasa las reglas" : "No candidates pass the rules";
     copy = es
@@ -212,7 +212,7 @@ export function PortfolioDecisionSection({
 
   if (loading) {
     return (
-      <section className={styles.panel} aria-busy="true" aria-label={es ? "Cargando decisiones de cartera" : "Loading portfolio decisions"}>
+      <section className={styles.panel} aria-busy="true" aria-label={es ? "Cargando contexto de la colección" : "Loading collection context"}>
         <div className={styles.skeletonHead} />
         <div className={styles.skeletonGrid}>
           {Array.from({ length: 4 }, (_, index) => <div className={styles.skeletonCard} key={index} />)}
@@ -225,8 +225,8 @@ export function PortfolioDecisionSection({
     <section className={styles.panel} aria-labelledby="portfolio-decisions-title">
       <header className={styles.header}>
         <div>
-          <span className={styles.eyebrow}>{es ? "INTELIGENCIA DE CARTERA" : "PORTFOLIO INTELLIGENCE"}</span>
-          <h2 id="portfolio-decisions-title">{es ? "Decisiones que merecen tu atención" : "Decisions worth your attention"}</h2>
+          <span className={styles.eyebrow}>{es ? "CONTEXTO DE LA COLECCIÓN" : "COLLECTION CONTEXT"}</span>
+          <h2 id="portfolio-decisions-title">{es ? "Cartas que merece la pena revisar" : "Cards worth another look"}</h2>
           <p>{es ? "Contexto para revisar; tú decides y confirmas cada acción." : "Context to review; you decide and confirm every action."}</p>
         </div>
         <span className={styles.method} data-ml={verifiedMl}>
@@ -240,7 +240,7 @@ export function PortfolioDecisionSection({
       {error ? (
         <div className={styles.error} role="alert">
           <strong>{es ? "No pudimos cargar las decisiones" : "We couldn’t load decisions"}</strong>
-          <span>{es ? "Tu cartera no ha cambiado. Actualiza la página para reintentar." : "Your portfolio is unchanged. Refresh the page to try again."}</span>
+          <span>{es ? "Tu colección no ha cambiado. Actualiza la página para reintentar." : "Your collection is unchanged. Refresh the page to try again."}</span>
         </div>
       ) : (
         <>
@@ -347,8 +347,8 @@ export function PortfolioDecisionSection({
             <div className={styles.lane}>
               <div className={styles.laneTitle}>
                 <div>
-                  <span>{es ? "EN TU CARTERA" : "IN YOUR PORTFOLIO"}</span>
-                  <h3>{es ? "Posiciones enfriándose" : "Cooling holdings"}</h3>
+                  <span>{es ? "EN TU COLECCIÓN" : "IN YOUR COLLECTION"}</span>
+                  <h3>{es ? "Cartas con movimiento a la baja" : "Cards moving lower"}</h3>
                 </div>
                 <strong>{data.holdingReviews.length}</strong>
               </div>
@@ -365,7 +365,7 @@ export function PortfolioDecisionSection({
                       <div className={styles.identity}>
                         <div className={styles.badges}>
                           <span data-tone="cooling"><TrendingDown size={11} /> {es ? "Enfriándose" : "Cooling"}</span>
-                          <span>{holding.quantity}× {es ? "en cartera" : "owned"}</span>
+                          <span>{holding.quantity}× {es ? "en tu colección" : "owned"}</span>
                         </div>
                         <h4>{holding.name}</h4>
                         <p>{holding.setName} · {holding.setCode.toUpperCase()} #{holding.collectorNumber}</p>

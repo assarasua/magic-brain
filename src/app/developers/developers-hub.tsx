@@ -180,7 +180,7 @@ const mcpToolGroups = [
   },
   {
     name: "Personal intelligence",
-    summary: "Opt-in OAuth tools for owned portfolio and preference-derived intelligence.",
+    summary: "Opt-in OAuth tools for an owned collection and preference-derived insights.",
     tools: ["get_personalized_opportunities", "get_predict_recommendation", "get_portfolio_intelligence", "list_portfolio_lists", "get_portfolio_list"],
   },
   {
@@ -229,7 +229,7 @@ function CodeSample() {
   );
 }
 
-function McpInstall() {
+function McpInstall({ es }: { es: boolean }) {
   const [copied, setCopied] = useState<string | null>(null);
 
   const copy = async (id: string, snippet: string) => {
@@ -302,8 +302,8 @@ function McpInstall() {
               <div className={styles.toolGroupNumber} aria-hidden="true">
                 {String(index + 1).padStart(2, "0")}
               </div>
-              <h4>{group.name}</h4>
-              <p>{group.summary}</p>
+              <h4>{group.name === "Personal intelligence" && es ? "Inteligencia personal" : group.name}</h4>
+              <p>{group.name === "Personal intelligence" && es ? "Herramientas OAuth opcionales para consultar una colección propia e información derivada de preferencias." : group.summary}</p>
               <ul aria-label={`${group.name} tools`}>
                 {group.tools.map((tool) => <li key={tool}><code>{tool}</code></li>)}
               </ul>
@@ -614,8 +614,8 @@ export function DevelopersHub({
         <div className={styles.heroGlow} />
         <div className={styles.heroCopy}>
           <span className={styles.badge}><Sparkles size={13} /> Data API v{apiVersion}</span>
-          <h1>Magic market data,<br /><em>built for builders.</em></h1>
-          <p>Query card printings, sets, and EUR price history through a stable, provenance-aware API. Start anonymously, then create a free key when you need more room.</p>
+          <h1>{es ? <>Datos para conocer cada carta,<br /><em>creados para builders.</em></> : <>Data to know every card,<br /><em>built for builders.</em></>}</h1>
+          <p>{es ? "Consulta impresiones, ediciones e historial de precios en EUR mediante una API estable y consciente de la procedencia. Empieza de forma anónima y crea una clave gratuita cuando necesites más capacidad." : "Query card printings, sets, and EUR price history through a stable, provenance-aware API. Start anonymously, then create a free key when you need more room."}</p>
           <div className={styles.heroActions}>
             <Link href="/console">{es ? "Abrir consola web" : "Open web console"} <ArrowRight size={16} /></Link>
             <a href="#reference">Explore endpoints</a>
@@ -634,9 +634,9 @@ export function DevelopersHub({
           <div className={styles.sectionHeading}>
             <span>Remote MCP</span>
             <h2>Connect your AI client.</h2>
-            <p>Install the live read-only Magic Brain tools in the client you already use. Public card, price, graph, rules, and product research stays anonymous. Optionally sign in with Magic Brain OAuth to read your own portfolio and preference-derived intelligence; personal access is scoped and never grants writes by default.</p>
+            <p>{es ? "Instala las herramientas de solo lectura de Magic Brain en tu cliente habitual. La investigación pública de cartas, precios, relaciones, reglas y producto es anónima. Inicia sesión opcionalmente con OAuth para consultar tu colección y preferencias; el acceso personal está limitado y no permite escritura por defecto." : "Install the live read-only Magic Brain tools in the client you already use. Public card, price, graph, rules, and product research stays anonymous. Optionally sign in with Magic Brain OAuth to read your own collection and preference-derived insights; personal access is scoped and never grants writes by default."}</p>
           </div>
-          <McpInstall />
+          <McpInstall es={es} />
         </section>
 
         <section className={styles.section} id="reference">

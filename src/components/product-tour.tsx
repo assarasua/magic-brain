@@ -74,22 +74,22 @@ export function ProductTour({
           points: ["Movimientos de 7 y 30 días", "Filtros avanzados", "Área exclusiva Reserved List"],
         },
         {
-          eyebrow: "PASO 2 · CARTERA",
-          title: "Convierte tu colección en una cartera.",
-          body: "Añade precio y fecha de compra. Magic Brain calcula valor, rentabilidad, concentración y evolución histórica.",
-          points: ["Beneficio no realizado", "Coste frente a valor actual", "Riesgo por concentración"],
+          eyebrow: "PASO 2 · COLECCIÓN",
+          title: "Reúne tus cartas y ediciones.",
+          body: "Registra copias, edición, precio y fecha de compra. Magic Brain te ayuda a conocer el valor y la evolución de tu colección.",
+          points: ["Copias y ediciones", "Coste frente a valor actual", "Evolución de la colección"],
         },
         {
           eyebrow: "PASO 3 · WATCHLIST",
-          title: "Guarda oportunidades sin perderlas de vista.",
-          body: "Sigue cartas antes de comprar y utiliza Discover para alimentar tu lista con recomendaciones relevantes.",
-          points: ["Lista sincronizada", "Precio y tendencia visibles", "Decisiones separadas de tu cartera"],
+          title: "Guarda cartas que te gustaría encontrar.",
+          body: "Sigue cartas antes de añadirlas y utiliza Descubrir para encontrar nuevas favoritas.",
+          points: ["Lista sincronizada", "Precio y tendencia visibles", "Ideas separadas de tu colección"],
         },
         {
           eyebrow: "PASO 4 · BRAIN PRO",
           title: "Haz que las recomendaciones se adapten a ti.",
-          body: "Configura presupuesto, riesgo, estrategia y tipos de carta. Magic Brain Pro usa ese perfil para construir y descubrir ideas. Actualmente es gratis para usuarios pioneros.",
-          points: ["Preferencias personalizadas", "Portfolio generado por estrategia", "Discover con gestos rápidos"],
+          body: "Configura presupuesto, criterios y tipos de carta. Magic Brain Pro usa ese perfil para ayudarte a explorar y crear selecciones. Actualmente es gratis para usuarios pioneros.",
+          points: ["Preferencias personalizadas", "Selecciones explicables", "Descubrimiento con gestos rápidos"],
         },
       ]
     : [
@@ -100,22 +100,22 @@ export function ProductTour({
           points: ["7 and 30-day movement", "Advanced filters", "Dedicated Reserved List area"],
         },
         {
-          eyebrow: "STEP 2 · PORTFOLIO",
-          title: "Turn your collection into a portfolio.",
-          body: "Add purchase price and date. Magic Brain calculates value, returns, concentration, and historical performance.",
-          points: ["Unrealised return", "Cost versus current value", "Concentration risk"],
+          eyebrow: "STEP 2 · COLLECTION",
+          title: "Bring your cards and printings together.",
+          body: "Record copies, printing, purchase price, and date. Magic Brain helps you understand your collection's value and evolution.",
+          points: ["Copies and printings", "Cost versus current value", "Collection value over time"],
         },
         {
           eyebrow: "STEP 3 · WATCHLIST",
-          title: "Save opportunities without losing track.",
-          body: "Follow cards before buying and use Discover to fill your list with relevant recommendations.",
-          points: ["Synced watchlist", "Visible price and trend", "Ideas kept separate from holdings"],
+          title: "Save cards you would love to find.",
+          body: "Follow cards before adding them and use Discover to meet new favourites.",
+          points: ["Synced watchlist", "Visible price and trend", "Ideas kept separate from your collection"],
         },
         {
           eyebrow: "STEP 4 · BRAIN PRO",
           title: "Make every recommendation personal.",
-          body: "Set your budget, risk, strategy, and card types. Magic Brain Pro uses that profile to build and discover ideas. It is currently free for early adopters.",
-          points: ["Personal preferences", "Strategy-built portfolios", "Fast swipe discovery"],
+          body: "Set your budget, criteria, and card types. Magic Brain Pro uses that profile to help you explore and build selections. It is currently free for early adopters.",
+          points: ["Personal preferences", "Explainable selections", "Fast swipe discovery"],
         },
       ];
   const current = copy[step];

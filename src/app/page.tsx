@@ -392,7 +392,7 @@ export default function Home() {
             <span />
           </button>
           <button className="primary-button" onClick={() => router.push("/portfolio")}>
-            <Plus size={17} /> {t("Add holding")}
+            <Plus size={17} /> {locale === "es" ? "Añadir cartas" : "Add cards"}
           </button>
         </header>
 
@@ -401,7 +401,7 @@ export default function Home() {
             <div>
               <span className="eyebrow">{locale === "es" ? "Sábado, 12 de septiembre" : "Saturday, 12 September"}</span>
               <h1>{t("Your collection, in focus.")}</h1>
-              <p>{t("Track market momentum and make your next move with confidence.")}</p>
+              <p>{locale === "es" ? "Conoce tus cartas, su valor y el contexto del mercado para cuidarlas mejor." : "Know your cards, understand their value, and enjoy every new discovery."}</p>
             </div>
             <div className="market-status"><span /> {locale === "es" ? "Precios actualizados hace 12 min" : "Cardmarket prices updated 12 min ago"}</div>
           </div>
@@ -414,19 +414,19 @@ export default function Home() {
               <strong>{formatCurrency(portfolio.summary.value)}</strong>
               <div className="metric-foot">
                 <Change value={portfolio.summary.gainPercent} />
-                <span>{portfolio.summary.gain >= 0 ? "+" : ""}{formatCurrency(portfolio.summary.gain)} {locale === "es" ? "total" : "all time"}</span>
+                <span>{portfolio.summary.gain >= 0 ? "+" : ""}{formatCurrency(portfolio.summary.gain)} {locale === "es" ? "desde la compra" : "since purchase"}</span>
               </div>
               <span className="metric-glow" />
             </article>
             <article className="metric-card">
-              <div className="metric-label"><CircleDollarSign size={17} /> {t("Total invested")}</div>
+              <div className="metric-label"><CircleDollarSign size={17} /> {locale === "es" ? "Coste registrado" : "Recorded cost"}</div>
               <strong>{formatCurrency(portfolio.summary.invested)}</strong>
               <div className="metric-foot"><span>{locale === "es" ? `En ${portfolio.summary.cardCount} cartas` : `Across ${portfolio.summary.cardCount} cards`}</span></div>
             </article>
             <article className="metric-card">
-              <div className="metric-label"><TrendingUp size={17} /> {t("Unrealised return")}</div>
+              <div className="metric-label"><TrendingUp size={17} /> {locale === "es" ? "Cambio desde la compra" : "Change since purchase"}</div>
               <strong className={portfolio.summary.gain >= 0 ? "positive-text" : "negative"}>{portfolio.summary.gain >= 0 ? "+" : ""}{formatCurrency(portfolio.summary.gain)}</strong>
-              <div className="metric-foot"><Change value={portfolio.summary.gainPercent} /><span>{locale === "es" ? "Total" : "All time"}</span></div>
+              <div className="metric-foot"><Change value={portfolio.summary.gainPercent} /><span>{locale === "es" ? "Valor observado" : "Observed value"}</span></div>
             </article>
             <article className="metric-card">
               <div className="metric-label"><Eye size={17} /> {t("Watchlist")}</div>
@@ -438,7 +438,7 @@ export default function Home() {
           <div className="dashboard-grid">
             <section className="panel portfolio-panel">
               <div className="panel-head">
-                <div><span className="panel-kicker">{t("Portfolio performance")}</span><h2>{formatCurrency(portfolio.summary.value)}</h2></div>
+                <div><span className="panel-kicker">{locale === "es" ? "Evolución del valor" : "Collection value over time"}</span><h2>{formatCurrency(portfolio.summary.value)}</h2></div>
                 <div className="range-switch">
                   {["7D", "30D", "3M", "1Y"].map((range) => (
                     <button key={range} onClick={() => setTimeframe(range)} className={timeframe === range ? "active" : ""}>{range}</button>
@@ -467,7 +467,7 @@ export default function Home() {
 
           <section className={`panel movers-panel ${marketLoading ? "loading" : ""}`} aria-live="polite" aria-busy={marketLoading}>
             <div className="panel-head movers-head">
-              <div><span className="panel-kicker">{t("Market pulse")} · {marketDays}D</span><h2>{marketDirection === "gainers" ? (locale === "es" ? "Mayores subidas" : "Top gainers") : (locale === "es" ? "Mayores bajadas" : "Top losers")}</h2></div>
+              <div><span className="panel-kicker">{t("Market pulse")} · {marketDays}D</span><h2>{marketDirection === "gainers" ? (locale === "es" ? "Movimientos al alza" : "Notable upward movement") : (locale === "es" ? "Movimientos a la baja" : "Notable downward movement")}</h2></div>
               <div className="market-tabs" aria-label={locale === "es" ? "Controles de tendencias" : "Market mover controls"}>
                 <button className={marketDirection === "gainers" ? "active" : ""} aria-pressed={marketDirection === "gainers"} onClick={() => { if (marketDirection !== "gainers") { setMarketLoading(true); setMarketDirection("gainers"); } }}><TrendingUp size={12} /> {locale === "es" ? "Subidas" : "Gainers"}</button>
                 <button className={marketDirection === "losers" ? "active" : ""} aria-pressed={marketDirection === "losers"} onClick={() => { if (marketDirection !== "losers") { setMarketLoading(true); setMarketDirection("losers"); } }}><TrendingDown size={12} /> {locale === "es" ? "Bajadas" : "Losers"}</button>
@@ -504,7 +504,7 @@ export default function Home() {
                   <div><strong>{holding.currentValue === null ? "—" : formatCurrency(holding.currentValue)}</strong><Change value={holding.gainPercent ?? 0} /></div>
                 </div>
               ))}
-              {!portfolio.holdings.length && <div className="empty-holdings">Add your first card to start tracking returns.</div>}
+              {!portfolio.holdings.length && <div className="empty-holdings">{locale === "es" ? "Añade tu primera carta y empieza a conocer tu colección." : "Add your first card and start getting to know your collection."}</div>}
             </div>
 
             <div className="panel premium-panel">

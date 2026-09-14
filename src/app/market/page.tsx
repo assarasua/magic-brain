@@ -201,7 +201,7 @@ export default function MarketPage() {
       </header>
       <div className="account-content market-page-content">
         <div className="account-heading">
-          <div><span className="eyebrow">{locale === "es" ? "Inteligencia diaria" : "Daily intelligence"}</span><h1>{locale === "es" ? "Pulso del mercado" : "Market pulse"}</h1><p>{locale === "es" ? "Movimientos de precio calculados con tu histórico real." : "Price movement calculated from your live historical dataset."}</p></div>
+          <div><span className="eyebrow">{locale === "es" ? "CONTEXTO PARA TU COLECCIÓN" : "CONTEXT FOR YOUR COLLECTION"}</span><h1>{locale === "es" ? "Evolución de precios" : "Price evolution"}</h1><p>{locale === "es" ? "Observa cómo cambian cartas y ediciones a partir del historial disponible." : "See how cards and sets change using the available price history."}</p></div>
           <div className="market-heading-filters">
             <SetSelector
               value={setCodes}
@@ -217,15 +217,15 @@ export default function MarketPage() {
         </div>
         <section className="market-summary" aria-live="polite" aria-busy={loading}>
           <div className="fintech-panel"><span>{locale === "es" ? "Universo analizado" : "Analysed universe"}</span><strong>{setCodes[0]?.toUpperCase() ?? (pulseLoading ? "—" : pulse.length.toLocaleString(locale))}</strong><small>{setCodes[0] ? (locale === "es" ? "edición seleccionada" : "selected set") : (locale === "es" ? "ediciones normalizadas" : "normalized sets")}</small></div>
-          <div className="fintech-panel"><TrendingUp size={18} /><span>{locale === "es" ? `Mayor subida · ${days}D` : `Top gain · ${days}D`}</span><strong className="up">{gainers[0]?.change7d != null ? `+${gainers[0].change7d.toFixed(1)}%` : "—"}</strong></div>
-          <div className="fintech-panel"><TrendingDown size={18} /><span>{locale === "es" ? `Mayor bajada · ${days}D` : `Top decline · ${days}D`}</span><strong className="down">{losers[0]?.change7d != null ? `${losers[0].change7d.toFixed(1)}%` : "—"}</strong></div>
+          <div className="fintech-panel"><TrendingUp size={18} /><span>{locale === "es" ? `Movimiento al alza · ${days}D` : `Upward movement · ${days}D`}</span><strong className="up">{gainers[0]?.change7d != null ? `+${gainers[0].change7d.toFixed(1)}%` : "—"}</strong></div>
+          <div className="fintech-panel"><TrendingDown size={18} /><span>{locale === "es" ? `Movimiento a la baja · ${days}D` : `Downward movement · ${days}D`}</span><strong className="down">{losers[0]?.change7d != null ? `${losers[0].change7d.toFixed(1)}%` : "—"}</strong></div>
           <Link className="fintech-panel latest-set-market-card" href="/market/latest-set-watch"><span>{locale === "es" ? "Radar de edición" : "Latest Set Watch"}</span><strong>{locale === "es" ? "Clasificación" : "Pick ranking"}</strong><small>{locale === "es" ? "señales explicables" : "explainable signals"}</small><Sparkles size={14} /></Link>
           <Link className="fintech-panel reserved-market-card" href="/reserved"><span>{t("Reserved List")}</span><strong>571</strong><small>{locale === "es" ? "cartas únicas" : "unique cards"}</small><ExternalLink size={14} /></Link>
         </section>
         {moverError && <p className="market-inline-state error" role="alert">{locale === "es" ? "No se pudo cargar el detalle de subidas y bajadas." : "The gainers and losers drilldown could not be loaded."}</p>}
         <div className={`market-columns ${loading ? "loading" : ""}`}>
-          <section className="fintech-panel"><div className="section-title"><div><span className="eyebrow">{days}D</span><h2>{locale === "es" ? "Mayores subidas" : "Top gainers"}</h2></div><TrendingUp className="up" size={20} /></div><MoverList cards={gainers} direction="up" days={days} /></section>
-          <section className="fintech-panel"><div className="section-title"><div><span className="eyebrow">{days}D</span><h2>{locale === "es" ? "Mayores bajadas" : "Top losers"}</h2></div><TrendingDown className="down" size={20} /></div><MoverList cards={losers} direction="down" days={days} /></section>
+          <section className="fintech-panel"><div className="section-title"><div><span className="eyebrow">{days}D</span><h2>{locale === "es" ? "Movimientos al alza" : "Notable upward movement"}</h2></div><TrendingUp className="up" size={20} /></div><MoverList cards={gainers} direction="up" days={days} /></section>
+          <section className="fintech-panel"><div className="section-title"><div><span className="eyebrow">{days}D</span><h2>{locale === "es" ? "Movimientos a la baja" : "Notable downward movement"}</h2></div><TrendingDown className="down" size={20} /></div><MoverList cards={losers} direction="down" days={days} /></section>
         </div>
         <section className="fintech-panel market-pulse-panel" aria-busy={pulseLoading}>
           <div className="market-pulse-head">
@@ -327,7 +327,7 @@ export default function MarketPage() {
               </div>
             ) : !setCardsLoading && setCards.length === 0 ? (
               <div className="market-pulse-state">
-                {locale === "es" ? "Esta edición no tiene cartas disponibles." : "No cards are available for this set."}
+                {locale === "es" ? "Esta edición aún no tiene impresiones en el catálogo." : "This set does not yet have printings in the catalogue."}
               </div>
             ) : (
               <>

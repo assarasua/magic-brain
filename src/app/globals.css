@@ -11,6 +11,7 @@
   --blue: #48b9ff;
   --blue-2: #1b8fe5;
   --gold: #f2c66d;
+  --parchment: #d8b982;
   --green: #4fdaa4;
   --red: #ff6b77;
 }
@@ -27,6 +28,7 @@ body {
   margin: 0;
   color: var(--text);
   background:
+    radial-gradient(circle at 18% 8%, rgba(216, 185, 130, 0.045), transparent 28%),
     radial-gradient(circle at 75% 0%, rgba(27, 143, 229, 0.06), transparent 34%),
     var(--bg);
   font-family: var(--font-body), sans-serif;
@@ -633,11 +635,23 @@ kbd {
 }
 
 .page-heading {
+  position: relative;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 30px;
   margin-bottom: 31px;
+}
+
+.page-heading::before {
+  content: "";
+  position: absolute;
+  top: -14px;
+  left: 0;
+  width: 42px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--gold), transparent);
 }
 
 .eyebrow,
@@ -702,7 +716,9 @@ kbd {
 }
 
 .metric-card.featured {
-  border-color: rgba(72, 185, 255, 0.2);
+  border-color: rgba(216, 185, 130, 0.28);
+  background:
+    linear-gradient(145deg, rgba(35, 31, 30, 0.92), rgba(12, 23, 37, 0.94));
 }
 
 .metric-glow {
@@ -711,7 +727,7 @@ kbd {
   width: 110px;
   height: 110px;
   border-radius: 50%;
-  background: rgba(72, 185, 255, 0.12);
+  background: rgba(216, 185, 130, 0.13);
   filter: blur(30px);
 }
 
@@ -5737,11 +5753,11 @@ button.market-pulse-row.selected {
   display: grid;
   place-items: center;
   margin: 0 auto 16px;
-  border: 1px solid rgba(72, 185, 255, 0.3);
+  border: 1px solid rgba(216, 185, 130, 0.34);
   border-radius: 22px;
-  color: var(--blue);
-  background: radial-gradient(circle, rgba(72, 185, 255, 0.18), rgba(72, 185, 255, 0.03));
-  box-shadow: 0 0 45px rgba(72, 185, 255, 0.13);
+  color: var(--gold);
+  background: radial-gradient(circle, rgba(216, 185, 130, 0.16), rgba(72, 185, 255, 0.035));
+  box-shadow: 0 0 45px rgba(216, 185, 130, 0.1);
 }
 
 .brain-orb i {
