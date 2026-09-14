@@ -6,6 +6,7 @@ import {
   renderOAuthConsentErrorPage,
   renderOAuthConsentPage,
   trustedOAuthAppOrigin,
+  trustedOAuthRedirectOrigin,
 } from "./oauth-consent-page.ts";
 
 test("renders a same-document consent form with complete fallback fields", () => {
@@ -84,11 +85,42 @@ test("opaque or noncanonical contexts retain an explicit canonical source", () =
   );
 });
 
+test("consent CSP permits only the validated registered callback origin", () => {
+  const policy = consentContentSecurityPolicy(
+    "nonce",
+    "https://magicbrain.es",
+    "https://claude.ai/api/mcp/auth_callback?synthetic=1",
+  );
+  const formAction = policy.match(/form-action ([^;]+)/)?.[1] ?? "";
+  assert.equal(
+    formAction,
+    "'self' https://magicbrain.es https://claude.ai",
+  );
+  assert.equal(
+    trustedOAuthRedirectOrigin("http://127.0.0.1:4321/callback"),
+    "http://127.0.0.1:4321",
+  );
+  for (const unsafe of [
+    "http://untrusted.example/callback",
+    "javascript:alert(1)",
+    "https://user:password@untrusted.example/callback",
+    "not a URL",
+  ]) {
+    assert.equal(trustedOAuthRedirectOrigin(unsafe), null);
+  }
+  assert.doesNotMatch(formAction, /\*/);
+  assert.doesNotMatch(formAction, /(?:^|\s)https:(?:\s|$)/);
+  assert.doesNotMatch(formAction, /claude\.com/);
+});
+
 test("authorize route uses the strict consent CSP builder", async () => {
   const route = await readFile(
     new URL("../app/oauth/authorize/route.ts", import.meta.url),
     "utf8",
   );
-  assert.match(route, /consentContentSecurityPolicy\(nonce\)/);
+  assert.match(
+    route,
+    /consentContentSecurityPolicy\(\s*nonce,\s*undefined,\s*authorization\.redirectUri/,
+  );
   assert.match(route, /consentContentSecurityPolicy\(\)/);
 });

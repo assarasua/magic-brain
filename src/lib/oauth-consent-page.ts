@@ -28,12 +28,33 @@ export function trustedOAuthAppOrigin(
 export function consentContentSecurityPolicy(
   nonce?: string,
   configuredOrigin?: string,
+  registeredRedirectUri?: string,
 ) {
   const scriptSource =
     nonce && /^[A-Za-z0-9_-]+$/.test(nonce)
       ? `'nonce-${nonce}'`
       : "'none'";
-  return `default-src 'none'; style-src 'unsafe-inline'; script-src ${scriptSource}; form-action 'self' ${trustedOAuthAppOrigin(configuredOrigin)}; base-uri 'none'; frame-ancestors 'none'`;
+  const formOrigins = new Set([trustedOAuthAppOrigin(configuredOrigin)]);
+  const redirectOrigin = trustedOAuthRedirectOrigin(registeredRedirectUri);
+  if (redirectOrigin) formOrigins.add(redirectOrigin);
+  return `default-src 'none'; style-src 'unsafe-inline'; script-src ${scriptSource}; form-action 'self' ${[...formOrigins].join(" ")}; base-uri 'none'; frame-ancestors 'none'`;
+}
+
+export function trustedOAuthRedirectOrigin(redirectUri?: string) {
+  if (!redirectUri) return null;
+  try {
+    const url = new URL(redirectUri);
+    if (url.username || url.password) return null;
+    const isHttps = url.protocol === "https:";
+    const isLoopbackHttp =
+      url.protocol === "http:" &&
+      (url.hostname === "localhost" ||
+        url.hostname === "127.0.0.1" ||
+        url.hostname === "[::1]");
+    return isHttps || isLoopbackHttp ? url.origin : null;
+  } catch {
+    return null;
+  }
 }
 
 export function renderOAuthConsentPage(input: {

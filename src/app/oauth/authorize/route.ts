@@ -58,7 +58,11 @@ export async function GET(request: NextRequest) {
         headers: {
           "Content-Type": "text/html; charset=utf-8",
           "Cache-Control": "no-store",
-          "Content-Security-Policy": consentContentSecurityPolicy(nonce),
+          "Content-Security-Policy": consentContentSecurityPolicy(
+            nonce,
+            undefined,
+            authorization.redirectUri,
+          ),
           "Referrer-Policy": "no-referrer",
           "X-Content-Type-Options": "nosniff",
         },
