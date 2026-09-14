@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
+  consentContentSecurityPolicy,
   renderOAuthConsentErrorPage,
   renderOAuthConsentPage,
+  trustedOAuthAppOrigin,
 } from "./oauth-consent-page.ts";
 
 test("renders a same-document consent form with complete fallback fields", () => {
@@ -53,11 +55,40 @@ test("expired consent renders friendly reconnect UX without raw JSON", () => {
   assert.doesNotMatch(html, /"error"\s*:/);
 });
 
-test("authorize route keeps form submissions restricted to self", async () => {
+test("consent CSP permits only self and the canonical form destination", () => {
+  const destination =
+    "https://magicbrain.es/oauth/authorize?client_id=synthetic&state=synthetic";
+  const policy = consentContentSecurityPolicy("nonce", "https://magicbrain.es");
+  assert.match(
+    policy,
+    /form-action 'self' https:\/\/magicbrain\.es(?:;|$)/,
+  );
+  assert.equal(new URL(destination).origin, "https://magicbrain.es");
+  assert.doesNotMatch(policy, /form-action[^;]*\*/);
+  assert.doesNotMatch(policy, /form-action[^;]*\shttps:(?:\s|;|$)/);
+  assert.doesNotMatch(policy, /claude\.(?:ai|com)/);
+});
+
+test("opaque or noncanonical contexts retain an explicit canonical source", () => {
+  const policy = consentContentSecurityPolicy("nonce", "https://magicbrain.es/");
+  const formAction = policy.match(/form-action ([^;]+)/)?.[1] ?? "";
+  assert.equal(formAction, "'self' https://magicbrain.es");
+  assert.equal(trustedOAuthAppOrigin("null"), "https://magicbrain.es");
+  assert.equal(
+    trustedOAuthAppOrigin("https://untrusted.example"),
+    "https://magicbrain.es",
+  );
+  assert.equal(
+    trustedOAuthAppOrigin("http://localhost:3000"),
+    "http://localhost:3000",
+  );
+});
+
+test("authorize route uses the strict consent CSP builder", async () => {
   const route = await readFile(
     new URL("../app/oauth/authorize/route.ts", import.meta.url),
     "utf8",
   );
-  assert.match(route, /form-action 'self'/);
-  assert.doesNotMatch(route, /form-action https?:/);
+  assert.match(route, /consentContentSecurityPolicy\(nonce\)/);
+  assert.match(route, /consentContentSecurityPolicy\(\)/);
 });
