@@ -43,6 +43,10 @@ test(
           };
           bitmap.close();
           if (window.__bulkMode) {
+            (window.__bulkOcrImageSizes ??= []).push({
+              width: window.__scannerImageSize.width,
+              height: window.__scannerImageSize.height,
+            });
             const call = (window.__bulkOcrCalls = (window.__bulkOcrCalls ?? 0) + 1);
             await new Promise((resolve) => setTimeout(resolve, 2_500));
             return {
@@ -323,29 +327,54 @@ test(
       await page.evaluate(() => {
         window.__bulkMode = true;
         const canvas = document.createElement("canvas");
-        canvas.width = 630;
-        canvas.height = 880;
+        canvas.width = 1280;
+        canvas.height = 720;
         const context = canvas.getContext("2d");
         window.__bulkDraw = (mode, variant = 0) => {
           context.fillStyle = mode === "dark" ? "#050505" : "#444";
           context.fillRect(0, 0, canvas.width, canvas.height);
           if (mode === "none") return;
+          if (mode === "person") {
+            context.fillStyle = "#c78f70";
+            context.beginPath();
+            context.ellipse(640, 330, 175, 245, 0, 0, Math.PI * 2);
+            context.fill();
+            context.fillStyle = "#30251f";
+            context.fillRect(550, 300, 40, 18);
+            context.fillRect(690, 300, 40, 18);
+            window.__bulkTrack?.requestFrame?.();
+            return;
+          }
           const offset = mode === "moving" ? (variant % 2 ? 28 : -28) : 0;
-          context.fillStyle = mode === "dark" ? "#181818" : mode === "second" ? "#d6e7ff" : "#eee4cc";
-          context.fillRect(55 + offset, 55, 520, 726);
-          context.lineWidth = 14;
-          context.strokeStyle = mode === "dark" ? "#dddddd" : "#111";
-          context.strokeRect(55 + offset, 55, 520, 726);
-          context.fillStyle = mode === "dark" ? "#777" : "#181818";
-          context.font = "bold 42px serif";
-          context.fillText(mode === "second" ? "Relámpago" : "Dragón de fuego", 85 + offset, 120);
-          for (let y = 170; y < 700; y += 38) context.fillRect(90 + offset, y, 420, 3);
+          const borderless = mode === "borderless";
+          context.fillStyle = mode === "dark" ? "#181818" : mode === "second" ? "#d6e7ff" : borderless ? "#747a70" : "#eee4cc";
+          context.fillRect(404 + offset, 28, 472, 664);
+          if (!borderless) {
+            context.lineWidth = 10;
+            context.strokeStyle = mode === "dark" ? "#dddddd" : "#111";
+            context.strokeRect(404 + offset, 28, 472, 664);
+          }
+          context.fillStyle = mode === "dark" ? "#777" : borderless ? "#3e443d" : "#181818";
+          context.font = "bold 34px serif";
+          context.fillText(mode === "second" ? "Relámpago" : borderless ? "Bosque antiguo" : "Dragón de fuego", 430 + offset, 82);
+          for (let y = 125; y < 650; y += 34) context.fillRect(435 + offset, y, 390, borderless ? 2 : 3);
           window.__bulkTrack?.requestFrame?.();
         };
         window.__bulkDraw("dark");
-        navigator.mediaDevices.getUserMedia = async () => {
+        navigator.mediaDevices.enumerateDevices = async () => [
+          { kind: "videoinput", deviceId: "rear", groupId: "synthetic", label: "Rear camera" },
+          { kind: "videoinput", deviceId: "front", groupId: "synthetic", label: "Front camera" },
+        ];
+        navigator.mediaDevices.getUserMedia = async (constraints) => {
+          const requestedId = constraints.video?.deviceId?.exact ?? "rear";
           const stream = canvas.captureStream(15);
           window.__bulkTrack = stream.getVideoTracks()[0];
+          window.__bulkTrack.getSettings = () => ({
+            deviceId: requestedId,
+            facingMode: requestedId === "front" ? "user" : "environment",
+            width: 1280,
+            height: 720,
+          });
           window.__bulkDraw("dark");
           clearInterval(window.__bulkTicker);
           window.__bulkTicker = setInterval(() => {
@@ -360,8 +389,49 @@ test(
       await page.getByLabel("Destination list").selectOption("00000000-0000-4000-8000-000000000002");
       await page.getByRole("button", { name: "Bulk scan" }).click();
       await page.getByLabel("Bulk scan camera preview").waitFor();
-      await page.getByText("Too dark", { exact: true }).waitFor();
+      await page.locator('[data-guidance="too_dark"]').waitFor();
       const queueRegion = page.getByLabel("Scan queue");
+      assert.equal(await queueRegion.locator("article").count(), 0);
+      const assertPreviewFillsFrame = async () => {
+        const layout = await page.getByLabel("Bulk scan camera preview").evaluate((video) => {
+          const viewport = video.parentElement;
+          const overlay = viewport.querySelector("canvas");
+          const guide = viewport.querySelector('[class*="frame"]');
+          const box = (element) => {
+            const bounds = element.getBoundingClientRect();
+            return { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height };
+          };
+          const style = getComputedStyle(video);
+          return {
+            video: box(video),
+            viewport: box(viewport),
+            overlay: box(overlay),
+            guide: box(guide),
+            position: style.position,
+            objectFit: style.objectFit,
+          };
+        });
+        assert.equal(layout.position, "absolute");
+        assert.equal(layout.objectFit, "cover");
+        assert.ok(Math.abs(layout.video.width - layout.viewport.width) <= 2.1, JSON.stringify(layout));
+        assert.ok(Math.abs(layout.video.height - layout.viewport.height) <= 2.1, JSON.stringify(layout));
+        assert.ok(Math.abs(layout.overlay.width - layout.viewport.width) <= 2.1);
+        assert.ok(Math.abs(layout.overlay.height - layout.viewport.height) <= 2.1);
+        assert.ok(layout.guide.height > layout.guide.width);
+        assert.ok(layout.guide.height > layout.viewport.height * 0.9);
+      };
+      await assertPreviewFillsFrame();
+      await page.setViewportSize({ width: 1100, height: 820 });
+      await assertPreviewFillsFrame();
+      await page.screenshot({ path: "/tmp/magic-brain-bulk-scanner-desktop-landscape-fill.png" });
+      await page.setViewportSize({ width: 390, height: 844 });
+      await assertPreviewFillsFrame();
+
+      await page.evaluate(() => window.__bulkDraw("none"));
+      await page.waitForTimeout(1_200);
+      assert.equal(await queueRegion.locator("article").count(), 0);
+      await page.evaluate(() => window.__bulkDraw("person"));
+      await page.waitForTimeout(1_500);
       assert.equal(await queueRegion.locator("article").count(), 0);
 
       for (let frame = 0; frame < 6; frame += 1) {
@@ -370,8 +440,12 @@ test(
       }
       assert.equal(await queueRegion.locator("article").count(), 0);
       await page.evaluate(() => window.__bulkDraw("first"));
-      await page.waitForFunction(() => document.querySelectorAll('[aria-label="Scan queue"] article').length === 1);
+      await page.waitForFunction(() => document.querySelectorAll('[aria-label="Scan queue"] article').length === 1).catch(async () => {
+        throw new Error(`First card was not queued: ${JSON.stringify(await page.evaluate(() => window.__bulkScanDebug))}`);
+      });
       assert.equal(await page.evaluate(() => window.__bulkTrack.readyState), "live");
+      assert.deepEqual((await page.evaluate(() => window.__bulkOcrImageSizes))[0], { width: 756, height: 1056 });
+      await page.screenshot({ path: "/tmp/magic-brain-bulk-scanner-mobile-detected.png" });
 
       await page.evaluate(() => window.__bulkDraw("none"));
       await page.waitForTimeout(700);
@@ -384,7 +458,9 @@ test(
       await page.evaluate(() => window.__bulkDraw("none"));
       await page.waitForTimeout(1_500);
       await page.evaluate(() => window.__bulkDraw("second"));
-      await page.waitForFunction(() => document.querySelectorAll('[aria-label="Scan queue"] article').length === 3);
+      await page.waitForFunction(() => document.querySelectorAll('[aria-label="Scan queue"] article').length === 3).catch(async () => {
+        throw new Error(`Duplicate was not queued: ${JSON.stringify(await page.evaluate(() => window.__bulkScanDebug))}`);
+      });
       await page.waitForFunction(() => {
         const items = document.querySelectorAll('[aria-label="Scan queue"] article');
         return items.length === 2 && [...items].some((item) => item.textContent?.includes("Duplicate copy aggregated"));
@@ -401,6 +477,16 @@ test(
       assert.equal(batchPost.batch.items.length, 2);
       assert.equal(batchPost.batch.items.reduce((sum, item) => sum + item.quantity, 0), 3);
       assert.match(batchPost.idempotencyKey, /^[0-9a-f-]{36}$/);
+      await page.evaluate(() => window.__bulkDraw("none"));
+      await page.waitForTimeout(700);
+      await page.evaluate(() => window.__bulkDraw("borderless"));
+      await page.waitForFunction(() => {
+        const queueLength = document.querySelectorAll('[aria-label="Scan queue"] article').length;
+        const status = document.querySelector('[data-guidance]')?.textContent ?? "";
+        return queueLength > 0 || /Moderate edges|Bordes suaves|Align card|Alinea/.test(status);
+      }).catch(async () => {
+        throw new Error(`Borderless guidance missing: ${JSON.stringify(await page.evaluate(() => window.__bulkScanDebug))}`);
+      });
     } finally {
       await browser?.close();
       server.kill("SIGTERM");

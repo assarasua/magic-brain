@@ -78,6 +78,7 @@ test("camera viewport preserves a large portrait card ratio", async () => {
     "utf8",
   );
   assert.match(css, /\.cameraViewport\s*\{[\s\S]*aspect-ratio:\s*63\s*\/\s*88/);
-  assert.match(css, /\.camera video\s*\{[\s\S]*object-fit:\s*cover/);
+  assert.match(css, /\.cameraViewport > video\s*\{[\s\S]*object-fit:\s*cover/);
+  assert.match(css, /\.analysisOverlay\s*\{[\s\S]*pointer-events:\s*none/);
   assert.match(css, /safe-area-inset-bottom/);
 });
