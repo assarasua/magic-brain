@@ -133,43 +133,100 @@
 }
 
 .camera {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.cameraViewport {
   position: relative;
-  display: grid;
-  justify-items: center;
+  width: min(100%, 440px);
+  aspect-ratio: 63 / 88;
   overflow: hidden;
-  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
   background: #05070a;
 }
 
 .camera video {
+  position: absolute;
+  inset: 0;
   width: 100%;
-  max-height: 62dvh;
-  object-fit: contain;
+  height: 100%;
+  object-fit: cover;
 }
 
 .frame {
   position: absolute;
-  inset: 8% 18% 19%;
+  inset: 3%;
   border: 2px solid rgba(237, 208, 142, 0.9);
-  border-radius: 15px;
-  box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.25);
+  border-radius: 14px;
+  box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.18);
   pointer-events: none;
 }
 
 .camera p {
-  position: absolute;
-  bottom: 62px;
   margin: 0;
-  padding: 6px 10px;
-  border-radius: 99px;
-  color: white;
-  background: rgba(0, 0, 0, 0.68);
+  color: #aeb8c5;
+  font-size: 11px;
+  text-align: center;
+}
+
+.cameraStatus {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #dce3eb;
+  background: rgba(5, 7, 10, 0.72);
   font-size: 11px;
 }
 
-.camera > button {
-  position: absolute;
-  bottom: 12px;
+.cameraViewport[data-ready="true"] .cameraStatus {
+  display: none;
+}
+
+.cameraActions {
+  display: flex;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+}
+
+.cameraActions button {
+  min-height: 46px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9px;
+  color: #cbd4df;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+}
+
+.captureReview {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.captureReview img {
+  width: min(100%, 440px);
+  aspect-ratio: 63 / 88;
+  object-fit: contain;
+  border-radius: 18px;
+  background: #05070a;
+}
+
+.captureReview span {
+  color: #8793a1;
+  font-size: 10px;
+}
+
+.captureReview .actions {
+  width: min(100%, 440px);
+  margin-top: 4px;
 }
 
 .primary,
@@ -209,11 +266,11 @@
 }
 
 .progress img {
-  width: 100px;
-  height: 140px;
-  object-fit: cover;
-  border-radius: 8px;
-  opacity: 0.55;
+  width: min(260px, 70vw);
+  aspect-ratio: 63 / 88;
+  object-fit: contain;
+  border-radius: 12px;
+  opacity: 0.72;
 }
 
 .progress progress {
@@ -410,6 +467,32 @@
 
   .preview {
     max-height: 230px;
+  }
+
+  .cameraViewport {
+    width: min(
+      calc(100vw - 30px),
+      calc((100dvh - 245px - env(safe-area-inset-bottom)) * 63 / 88),
+      430px
+    );
+  }
+
+  .captureReview img {
+    width: min(
+      calc(100vw - 30px),
+      calc((100dvh - 245px - env(safe-area-inset-bottom)) * 63 / 88),
+      430px
+    );
+    max-height: calc(100dvh - 245px - env(safe-area-inset-bottom));
+  }
+
+  .cameraActions {
+    position: sticky;
+    bottom: env(safe-area-inset-bottom);
+  }
+
+  .cameraActions button {
+    flex: 1;
   }
 
   .details .settings {

@@ -53,3 +53,31 @@ test("confirmation posts a separate holding and offers scan-next", async () => {
   assert.match(scanner, /setStage\("success"\)/);
   assert.doesNotMatch(scanner, /body:\s*(image|preview|file|blob)/i);
 });
+
+test("camera lifecycle waits for the mounted video and usable metadata", async () => {
+  const scanner = await readFile(
+    new URL("src/components/card-scanner-modal.tsx", root),
+    "utf8",
+  );
+  assert.match(scanner, /stage !== "camera"/);
+  assert.match(scanner, /video\.srcObject = stream/);
+  assert.match(scanner, /loadedmetadata/);
+  assert.match(scanner, /videoWidth > 0/);
+  assert.match(scanner, /autoPlay/);
+  assert.match(scanner, /playsInline/);
+  assert.match(scanner, /disabled=\{!cameraReady \|\| capturing\}/);
+  assert.match(scanner, /video: true/);
+  assert.match(scanner, /"review"/);
+  assert.match(scanner, /Recognize/);
+  assert.match(scanner, /Retake/);
+});
+
+test("camera viewport preserves a large portrait card ratio", async () => {
+  const css = await readFile(
+    new URL("src/components/card-scanner-modal.module.css", root),
+    "utf8",
+  );
+  assert.match(css, /\.cameraViewport\s*\{[\s\S]*aspect-ratio:\s*63\s*\/\s*88/);
+  assert.match(css, /\.camera video\s*\{[\s\S]*object-fit:\s*cover/);
+  assert.match(css, /safe-area-inset-bottom/);
+});
