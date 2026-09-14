@@ -5,6 +5,12 @@
   "compatibility_date": "2026-09-12",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
+  "services": [
+    {
+      "binding": "MAGIC_BRAIN_WEB",
+      "service": "magic-brain"
+    }
+  ],
   "observability": {
     "enabled": true
   }

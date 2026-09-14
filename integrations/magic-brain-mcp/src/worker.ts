@@ -18,6 +18,9 @@ type WorkerEnv = {
   MAGIC_BRAIN_MCP_INTROSPECTION_CLIENT_ID?: string;
   MAGIC_BRAIN_MCP_INTROSPECTION_SECRET?: string;
   MAGIC_BRAIN_MCP_DELEGATION_SECRET?: string;
+  MAGIC_BRAIN_WEB?: {
+    fetch(request: Request): Promise<Response>;
+  };
 };
 
 const allowedOrigins = new Set([
@@ -109,7 +112,10 @@ const worker = {
     if (authorization) {
       try {
         authInfo = await verifyBearerToken(authorization, {
-          verifier: new MagicBrainTokenVerifier(config),
+          verifier: new MagicBrainTokenVerifier(
+            config,
+            introspectionFetch(env.MAGIC_BRAIN_WEB),
+          ),
           requiredScopes,
           resourceMetadataUrl,
         });
@@ -246,7 +252,7 @@ function corsHeaders(origin: string | null): Headers {
     "Access-Control-Allow-Headers":
       "content-type, authorization, mcp-protocol-version, mcp-session-id",
     "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-    "Access-Control-Expose-Headers": "mcp-session-id",
+    "Access-Control-Expose-Headers": "mcp-session-id, www-authenticate",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
   });
@@ -254,6 +260,14 @@ function corsHeaders(origin: string | null): Headers {
     headers.set("Access-Control-Allow-Origin", origin);
   }
   return headers;
+}
+
+function introspectionFetch(
+  service: WorkerEnv["MAGIC_BRAIN_WEB"],
+): typeof fetch {
+  if (!service) return fetch;
+  return ((input: RequestInfo | URL, init?: RequestInit) =>
+    service.fetch(new Request(input, init))) as typeof fetch;
 }
 
 function json(body: unknown, status = 200): Response {
