@@ -1,4 +1,9 @@
 import { query } from "@/lib/db";
+import {
+  normalizeMatchConfidence,
+  type CardScanHints,
+  type CardScanMatchReason,
+} from "@/lib/card-scan-model";
 
 export type CatalogCard = {
   id: string;
@@ -15,6 +20,11 @@ export type CatalogCard = {
   change7d: number | null;
   change30d?: number | null;
   priceDate: string | null;
+};
+
+export type IdentifiedCatalogCard = CatalogCard & {
+  confidence: number;
+  reason: CardScanMatchReason;
 };
 
 type CatalogRow = {
@@ -337,6 +347,101 @@ export async function searchCatalog(
   );
 
   return rows.map(mapCard);
+}
+
+export async function identifyCatalogCard(
+  scan: CardScanHints,
+  limit = 6,
+): Promise<IdentifiedCatalogCard[]> {
+  const { rows } = await query<
+    CatalogRow & {
+      confidence: string;
+      match_reason: IdentifiedCatalogCard["reason"];
+    }
+  >(
+    `
+      with dates as (
+        select max(date) as latest_date from prices where source = 'mtgjson'
+      ),
+      candidates as (
+        select
+          c.scryfall_id::text as id,
+          c.name,
+          c.set_code,
+          c.set_name,
+          c.collector_number,
+          c.rarity,
+          c.type_line,
+          coalesce(c.image_url, c.image_uris->>'normal') as image_url,
+          c.cardmarket_id,
+          latest.eur as price,
+          latest.eur_foil as foil_price,
+          latest.date::text as price_date,
+          null::numeric as change_7d,
+          (
+            case when c.lang = $2 then 0.12 else 0 end +
+            case
+              when $3::text is not null and $4::text is not null
+                and lower(c.set_code) = $3
+                and lower(regexp_replace(c.collector_number, '[^a-zA-Z0-9★*+/-]', '', 'g')) = $4
+              then 1
+              when $4::text is not null
+                and lower(regexp_replace(c.collector_number, '[^a-zA-Z0-9★*+/-]', '', 'g')) = $4
+              then .45
+              else 0
+            end +
+            greatest(
+              similarity(lower(c.name), $1),
+              word_similarity(lower(c.name), $1)
+            ) * .43
+          ) as confidence,
+          case
+            when $3::text is not null and $4::text is not null
+              and lower(c.set_code) = $3 and c.lang = $2
+              and lower(regexp_replace(c.collector_number, '[^a-zA-Z0-9★*+/-]', '', 'g')) = $4
+            then 'exact_print'
+            when $4::text is not null
+              and lower(regexp_replace(c.collector_number, '[^a-zA-Z0-9★*+/-]', '', 'g')) = $4
+            then 'collector_match'
+            else 'name_match'
+          end as match_reason
+        from cards c
+        cross join dates
+        left join prices latest
+          on latest.scryfall_id = c.scryfall_id
+          and latest.source = 'mtgjson'
+          and latest.date = dates.latest_date
+        where
+          (
+            ($3::text is not null and $4::text is not null
+              and c.lang = $2
+              and lower(c.set_code) = $3
+              and lower(regexp_replace(c.collector_number, '[^a-zA-Z0-9★*+/-]', '', 'g')) = $4)
+            or lower(c.name) % $1
+            or word_similarity(lower(c.name), $1) > .32
+          )
+      )
+      select *
+      from candidates
+      order by
+        (match_reason = 'exact_print') desc,
+        confidence desc,
+        price desc nulls last
+      limit $5
+    `,
+    [
+      scan.text.toLowerCase(),
+      scan.language,
+      scan.setCode ?? null,
+      scan.collectorNumber ?? null,
+      Math.max(1, Math.min(limit, 10)),
+    ],
+  );
+  return rows.map((row) => ({
+    ...mapCard(row),
+    confidence: normalizeMatchConfidence(Number(row.confidence), row.match_reason),
+    reason: row.match_reason,
+  }));
 }
 
 export async function getMarketMovers(

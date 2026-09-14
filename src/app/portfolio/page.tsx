@@ -12,6 +12,7 @@ import {
   FolderInput,
   Pencil,
   Plus,
+  ScanLine,
   Search,
   Share2,
   Trash2,
@@ -21,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { AuthControl } from "@/components/auth-control";
@@ -53,6 +55,14 @@ import {
   type PortfolioOpportunityClassification,
 } from "@/lib/portfolio-model";
 import styles from "./portfolio.module.css";
+
+const CardScannerModal = dynamic(
+  () =>
+    import("@/components/card-scanner-modal").then(
+      (module) => module.CardScannerModal,
+    ),
+  { ssr: false },
+);
 
 type PortfolioData = {
   lists: PortfolioList[];
@@ -322,6 +332,7 @@ export default function PortfolioPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [addDestinationListId, setAddDestinationListId] = useState("");
   const [showImport, setShowImport] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   const [requestedCardId, setRequestedCardId] = useState("");
   const [cardQuery, setCardQuery] = useState("");
   const [results, setResults] = useState<CatalogCard[]>([]);
@@ -1195,6 +1206,7 @@ export default function PortfolioPage() {
         <div className="account-heading">
           <div><span className="eyebrow">{locale === "es" ? "TUS CARTAS Y EDICIONES" : "YOUR CARDS AND PRINTINGS"}</span><h1>{t("My portfolio")}</h1><p>{locale === "es" ? "Organiza tus copias y consulta su valor con precios de mercado observados." : "Organize your copies and understand their value with observed market prices."}</p></div>
           <div className={styles.headingActions}>
+            <button className={styles.importButton} onClick={() => setShowScanner(true)}><ScanLine size={16} /> {locale === "es" ? "Escanear cartas" : "Scan cards"}</button>
             <button className={styles.importButton} onClick={() => setShowImport(true)}><Upload size={16} /> {locale === "es" ? "Importar" : "Import"}</button>
             <button ref={addButtonRef} className="primary-button" onClick={() => setShowAdd(true)}><Plus size={16} /> {t("Add holding")}</button>
           </div>
@@ -1618,6 +1630,17 @@ export default function PortfolioPage() {
           onClose={() => setShowImport(false)}
           onComplete={async () => {
             await loadPortfolio(data.selectedListId);
+          }}
+        />
+      )}
+      {showScanner && (
+        <CardScannerModal
+          locale={locale}
+          lists={data.lists}
+          selectedListId={data.selectedListId}
+          onClose={() => setShowScanner(false)}
+          onComplete={async (listId) => {
+            await loadPortfolio(listId);
           }}
         />
       )}

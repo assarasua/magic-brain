@@ -1,0 +1,276 @@
+import assert from "node:assert/strict";
+import { access } from "node:fs/promises";
+import { createServer } from "node:net";
+import { spawn } from "node:child_process";
+import test from "node:test";
+import { chromium } from "playwright-core";
+
+const root = new URL("../../", import.meta.url);
+
+test(
+  "scanner uses mocked camera and sends only OCR text for multilingual upload",
+  { timeout: 120_000 },
+  async () => {
+    const port = await availablePort();
+    const server = spawn(
+      process.execPath,
+      ["node_modules/next/dist/bin/next", "dev", "-p", String(port)],
+      {
+        cwd: root,
+        env: {
+          ...process.env,
+          AUTH_SECRET: "synthetic-browser-test-secret-32-characters",
+          NEXT_TELEMETRY_DISABLED: "1",
+        },
+      },
+    );
+    let browser;
+    try {
+      await waitForServer(`http://localhost:${port}`);
+      browser = await chromium.launch({
+        executablePath: await chromiumExecutable(),
+        headless: true,
+        args: ["--no-sandbox", "--use-fake-ui-for-media-stream"],
+      });
+      const page = await browser.newPage();
+      await page.addInitScript(() => {
+        window.__magicBrainTestRecognizeCard = async (source, language) => {
+          window.__scannerUploadType = source.type;
+          return {
+            text: "Dragón de fuego SET TST Collector 123/300",
+            language,
+            setCode: "tst",
+            collectorNumber: "123",
+            confidence: 92,
+          };
+        };
+        const canvas = document.createElement("canvas");
+        canvas.width = 640;
+        canvas.height = 900;
+        const context = canvas.getContext("2d");
+        context.fillStyle = "white";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.fillStyle = "black";
+        context.font = "42px sans-serif";
+        context.fillText("Dragón de fuego", 40, 80);
+        context.font = "26px sans-serif";
+        context.fillText("SET: TST Collector #123/300", 40, 760);
+        const stream = canvas.captureStream(5);
+        Object.defineProperty(navigator, "mediaDevices", {
+          configurable: true,
+          value: {
+            getUserMedia: async () => {
+              window.__scannerCameraRequested = true;
+              window.__scannerTrack = stream.getVideoTracks()[0];
+              return stream;
+            },
+          },
+        });
+      });
+
+      const portfolio = emptyPortfolio();
+      const holdingPosts = [];
+      await page.route("**/api/auth/session*", async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            user: { id: "synthetic-user", name: "Scanner Test" },
+            expires: "2099-01-01T00:00:00.000Z",
+            preferencesOnboardingCompleted: true,
+          }),
+        });
+      });
+      await page.route("**/api/account", async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            preferencesOnboardingCompleted: true,
+            productTourCompleted: true,
+            preferences: {},
+          }),
+        });
+      });
+      await page.route("**/api/portfolio*", async (route) => {
+        if (route.request().method() === "POST") {
+          holdingPosts.push(route.request().postDataJSON());
+          await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(portfolio) });
+        } else {
+          await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(portfolio) });
+        }
+      });
+      let identifyBody;
+      await page.route("**/api/cards/identify", async (route) => {
+        identifyBody = route.request().postDataJSON();
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            candidates: [{
+              id: "00000000-0000-4000-8000-000000000123",
+              name: "Dragón de fuego",
+              setCode: "tst",
+              setName: "Synthetic Set",
+              collectorNumber: "123",
+              rarity: "rare",
+              typeLine: "Creature",
+              imageUrl: null,
+              cardmarketId: null,
+              price: 2.5,
+              foilPrice: null,
+              change7d: null,
+              priceDate: null,
+              confidence: 0.99,
+              reason: "exact_print",
+            }],
+          }),
+        });
+      });
+      await page.route("**/api/cards/search?**", async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            cards: [{
+              id: "00000000-0000-4000-8000-000000000124",
+              name: "Relámpago",
+              setCode: "lea",
+              setName: "Limited Edition Alpha",
+              collectorNumber: "161",
+              rarity: "common",
+              typeLine: "Instant",
+              imageUrl: null,
+              cardmarketId: null,
+              price: 3,
+              foilPrice: null,
+              change7d: null,
+              priceDate: null,
+            }],
+          }),
+        });
+      });
+
+      await page.goto(`http://localhost:${port}/portfolio`);
+      await page.waitForTimeout(1_000);
+      const scanButton = page.locator("button").filter({ hasText: "Scan cards" });
+      if (!await scanButton.count()) {
+        throw new Error(`Scanner action missing at ${page.url()}: ${(await page.locator("body").innerText()).slice(0, 500)}`);
+      }
+      await scanButton.click();
+      await page.getByLabel("Printed language").selectOption("es");
+      await page.getByLabel("Destination list").selectOption("00000000-0000-4000-8000-000000000002");
+      await page.getByRole("button", { name: "Use camera" }).click();
+      await page.getByLabel("Camera preview").waitFor();
+      assert.equal(await page.evaluate(() => window.__scannerCameraRequested), true);
+
+      await page.getByRole("button", { name: "Close" }).click();
+      assert.equal(await page.evaluate(() => window.__scannerTrack.readyState), "ended");
+      await page.locator("button").filter({ hasText: "Scan cards" }).click();
+      await page.getByLabel("Printed language").selectOption("es");
+      await page.getByLabel("Destination list").selectOption("00000000-0000-4000-8000-000000000002");
+      await page.evaluate(() => {
+        navigator.mediaDevices.getUserMedia = async () => {
+          throw new DOMException("Denied", "NotAllowedError");
+        };
+      });
+      await page.getByRole("button", { name: "Use camera" }).click();
+      await page.getByRole("alert").filter({ hasText: "Camera access was denied" }).waitFor();
+      const png = await page.evaluate(() => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 700;
+        canvas.height = 980;
+        const context = canvas.getContext("2d");
+        context.fillStyle = "white";
+        context.fillRect(0, 0, 700, 980);
+        context.fillStyle = "black";
+        context.font = "bold 52px sans-serif";
+        context.fillText("Dragón de fuego", 45, 100);
+        context.font = "30px sans-serif";
+        context.fillText("SET: TST", 45, 760);
+        context.fillText("Collector #123/300", 45, 820);
+        return canvas.toDataURL("image/png").split(",")[1];
+      });
+      await page.locator('input[type="file"]').setInputFiles({
+        name: "synthetic-spanish-card.png",
+        mimeType: "image/png",
+        buffer: Buffer.from(png, "base64"),
+      });
+      await page.getByRole("heading", { name: "Confirm the exact printing" }).waitFor({ timeout: 10_000 }).catch(async () => {
+        throw new Error(`Scanner did not reach confirmation: ${(await page.getByRole("dialog").innerText()).slice(0, 800)}`);
+      });
+      assert.equal(identifyBody.language, "es");
+      assert.equal(await page.evaluate(() => window.__scannerUploadType), "image/png");
+      assert.equal(typeof identifyBody.text, "string");
+      assert.ok(identifyBody.text.length > 0);
+      assert.deepEqual(Object.keys(identifyBody).sort().filter((key) => identifyBody[key] !== undefined), ["collectorNumber", "language", "setCode", "text"].filter((key) => identifyBody[key] !== undefined).sort());
+      assert.doesNotMatch(JSON.stringify(identifyBody), /data:image|base64|synthetic-spanish-card/i);
+      await page.getByLabel("Not correct? Search manually").fill("Relámpago");
+      await page.getByRole("button", { name: /Relámpago/ }).click();
+      await page.setViewportSize({ width: 390, height: 844 });
+      const bounds = await page.getByRole("dialog").boundingBox();
+      assert.ok(bounds && bounds.width <= 390 && bounds.height <= 844);
+      await page.getByRole("button", { name: "Confirm and add" }).click();
+      await page.getByRole("button", { name: "Scan next card" }).waitFor();
+      assert.equal(holdingPosts.length, 1);
+      assert.equal(holdingPosts[0].cardId, "00000000-0000-4000-8000-000000000124");
+      assert.equal(holdingPosts[0].listId, "00000000-0000-4000-8000-000000000002");
+      assert.equal("photo" in holdingPosts[0], false);
+    } finally {
+      await browser?.close();
+      server.kill("SIGTERM");
+    }
+  },
+);
+
+function emptyPortfolio() {
+  return {
+    lists: [
+      { id: "00000000-0000-4000-8000-000000000001", name: "Collection", isDefault: true, holdingCount: 0 },
+      { id: "00000000-0000-4000-8000-000000000002", name: "Trade binder", isDefault: false, holdingCount: 0 },
+    ],
+    selectedListId: "00000000-0000-4000-8000-000000000001",
+    holdings: [],
+    recentSales: [],
+    summary: { invested: 0, value: 0, gain: 0, gainPercent: 0, unrealizedGain: 0, unrealizedGainPercent: null, valuedInvested: 0, unpricedInvested: 0, pricedHoldings: 0, unpricedHoldings: 0, zeroCostHoldings: 0, pricingCoveragePercent: 0, winners: 0, losers: 0, flat: 0, bestContributor: null, worstContributor: null, cardCount: 0, realizedProceeds: 0, realizedCostBasis: 0, realizedPnl: 0, saleCount: 0 },
+    history: [],
+    forecast: { asOfDate: "2026-09-14", dataDate: null, source: "unavailable", modelVersion: null, confidence: "low", coverage: { forecastableHoldings: 0, totalHoldings: 0, projectedValuePercent: 0, staleCarriedHoldings: 0, excludedHoldings: 0, mlValuePercent: 0 }, assumptions: { annualBaseRatePercent: 0, annualVolatilityPercent: 0, compoundingCapPercent: 200 }, points: [] },
+    opportunities: { comparableHoldings: 0, coveragePercent: 0, classifications: { strong_growth: { count: 0, holdingsPercent: 0, marketValue: 0, exposurePercent: 0 }, recovery_opportunity: { count: 0, holdingsPercent: 0, marketValue: 0, exposurePercent: 0 }, lost_momentum: { count: 0, holdingsPercent: 0, marketValue: 0, exposurePercent: 0 } } },
+  };
+}
+
+async function availablePort() {
+  const server = createServer();
+  await new Promise((resolve, reject) => server.listen(0, "127.0.0.1", (error) => error ? reject(error) : resolve()));
+  const address = server.address();
+  const port = typeof address === "object" && address ? address.port : 0;
+  await new Promise((resolve) => server.close(resolve));
+  return port;
+}
+
+async function waitForServer(url) {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    try {
+      const response = await fetch(url);
+      if (response.ok) return;
+    } catch {}
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error("Next.js development server did not start");
+}
+
+async function chromiumExecutable() {
+  const candidates = [
+    process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium",
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    try {
+      await access(candidate);
+      return candidate;
+    } catch {}
+  }
+  throw new Error("Chromium is required");
+}
