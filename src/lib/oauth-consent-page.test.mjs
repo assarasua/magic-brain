@@ -1,18 +1,25 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   renderOAuthConsentErrorPage,
   renderOAuthConsentPage,
 } from "./oauth-consent-page.ts";
 
-test("renders a browser-native consent form with complete fallback fields", () => {
+test("renders a same-document consent form with complete fallback fields", () => {
   const html = renderOAuthConsentPage({
     clientName: "Claude",
     scopes: ["lists:read"],
     requestToken: "opaque-request",
     nonce: "nonce",
   });
-  assert.match(html, /<form id="consent-form" method="post" action="\/oauth\/authorize">/);
+  assert.match(html, /<form id="consent-form" method="post" action="">/);
+  assert.doesNotMatch(html, /<base\b/i);
+  const action = html.match(/<form[^>]* action="([^"]*)"/)?.[1];
+  assert.equal(action, "");
+  const effectivePage =
+    "https://noncanonical.example/oauth/authorize?client_id=test";
+  assert.equal(new URL(action, effectivePage).origin, new URL(effectivePage).origin);
   assert.match(html, /name="consent_request" value="opaque-request"/);
   assert.match(html, /name="decision_button"[^>]+value="allow"/);
   assert.match(html, /name="decision_button"[^>]+value="deny"/);
@@ -44,4 +51,13 @@ test("expired consent renders friendly reconnect UX without raw JSON", () => {
   assert.match(html, /Open reconnect instructions/);
   assert.match(html, /\/developers#mcp/);
   assert.doesNotMatch(html, /"error"\s*:/);
+});
+
+test("authorize route keeps form submissions restricted to self", async () => {
+  const route = await readFile(
+    new URL("../app/oauth/authorize/route.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(route, /form-action 'self'/);
+  assert.doesNotMatch(route, /form-action https?:/);
 });
