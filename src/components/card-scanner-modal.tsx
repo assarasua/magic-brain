@@ -2,16 +2,17 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { Camera, Check, ImagePlus, RefreshCw, Search, ShieldCheck, X } from "lucide-react";
+import { Camera, Check, ImagePlus, Layers3, RefreshCw, Search, ShieldCheck, X } from "lucide-react";
 import { ChangeEvent, FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import { CARD_LANGUAGES, type CardLanguage } from "@/lib/card-languages";
 import type { CatalogCard, IdentifiedCatalogCard } from "@/lib/catalog";
 import { recognizeCardImage } from "@/lib/card-scan";
 import type { PortfolioList } from "@/lib/portfolio";
 import { formatCurrency } from "@/lib/data";
+import { BulkCardScanner } from "./bulk-card-scanner";
 import styles from "./card-scanner-modal.module.css";
 
-type Stage = "choose" | "camera" | "review" | "recognizing" | "confirm" | "success" | "error";
+type Stage = "choose" | "bulk" | "camera" | "review" | "recognizing" | "confirm" | "success" | "error";
 
 type Props = {
   locale: "en" | "es";
@@ -452,10 +453,23 @@ export function CardScannerModal({
             </div>
             {message && <p className={styles.warning} role="alert">{message}</p>}
             <div className={styles.captureChoices}>
+              <button type="button" onClick={() => setStage("bulk")}><Layers3 size={24} /><strong>{locale === "es" ? "Escaneo masivo" : "Bulk scan"}</strong><span>{locale === "es" ? "Detección y captura automáticas" : "Automatic detection and capture"}</span></button>
               <button type="button" onClick={() => void beginCamera()}><Camera size={24} /><strong>{locale === "es" ? "Usar cámara" : "Use camera"}</strong><span>{locale === "es" ? "Cámara trasera si está disponible" : "Rear camera when available"}</span></button>
               <button type="button" onClick={() => fileRef.current?.click()}><ImagePlus size={24} /><strong>{locale === "es" ? "Subir foto" : "Upload photo"}</strong><span>{locale === "es" ? "JPG, PNG o WebP · máx. 15 MB" : "JPG, PNG, or WebP · max 15 MB"}</span></button>
             </div>
           </>
+        )}
+
+        {stage === "bulk" && (
+          <BulkCardScanner
+            locale={locale}
+            language={language}
+            listId={listId}
+            listName={lists.find((list) => list.id === listId)?.name ?? ""}
+            onUpload={() => fileRef.current?.click()}
+            onManualMode={() => setStage("choose")}
+            onComplete={onComplete}
+          />
         )}
 
         {stage === "camera" && (

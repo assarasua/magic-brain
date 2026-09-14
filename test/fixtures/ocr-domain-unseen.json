@@ -1,0 +1,151 @@
+{
+  "split": "sha256(normalized title) modulo 5; bucket 0 held out",
+  "samples": [
+    {
+      "title": "A-Alrund, God of the Cosmos // A-Hakka, Whispering Raven",
+      "observed": "a-alrund g0d of the cosmos a-hakka whispering raven"
+    },
+    {
+      "title": "A-Alrund, God of the Cosmos // A-Hakka, Whispering Raven",
+      "observed": "a-a1rund god of the cosmos a-hakka whispering raven"
+    },
+    {
+      "title": "A-Ancestral Katana",
+      "observed": "a-ancestra1 katana"
+    },
+    {
+      "title": "A-Ancestral Katana",
+      "observed": "a-ancestra1 katana"
+    },
+    {
+      "title": "Aang and Katara // Aang and Katara",
+      "observed": "aang and ktara aang and katara"
+    },
+    {
+      "title": "Aang and Katara // Aang and Katara",
+      "observed": "aang nad katara aang and katara"
+    },
+    {
+      "title": "Aang's Iceberg // Aang's Iceberg",
+      "observed": "aang's iceberg aang's iceerg"
+    },
+    {
+      "title": "Aang's Iceberg // Aang's Iceberg",
+      "observed": "aang's iceberg aagn's iceberg"
+    },
+    {
+      "title": "Aarakocra Sneak",
+      "observed": "aarak0cra sneak"
+    },
+    {
+      "title": "Aarakocra Sneak",
+      "observed": "aarak0cra sneak"
+    },
+    {
+      "title": "A-Ardent Dustspeaker",
+      "observed": "a-rdent dustspeaker"
+    },
+    {
+      "title": "A-Ardent Dustspeaker",
+      "observed": "a-ardetn dustspeaker"
+    },
+    {
+      "title": "Abandoned Sarcophagus",
+      "observed": "aband0ned sarcophagus"
+    },
+    {
+      "title": "Abandoned Sarcophagus",
+      "observed": "aband0ned sarcophagus"
+    },
+    {
+      "title": "Abandon Reason",
+      "observed": "aband0n reason"
+    },
+    {
+      "title": "Abandon Reason",
+      "observed": "aband0n reason"
+    },
+    {
+      "title": "Abby, Merciless Soldier",
+      "observed": "abby merciless s0ldier"
+    },
+    {
+      "title": "Abby, Merciless Soldier",
+      "observed": "abby merci1ess soldier"
+    },
+    {
+      "title": "Abnormal Endurance",
+      "observed": "abn0rmal endurance"
+    },
+    {
+      "title": "Abnormal Endurance",
+      "observed": "abnorma1 endurance"
+    },
+    {
+      "title": "Abominable Treefolk",
+      "observed": "ab0minable treefolk"
+    },
+    {
+      "title": "Abominable Treefolk",
+      "observed": "abominab1e treefolk"
+    },
+    {
+      "title": "Abomination of Llanowar",
+      "observed": "ab0mination of llanowar"
+    },
+    {
+      "title": "Abomination of Llanowar",
+      "observed": "abomination of 1lanowar"
+    }
+  ],
+  "visualSamples": [
+    {
+      "title": "A-Alrund, God of the Cosmos // A-Hakka, Whispering Raven",
+      "lang": "en"
+    },
+    {
+      "title": "A-Ancestral Katana",
+      "lang": "en"
+    },
+    {
+      "title": "Aang and Katara // Aang and Katara",
+      "lang": "en"
+    },
+    {
+      "title": "Aang's Iceberg // Aang's Iceberg",
+      "lang": "en"
+    },
+    {
+      "title": "Aarakocra Sneak",
+      "lang": "en"
+    },
+    {
+      "title": "A-Ardent Dustspeaker",
+      "lang": "en"
+    },
+    {
+      "title": "Aladdin's Ring",
+      "lang": "es"
+    },
+    {
+      "title": "Amrou Kithkin",
+      "lang": "es"
+    },
+    {
+      "title": "Amulet of Kroog",
+      "lang": "es"
+    },
+    {
+      "title": "Angelic Page",
+      "lang": "es"
+    },
+    {
+      "title": "Animate Wall",
+      "lang": "es"
+    },
+    {
+      "title": "Ankh of Mishra",
+      "lang": "es"
+    }
+  ]
+}

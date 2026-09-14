@@ -44,3 +44,17 @@ that schema. Operators and contributors must:
 
 Product and company names are used only for identification. All trademarks
 remain property of their respective owners.
+
+## OCR components
+
+- **Tesseract.js 6.0.1** and **tesseract.js-core 6.1.2** are distributed under
+  Apache-2.0. The `@tesseract.js-data/eng` and `@tesseract.js-data/spa` 1.0.0
+  packages are MIT licensed. Magic Brain self-hosts their pinned
+  `4.0.0_best_int` traineddata files; source URLs and SHA-256 digests are
+  recorded in `scripts/sync-ocr-models.mjs`.
+- `card-title-corrector-v1` is a Magic Brain-produced weighted
+  character-sequence correction model. It is trained from distinct English and
+  Spanish names in the operator's imported catalog plus deterministic synthetic
+  OCR corruptions. It contains no card images. Catalog operators remain
+  responsible for ensuring they may derive and deploy title metadata from their
+  configured source.

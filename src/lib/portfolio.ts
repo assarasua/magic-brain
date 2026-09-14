@@ -14,6 +14,7 @@ import {
   type PortfolioOpportunityClassification,
   type PortfolioUpdate,
 } from "@/lib/portfolio-model";
+import type { PortfolioBatchItem } from "@/lib/portfolio-batch-model";
 
 export type PortfolioHolding = {
   id: number;
@@ -433,6 +434,83 @@ export async function addPortfolioItem(
     ],
   );
   return result.rowCount === 1;
+}
+
+export async function addPortfolioItemsBatch(
+  userId: string,
+  items: PortfolioBatchItem[],
+  idempotencyKey: string,
+) {
+  await ensurePortfolioLists(userId);
+  const client = await db.connect();
+  try {
+    await client.query("begin");
+    const reservation = await client.query(
+      `insert into app_portfolio_batch_requests (user_id, idempotency_key)
+       values ($1, $2)
+       on conflict (user_id, idempotency_key) do nothing
+       returning idempotency_key`,
+      [userId, idempotencyKey],
+    );
+    if (reservation.rowCount === 0) {
+      const previous = await client.query<{ response: { count: number; clientIds: string[] } }>(
+        `select response
+         from app_portfolio_batch_requests
+         where user_id = $1 and idempotency_key = $2`,
+        [userId, idempotencyKey],
+      );
+      await client.query("commit");
+      const response = previous.rows[0]?.response;
+      if (!response) throw new Error("batch_request_incomplete");
+      return { ...response, replayed: true };
+    }
+
+    for (const item of items) {
+      const inserted = await client.query(
+        `
+          insert into app_portfolio_items (
+            user_id, list_id, scryfall_id, quantity, purchase_price_eur,
+            condition, language, acquired_at
+          )
+          select $1, list.id, $3, $4, $5, $6, $7, $8::date
+          from app_portfolio_lists list
+          where list.user_id = $1 and list.id = $2
+          returning id
+        `,
+        [
+          userId,
+          item.listId,
+          item.cardId,
+          item.quantity,
+          item.purchasePrice,
+          item.condition,
+          item.language,
+          item.acquiredAt,
+        ],
+      );
+      if (inserted.rowCount !== 1) {
+        throw new Error(`invalid_list:${item.clientId}`);
+      }
+    }
+
+    const response = {
+      count: items.reduce((sum, item) => sum + item.quantity, 0),
+      clientIds: items.map((item) => item.clientId),
+    };
+    await client.query(
+      `update app_portfolio_batch_requests
+       set response = $3::jsonb
+       where user_id = $1 and idempotency_key = $2`,
+      [userId, idempotencyKey, JSON.stringify(response)],
+    );
+    await client.query("commit");
+    return { ...response, replayed: false };
+  } catch (error) {
+    await client.query("rollback").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function deletePortfolioItem(userId: string, itemId: number) {

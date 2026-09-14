@@ -1,0 +1,16 @@
+{
+  "modelVersion": "card-title-corrector-v1-54feffd50c39",
+  "artifactSha256": "b1184cd8b5ff309b0fb99f51a9419f19cebc3fe8751fecc6d076f45de9a07c18",
+  "samples": 80,
+  "baseline": {
+    "name": "unit-cost edit distance",
+    "top1": 1
+  },
+  "adapted": {
+    "name": "trained weighted sequence correction",
+    "top1": 1,
+    "top3": 1
+  },
+  "meanCandidateLatencyMs": 713.0584296874999,
+  "trainTestLeakage": false
+}
