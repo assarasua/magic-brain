@@ -1,0 +1,429 @@
+.backdrop {
+  position: fixed;
+  z-index: 120;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(3, 5, 9, 0.82);
+  backdrop-filter: blur(9px);
+}
+
+.dialog {
+  width: min(920px, 100%);
+  max-height: calc(100dvh - 36px);
+  overflow-y: auto;
+  padding: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 22px;
+  outline: none;
+  color: #edf2f7;
+  background: #141920;
+  box-shadow: 0 32px 100px rgba(0, 0, 0, 0.7);
+}
+
+.dialog > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dialog h2,
+.dialog h3 {
+  margin: 5px 0 0;
+  font-family: var(--font-display);
+}
+
+.dialog > header button {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: #bcc6d2;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+}
+
+.eyebrow {
+  color: #bca0ff;
+  font-size: 10px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.privacy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 20px;
+  padding: 10px 12px;
+  border: 1px solid rgba(72, 205, 151, 0.2);
+  border-radius: 10px;
+  color: #a1d8c2;
+  background: rgba(72, 205, 151, 0.05);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.settings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.settings label,
+.manualSearch {
+  display: grid;
+  gap: 6px;
+  color: #9ba7b5;
+  font-size: 10px;
+}
+
+.settings select,
+.settings input,
+.manualSearch input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 9px;
+  outline: none;
+  color: #edf2f7;
+  background: #0d1218;
+}
+
+.settings select:focus,
+.settings input:focus,
+.manualSearch input:focus {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.18);
+}
+
+.captureChoices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.captureChoices button {
+  min-height: 145px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 7px;
+  border: 1px dashed rgba(139, 92, 246, 0.48);
+  border-radius: 15px;
+  color: #d9d0ee;
+  background: rgba(139, 92, 246, 0.055);
+  cursor: pointer;
+}
+
+.captureChoices button:hover {
+  background: rgba(139, 92, 246, 0.11);
+}
+
+.captureChoices span {
+  color: #7f8b99;
+  font-size: 10px;
+}
+
+.camera {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #05070a;
+}
+
+.camera video {
+  width: 100%;
+  max-height: 62dvh;
+  object-fit: contain;
+}
+
+.frame {
+  position: absolute;
+  inset: 8% 18% 19%;
+  border: 2px solid rgba(237, 208, 142, 0.9);
+  border-radius: 15px;
+  box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+.camera p {
+  position: absolute;
+  bottom: 62px;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 99px;
+  color: white;
+  background: rgba(0, 0, 0, 0.68);
+  font-size: 11px;
+}
+
+.camera > button {
+  position: absolute;
+  bottom: 12px;
+}
+
+.primary,
+.actions button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9px;
+  color: #cbd4df;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+}
+
+.primary {
+  border-color: rgba(139, 92, 246, 0.55) !important;
+  color: #f5f0ff !important;
+  background: #6f45d5 !important;
+}
+
+.primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.progress,
+.success {
+  min-height: 380px;
+  display: grid;
+  place-items: center;
+  place-content: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.progress img {
+  width: 100px;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 8px;
+  opacity: 0.55;
+}
+
+.progress progress {
+  width: min(320px, 75vw);
+  accent-color: #8b5cf6;
+}
+
+.progress span,
+.success p {
+  color: #8793a1;
+  font-size: 10px;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.confirmGrid {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.42fr) minmax(0, 1fr);
+  gap: 20px;
+}
+
+.preview {
+  width: 100%;
+  max-height: 410px;
+  object-fit: contain;
+  border-radius: 12px;
+  background: #080b0f;
+}
+
+.candidates {
+  display: grid;
+  gap: 7px;
+  max-height: 270px;
+  margin: 13px 0;
+  overflow-y: auto;
+}
+
+.candidates button {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  color: #dbe2ea;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.025);
+  cursor: pointer;
+}
+
+.candidates button[data-selected="true"] {
+  border-color: rgba(139, 92, 246, 0.65);
+  background: rgba(139, 92, 246, 0.12);
+}
+
+.candidates img {
+  width: 40px;
+  height: 55px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.candidates span {
+  display: grid;
+  gap: 3px;
+}
+
+.candidates small,
+.candidates em {
+  color: #8592a1;
+  font-size: 9px;
+  font-style: normal;
+}
+
+.manualSearch {
+  margin-top: 12px;
+}
+
+.manualSearch > span {
+  display: flex;
+  align-items: center;
+  padding-left: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 9px;
+  background: #0d1218;
+}
+
+.manualSearch input {
+  border: 0;
+  background: transparent;
+}
+
+.manualResults {
+  display: grid;
+  margin-top: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 9px;
+}
+
+.manualResults button {
+  display: flex;
+  justify-content: space-between;
+  padding: 9px 11px;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: #dbe2ea;
+  text-align: left;
+  background: #10151c;
+  cursor: pointer;
+}
+
+.manualResults small {
+  color: #7f8b99;
+}
+
+.details {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.details > div:first-child {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 12px;
+}
+
+.details > div:first-child span {
+  color: #8793a1;
+  font-size: 10px;
+}
+
+.details .settings {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 18px;
+}
+
+.warning {
+  margin: 11px 0;
+  padding: 9px 11px;
+  border: 1px solid rgba(232, 176, 83, 0.25);
+  border-radius: 9px;
+  color: #e6bd77;
+  background: rgba(232, 176, 83, 0.06);
+  font-size: 10px;
+}
+
+.success > svg {
+  color: #54d5a2;
+}
+
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+@media (max-width: 680px) {
+  .backdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .dialog {
+    width: 100%;
+    max-height: 100dvh;
+    padding: max(18px, env(safe-area-inset-top)) 15px calc(18px + env(safe-area-inset-bottom));
+    border-radius: 20px 20px 0 0;
+  }
+
+  .captureChoices,
+  .confirmGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .captureChoices button {
+    min-height: 112px;
+  }
+
+  .preview {
+    max-height: 230px;
+  }
+
+  .details .settings {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
