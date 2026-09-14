@@ -48,7 +48,7 @@ test("portfolio fallback serves rule-based insights instead of ML empty copy", a
   assert.match(route, /buildPortfolioIntelligence/);
   assert.match(page, /PortfolioDecisionSection/);
   assert.match(decisions, /Rule-based candidates/);
-  assert.match(decisions, /Cooling holdings/);
+  assert.match(decisions, /Cards moving lower/);
   assert.match(decisions, /Current prices are missing/);
   assert.doesNotMatch(decisions, /No verified learned candidates are available/);
   assert.doesNotMatch(

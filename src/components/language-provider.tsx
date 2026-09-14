@@ -4,6 +4,22 @@ import { createContext, ReactNode, useContext, useSyncExternalStore } from "reac
 
 type Locale = "en" | "es";
 
+const english: Record<string, string> = {
+  "Portfolio": "Collection",
+  "Add holding": "Add cards",
+  "Portfolio value": "Collection value",
+  "Total invested": "Recorded cost",
+  "Unrealised return": "Change since purchase",
+  "Portfolio performance": "Collection value over time",
+  "Top holdings": "Notable cards",
+  "My portfolio": "My collection",
+  "Portfolio Builder": "Collection Curator",
+  "Generate portfolio": "Build selection",
+  "Investment budget": "Collection budget",
+  "Number of positions": "Number of cards",
+  "Building your portfolio…": "Building your selection…",
+};
+
 const spanish: Record<string, string> = {
   "Overview": "Resumen",
   "Market": "Mercado",
@@ -12,7 +28,7 @@ const spanish: Record<string, string> = {
   "Inventory": "Inventario",
   "Discover": "Descubrir",
   "More": "Más",
-  "Portfolio": "Cartera",
+  "Portfolio": "Colección",
   "Watchlist": "Seguimiento",
   "Alerts": "Alertas",
   "Settings": "Ajustes",
@@ -27,18 +43,18 @@ const spanish: Record<string, string> = {
   "Developers": "Desarrolladores",
   "Console": "Consola",
   "Predict": "Predecir",
-  "Add holding": "Añadir posición",
+  "Add holding": "Añadir cartas",
   "Search cards, sets or artists...": "Buscar cartas, ediciones o artistas...",
   "Your collection, in focus.": "Tu colección, en perspectiva.",
-  "Track market momentum and make your next move with confidence.": "Sigue el mercado y toma tu próxima decisión con confianza.",
-  "Portfolio value": "Valor de cartera",
-  "Total invested": "Total invertido",
-  "Unrealised return": "Rentabilidad no realizada",
-  "Portfolio performance": "Rendimiento de cartera",
+  "Track market momentum and make your next move with confidence.": "Conoce tus cartas, su valor y el contexto del mercado para cuidarlas mejor.",
+  "Portfolio value": "Valor de la colección",
+  "Total invested": "Coste registrado",
+  "Unrealised return": "Cambio desde la compra",
+  "Portfolio performance": "Evolución del valor",
   "Brain signal": "Señal Brain",
   "Cards making moves": "Cartas en movimiento",
   "Market pulse": "Pulso del mercado",
-  "Top holdings": "Principales posiciones",
+  "Top holdings": "Cartas destacadas",
   "Your collection": "Tu colección",
   "View market": "Ver mercado",
   "See all": "Ver todo",
@@ -63,14 +79,15 @@ const spanish: Record<string, string> = {
   "7-day movement": "Movimiento 7 días",
   "Printing": "Impresión",
   "View on Cardmarket": "Ver en Cardmarket",
-  "My portfolio": "Mi cartera",
+  "My portfolio": "Mi colección",
   "Brain Pro": "Brain Pro",
   "Brain tools": "Herramientas Brain",
-  "Portfolio Builder": "Constructor de cartera",
+  "Portfolio Builder": "Curador de colección",
+  "Collection Curator": "Curador de colección",
   "Brain Signals": "Señales Brain",
   "Ask Brain": "Pregunta a Brain",
-  "Generate portfolio": "Generar cartera",
-  "Investment budget": "Presupuesto de inversión",
+  "Generate portfolio": "Crear selección",
+  "Investment budget": "Presupuesto de colección",
   "Risk profile": "Perfil de riesgo",
   "Time horizon": "Horizonte temporal",
   "Conservative": "Conservador",
@@ -80,9 +97,9 @@ const spanish: Record<string, string> = {
   "Medium term": "Medio plazo",
   "Long term": "Largo plazo",
   "Reserved List only": "Solo Reserved List",
-  "Number of positions": "Número de posiciones",
+  "Number of positions": "Número de cartas",
   "Maximum per card": "Máximo por carta",
-  "Building your portfolio…": "Creando tu cartera…",
+  "Building your portfolio…": "Creando tu selección…",
   "Daily price history": "Historial diario de precios",
   "Reserved List": "Reserved List",
 };
@@ -130,7 +147,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       value={{
         locale,
         setLocale,
-        t: (text) => (locale === "es" ? spanish[text] ?? text : text),
+        t: (text) =>
+          locale === "es"
+            ? spanish[text] ?? text
+            : english[text] ?? text,
       }}
     >
       {children}

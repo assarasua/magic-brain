@@ -12,7 +12,7 @@ test("navigation keeps Pro first and groups every destination once", () => {
     proNavigation.map(({ label, href }) => [label, href]),
     [
       ["Predict", "/predict"],
-      ["Portfolio Builder", "/brain"],
+      ["Collection Curator", "/brain"],
       ["Brain Signals", "/signals"],
       ["Ask Brain", "/analyst"],
       ["Discover", "/discover"],

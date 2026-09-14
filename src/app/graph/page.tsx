@@ -323,7 +323,7 @@ export default function OpportunityGraphPage() {
         <nav>
           <Link href="/market">Market</Link>
           <Link href="/graph" aria-current="page">Opportunity Graph</Link>
-          <Link href="/portfolio">Portfolio</Link>
+          <Link href="/portfolio">{locale === "es" ? "Colección" : "Collection"}</Link>
           <Link href="/watchlist">Watchlist</Link>
         </nav>
         <LanguageToggle />
@@ -528,9 +528,9 @@ export default function OpportunityGraphPage() {
                   onCreateAlert={() => void createAlert(selected)}
                 />
                 <div className={styles.actions}>
-                  <button disabled={saving} onClick={() => addCards([selected], "portfolio")}><BriefcaseBusiness size={15} /> Add card to portfolio</button>
+                  <button disabled={saving} onClick={() => addCards([selected], "portfolio")}><BriefcaseBusiness size={15} /> {locale === "es" ? "Añadir carta a la colección" : "Add card to collection"}</button>
                   <button disabled={saving} onClick={() => addCards([selected], "watchlist")}><Star size={15} /> Add card to watchlist</button>
-                  <button disabled={saving || !neighbours.length} onClick={() => addCards(neighbours, "portfolio")}><BriefcaseBusiness size={15} /> Add {neighbours.length} neighbours to portfolio</button>
+                  <button disabled={saving || !neighbours.length} onClick={() => addCards(neighbours, "portfolio")}><BriefcaseBusiness size={15} /> {locale === "es" ? `Añadir ${neighbours.length} cartas relacionadas a la colección` : `Add ${neighbours.length} related cards to collection`}</button>
                   <button disabled={saving || !neighbours.length} onClick={() => addCards(neighbours, "watchlist")}><Star size={15} /> Add {neighbours.length} neighbours to watchlist</button>
                 </div>
                 <div className={styles.neighbours}>

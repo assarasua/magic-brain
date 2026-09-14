@@ -199,77 +199,77 @@ function RequiredDialog({
     ? [
         {
           eyebrow: "BIENVENIDO A MAGIC BRAIN",
-          title: "Invierte con contexto, no con intuición.",
+          title: "Haz que tu colección cuente su historia.",
           description:
-            "Primero te enseñamos cómo funciona el producto. Después crearemos un perfil para adaptar cada señal, predicción y cartera a ti.",
+            "Cuéntanos qué cartas disfrutas. Adaptaremos descubrimientos, contexto de mercado y herramientas de colección a tus preferencias.",
         },
         {
           eyebrow: "PASO 1 · PERFIL",
-          title: "¿Qué nivel de riesgo encaja contigo?",
+          title: "¿Cómo quieres cuidar su valor?",
           description:
             "Esto determina cuánto peso damos a estabilidad, volatilidad y potencial de crecimiento.",
         },
         {
           eyebrow: "PASO 2 · OBJETIVO",
-          title: "Define cómo quieres invertir.",
+          title: "Define cómo quieres coleccionar.",
           description:
-            "El horizonte y la estrategia cambian qué oportunidades prioriza Magic Brain.",
+            "El horizonte y el enfoque cambian qué cartas y ediciones prioriza Magic Brain.",
         },
         {
           eyebrow: "PASO 3 · PRESUPUESTO",
-          title: "Pon límites antes de buscar oportunidades.",
+          title: "Define un presupuesto cómodo.",
           description:
-            "Usaremos estos números para construir carteras realistas y evitar posiciones desproporcionadas.",
+            "Usaremos estos límites para proponer selecciones realistas, sin ejecutar compras.",
         },
         {
           eyebrow: "PASO 4 · MERCADO",
           title: "Afina el universo de cartas.",
           description:
-            "Estos filtros son opcionales. Déjalos abiertos si quieres que Brain explore todo el mercado.",
+            "Estos filtros son opcionales. Déjalos abiertos si quieres que Brain explore todas las cartas y ediciones.",
         },
         {
           eyebrow: "PASO 5 · REVISIÓN",
           title: "Tu perfil está listo.",
           description:
-            "Magic Brain utilizará estas preferencias en Predict, Discover, Magic Brain Pro y las carteras automáticas.",
+            "Magic Brain utilizará estas preferencias en Predict, Descubrir y las selecciones de Brain.",
         },
       ]
     : [
         {
           eyebrow: "WELCOME TO MAGIC BRAIN",
-          title: "Invest with context, not instinct.",
+          title: "Let your collection tell its story.",
           description:
-            "First, see how the product works. Then we will build a profile that adapts every signal, prediction, and portfolio to you.",
+            "Tell us which cards you enjoy. We will tailor discoveries, market context, and collection tools to your preferences.",
         },
         {
           eyebrow: "STEP 1 · PROFILE",
-          title: "How much risk feels right?",
+          title: "How do you want to steward its value?",
           description:
             "This determines how much weight we give stability, volatility, and growth potential.",
         },
         {
           eyebrow: "STEP 2 · GOAL",
-          title: "Define how you want to invest.",
+          title: "Define how you want to collect.",
           description:
-            "Your horizon and strategy change which opportunities Magic Brain prioritises.",
+            "Your horizon and approach change which cards and printings Magic Brain prioritises.",
         },
         {
           eyebrow: "STEP 3 · BUDGET",
-          title: "Set limits before finding opportunities.",
+          title: "Set a comfortable budget.",
           description:
-            "We use these numbers to build realistic portfolios and avoid oversized positions.",
+            "We use these limits to create realistic selections. Magic Brain never executes purchases.",
         },
         {
           eyebrow: "STEP 4 · MARKET",
           title: "Refine your card universe.",
           description:
-            "These filters are optional. Leave them open if you want Brain to explore the entire market.",
+            "These filters are optional. Leave them open if you want Brain to explore every card and printing.",
         },
         {
           eyebrow: "STEP 5 · REVIEW",
           title: "Your profile is ready.",
           description:
-            "Magic Brain will use these preferences across Predict, Discover, Magic Brain Pro, and automatic portfolios.",
+            "Magic Brain will use these preferences across Predict, Discover, and Brain selections.",
         },
       ];
   const currentCopy = stepCopy[step];
@@ -359,8 +359,8 @@ function RequiredDialog({
                 <article>
                   <span><WalletCards size={20} /></span>
                   <div>
-                    <strong>{es ? "Construye y controla" : "Build and monitor"}</strong>
-                    <p>{es ? "Crea carteras manuales o automáticas y mide rentabilidad y concentración." : "Create manual or automatic portfolios and track return and concentration."}</p>
+                    <strong>{es ? "Organiza y disfruta" : "Organize and enjoy"}</strong>
+                    <p>{es ? "Reúne copias y ediciones; consulta su valor cuando lo necesites." : "Bring copies and printings together; check their value when useful."}</p>
                   </div>
                 </article>
                 <p className="onboarding-product-note">
@@ -374,7 +374,7 @@ function RequiredDialog({
 
             {step === 1 && (
             <fieldset>
-              <legend><ShieldCheck size={16} /> {es ? "Perfil inversor" : "Investor profile"}</legend>
+              <legend><ShieldCheck size={16} /> {es ? "Cuidado del valor" : "Value stewardship"}</legend>
               <label>{es ? "Nivel de riesgo" : "Risk level"}</label>
               <div className="preference-choice five">
                 {risks.map((value) => (
@@ -394,7 +394,7 @@ function RequiredDialog({
 
             {step === 2 && (
             <fieldset>
-              <legend><Sparkles size={16} /> {es ? "Objetivo de inversión" : "Investment goal"}</legend>
+              <legend><Sparkles size={16} /> {es ? "Objetivo de colección" : "Collection goal"}</legend>
               <label>{es ? "Horizonte temporal" : "Time horizon"}</label>
               <div className="preference-choice three">
                 {(["short", "medium", "long"] as const).map((value) => (
@@ -429,7 +429,7 @@ function RequiredDialog({
 
             {step === 3 && (
             <fieldset>
-              <legend><SlidersHorizontal size={16} /> {es ? "Límites de cartera" : "Portfolio limits"}</legend>
+              <legend><SlidersHorizontal size={16} /> {es ? "Límites de colección" : "Collection limits"}</legend>
               <div className="onboarding-number-grid">
                 <label>
                   {es ? "Presupuesto predeterminado" : "Default budget"}
@@ -440,7 +440,7 @@ function RequiredDialog({
                   <span>€<input aria-label={es ? "Máximo por carta en euros" : "Maximum card price in euros"} type="number" min="2" max={preferences.defaultBudget} required value={preferences.maxCardPrice} onChange={(event) => update("maxCardPrice", Number(event.target.value))} /></span>
                 </label>
                 <label>
-                  {es ? "Posiciones" : "Positions"}
+                  {es ? "Cartas en la selección" : "Cards in selection"}
                   <input type="number" min="3" max="20" step="1" required value={preferences.positions} onChange={(event) => update("positions", Number(event.target.value))} />
                 </label>
               </div>

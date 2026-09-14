@@ -134,7 +134,7 @@ export default function SettingsPage() {
     <main className="account-page settings-page">
       <header className="account-topbar">
         <Link href="/" className="inventory-brand"><MagicBrainLogo /></Link>
-        <nav><Link href="/portfolio">{t("Portfolio")}</Link><Link href="/watchlist">{t("Watchlist")}</Link><Link href="/brain">Portfolio Builder</Link></nav>
+        <nav><Link href="/portfolio">{t("Collection")}</Link><Link href="/watchlist">{t("Watchlist")}</Link><Link href="/brain">{es ? "Curador de colección" : "Collection Curator"}</Link></nav>
         <LanguageToggle />
         <AuthControl compact />
         <Link href="/" className="back-dashboard"><ArrowLeft size={15} /> {t("Dashboard")}</Link>
@@ -144,8 +144,8 @@ export default function SettingsPage() {
         <div className="settings-heading">
           <div>
             <span className="eyebrow">{es ? "PERSONALIZACIÓN" : "PERSONALISATION"}</span>
-            <h1>{es ? "Tus preferencias de inversión." : "Your investment preferences."}</h1>
-            <p>{es ? "Guarda tus criterios una vez. Brain los utilizará como punto de partida en cada nueva estrategia." : "Save your criteria once. Brain will use them as the starting point for every new strategy."}</p>
+            <h1>{es ? "Tus preferencias de colección." : "Your collection preferences."}</h1>
+            <p>{es ? "Guarda lo que te interesa una vez. Brain lo utilizará para personalizar descubrimientos y selecciones." : "Save what matters to you once. Brain will use it to personalize discoveries and selections."}</p>
           </div>
           <button onClick={save} disabled={saving || !account}>
             {saving ? <LoaderCircle className="spin" size={17} /> : <Save size={17} />}
@@ -155,14 +155,14 @@ export default function SettingsPage() {
 
         <section className="settings-profile-card">
           <span><UserRound size={19} /></span>
-          <div><strong>{account?.name ?? (es ? "Inversor de Magic Brain" : "Magic Brain investor")}</strong><small>{account?.email ?? (es ? "Perfil guardado en este dispositivo" : "Profile saved on this device")}</small></div>
+          <div><strong>{account?.name ?? (es ? "Coleccionista de Magic Brain" : "Magic Brain collector")}</strong><small>{account?.email ?? (es ? "Perfil guardado en este dispositivo" : "Profile saved on this device")}</small></div>
           <ProBadge compact />
         </section>
         <ProNotice />
 
         <div className="settings-grid">
           <section className="settings-panel">
-            <div className="settings-section-title"><span><ShieldCheck size={19} /></span><div><h2>{es ? "Perfil inversor" : "Investor profile"}</h2><p>{es ? "Controla cuánto riesgo puede asumir Brain." : "Control how much risk Brain can take."}</p></div></div>
+            <div className="settings-section-title"><span><ShieldCheck size={19} /></span><div><h2>{es ? "Cuidado del valor" : "Value stewardship"}</h2><p>{es ? "Ajusta cuánto peso debe dar Brain a estabilidad y variación de precios." : "Set how much weight Brain gives stability and price variation."}</p></div></div>
             <label>{es ? "Nivel de riesgo" : "Risk level"}</label>
             <div className="preference-choice five">
               {riskLevels.map((value, index) => <button key={value} className={preferences.risk === value ? "active" : ""} onClick={() => update("risk", value)}><span>{["○", "◔", "◑", "◕", "●"][index]}</span><strong>{riskLabel(value)}</strong></button>)}

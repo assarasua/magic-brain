@@ -40,14 +40,14 @@ const tools = [
     href: "/brain",
     feature: "brain" as ProFeature,
     icon: BrainCircuit,
-    name: "Portfolio Builder",
+    name: "Collection Curator",
     title: {
-      en: "Build a portfolio around your investment thesis.",
-      es: "Construye una cartera alrededor de tu tesis de inversión.",
+      en: "Build a card selection around what you value.",
+      es: "Crea una selección de cartas alrededor de lo que valoras.",
     },
     copy: {
-      en: "Turn budget, risk, horizon, colours, rarity, and market preferences into an explainable allocation.",
-      es: "Convierte presupuesto, riesgo, horizonte, colores, rareza y preferencias de mercado en una asignación explicable.",
+      en: "Turn budget, horizon, colours, rarity, and market preferences into an explainable collection plan.",
+      es: "Convierte presupuesto, horizonte, colores, rareza y preferencias de mercado en un plan de colección explicable.",
     },
     features: {
       en: ["Up to 20 positions", "Position sizing", "Buyer tips"],
@@ -128,8 +128,8 @@ export default function BrainProHubPage() {
         <section className="brain-pro-hub-hero">
           <div className="brain-pro-hub-mark"><MagicBrainMark size={54} /></div>
           <ProBadge />
-          <h1>{es ? "Todas tus herramientas de inversión. Un solo cerebro." : "Every investment tool. One intelligent workspace."}</h1>
-          <p>{es ? "Investiga el mercado, genera una estrategia, valida oportunidades y descubre nuevas cartas desde un único centro." : "Research the market, build a strategy, validate opportunities, and discover new cards from one command centre."}</p>
+          <h1>{es ? "Más formas de conocer y disfrutar tu colección." : "More ways to know and enjoy your collection."}</h1>
+          <p>{es ? "Explora ediciones, entiende movimientos de valor y descubre cartas desde un único espacio." : "Explore sets, understand value movement, and discover cards from one thoughtful workspace."}</p>
           <ProNotice />
         </section>
 

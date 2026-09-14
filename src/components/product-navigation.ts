@@ -20,7 +20,7 @@ import {
 
 export const proNavigation = [
   { label: "Predict", href: "/predict", icon: Target },
-  { label: "Portfolio Builder", href: "/brain", icon: BrainCircuit },
+  { label: "Collection Curator", href: "/brain", icon: BrainCircuit },
   { label: "Brain Signals", href: "/signals", icon: TrendingUp },
   { label: "Ask Brain", href: "/analyst", icon: MessageCircleQuestion },
   { label: "Discover", href: "/discover", icon: Heart },
@@ -46,7 +46,7 @@ export const navigationGroups = [
     links: [
       { href: "/inventory", label: "Inventory", icon: LibraryBig },
       { href: "/reserved", label: "Reserved List", icon: Crown },
-      { href: "/portfolio", label: "Portfolio", icon: WalletCards },
+      { href: "/portfolio", label: "Collection", icon: WalletCards },
       { href: "/watchlist", label: "Watchlist", icon: Eye },
     ],
   },

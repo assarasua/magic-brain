@@ -154,7 +154,7 @@ export default function AnalystPage() {
             <div className="analyst-card-head">
               {analysis.card.imageUrl && <img src={analysis.card.imageUrl} alt="" />}
               <div><span className="eyebrow">{analysis.card.setName}</span><h2>{analysis.card.name}</h2><p>{analysis.card.setCode.toUpperCase()} · #{analysis.card.collectorNumber}</p></div>
-              <Link href={`/portfolio?cardId=${analysis.card.id}`}>{locale === "es" ? "Añadir a cartera" : "Add to portfolio"} <ArrowRight size={13} /></Link>
+              <Link href={`/portfolio?cardId=${analysis.card.id}`}>{locale === "es" ? "Añadir a colección" : "Add to collection"} <ArrowRight size={13} /></Link>
             </div>
             <div className="analyst-answer"><BrainCircuit size={19} /><p>{analysis.answer}</p></div>
             <div className="analyst-metrics">

@@ -117,7 +117,7 @@ export default function BrainPage() {
     });
     const payload = await response.json();
     if (response.ok) setResult(payload as BrainResult);
-    else setError(payload.error ?? "Unable to generate portfolio");
+    else setError(payload.error ?? (locale === "es" ? "No se pudo crear la selección" : "Unable to build the selection"));
     setGenerating(false);
   };
 
@@ -134,7 +134,7 @@ export default function BrainPage() {
       }),
     });
     setPortfolioNotice(
-      locale === "es" ? "Posición añadida a tu cartera" : "Position added to your portfolio",
+      locale === "es" ? "Carta añadida a tu colección" : "Card added to your collection",
     );
     window.setTimeout(() => setPortfolioNotice(""), 2200);
   };
@@ -143,7 +143,7 @@ export default function BrainPage() {
     if (!result) return;
     await Promise.all(result.recommendations.map(addRecommendation));
     setPortfolioNotice(
-      locale === "es" ? "Cartera completa añadida" : "Complete portfolio added",
+      locale === "es" ? "Selección añadida a tu colección" : "Selection added to your collection",
     );
   };
 
@@ -151,7 +151,7 @@ export default function BrainPage() {
     <main className="brain-page">
       <header className="account-topbar">
         <Link href="/" className="inventory-brand"><MagicBrainLogo /></Link>
-        <nav><Link href="/signals">Brain Signals</Link><Link href="/inventory">{t("Inventory")}</Link><Link href="/portfolio">{t("Portfolio")}</Link></nav>
+        <nav><Link href="/signals">Brain Signals</Link><Link href="/inventory">{t("Inventory")}</Link><Link href="/portfolio">{t("Collection")}</Link></nav>
         <LanguageToggle />
         <AuthControl compact />
         <Link href="/" className="back-dashboard"><ArrowLeft size={15} /> {t("Dashboard")}</Link>
@@ -160,13 +160,13 @@ export default function BrainPage() {
       <div className="brain-hero">
         <div className="brain-orb"><BrainCircuit size={42} /><i /><i /></div>
         <ProBadge />
-        <h1>{locale === "es" ? "Tu estratega de inversión en Magic." : "Your Magic investment strategist."}</h1>
-        <p>{locale === "es" ? "Define tus objetivos. Brain analiza millones de precios históricos y construye una cartera diversificada para ti." : "Set your goals. Brain analyses millions of historical prices and builds a diversified card portfolio for you."}</p>
+        <h1>{locale === "es" ? "Un curador para tu colección de Magic." : "A curator for your Magic collection."}</h1>
+        <p>{locale === "es" ? "Dile a Brain qué cartas disfrutas y tu presupuesto. Te propondrá una selección explicable con ediciones, disponibilidad observada y contexto de precios." : "Tell Brain which cards you enjoy and your budget. It will suggest an explainable selection with printing, observed availability, and price context."}</p>
       </div>
 
       <div className="brain-layout">
         <form className="brain-form fintech-panel" onSubmit={generate}>
-          <div className="section-title"><div><span className="eyebrow">{locale === "es" ? "Tu estrategia" : "Your strategy"}</span><h2>{locale === "es" ? "Preferencias de inversión" : "Investment preferences"}</h2></div><ShieldCheck size={20} /></div>
+          <div className="section-title"><div><span className="eyebrow">{locale === "es" ? "TUS CRITERIOS" : "YOUR CRITERIA"}</span><h2>{locale === "es" ? "Preferencias de colección" : "Collection preferences"}</h2></div><ShieldCheck size={20} /></div>
 
           <div className="brain-field">
             <label>{t("Investment budget")}</label>
@@ -204,7 +204,7 @@ export default function BrainPage() {
           </div>
 
           <div className="brain-field">
-            <label>{locale === "es" ? "Enfoque de inversión" : "Investment approach"}</label>
+            <label>{locale === "es" ? "Enfoque de colección" : "Collection approach"}</label>
             <div className="choice-grid strategy">
               {(["diversified", "momentum", "stability", "collectible"] as const).map((value) => (
                 <button type="button" key={value} className={strategy === value ? "active" : ""} onClick={() => setStrategy(value)}>
@@ -275,7 +275,7 @@ export default function BrainPage() {
           </div>
 
           <button type="button" className={reservedOnly ? "reserved-switch active" : "reserved-switch"} onClick={() => setReservedOnly(!reservedOnly)}>
-            <span><Crown size={15} /></span><div><strong>{t("Reserved List only")}</strong><small>{locale === "es" ? "Activos de oferta fija" : "Fixed-supply assets only"}</small></div><i />
+            <span><Crown size={15} /></span><div><strong>{t("Reserved List only")}</strong><small>{locale === "es" ? "Cartas con oferta fija" : "Fixed-supply cards only"}</small></div><i />
           </button>
 
           <button className="brain-generate" disabled={generating}>
@@ -288,7 +288,7 @@ export default function BrainPage() {
 
         <section className="brain-output fintech-panel">
           {!result ? (
-            <div className="brain-empty"><div><BrainCircuit size={42} /></div><h2>{locale === "es" ? "Listo cuando tú lo estés." : "Ready when you are."}</h2><p>{locale === "es" ? "Configura tus preferencias para recibir una cartera basada en tendencias reales, riesgo y diversificación." : "Set your preferences to receive a portfolio based on real trends, risk, and diversification."}</p><ul><li><Check size={13} /> 9M+ daily price observations</li><li><Check size={13} /> Explainable scoring</li><li><Check size={13} /> Position sizing by budget</li></ul></div>
+            <div className="brain-empty"><div><BrainCircuit size={42} /></div><h2>{locale === "es" ? "Listo cuando tú lo estés." : "Ready when you are."}</h2><p>{locale === "es" ? "Configura tus preferencias para descubrir una selección de cartas basada en tus gustos, límites y datos observados." : "Set your preferences to discover a card selection based on your tastes, limits, and observed data."}</p><ul><li><Check size={13} /> {locale === "es" ? "Más de 9 M de observaciones de precios" : "9M+ daily price observations"}</li><li><Check size={13} /> {locale === "es" ? "Criterios explicables" : "Explainable criteria"}</li><li><Check size={13} /> {locale === "es" ? "Copias ajustadas al presupuesto" : "Copies sized to budget"}</li></ul></div>
           ) : (
             <div className="brain-result">
               <div className="brain-result-head"><div><span className="eyebrow">Brain Pro strategy</span><h2>{result.name}</h2></div><div className="result-head-actions"><span className="confidence"><i /> {locale === "es" ? "Confianza alta" : "High confidence"}</span><button onClick={addAllRecommendations}><Plus size={13} /> {locale === "es" ? "Añadir todo" : "Add all"}</button></div></div>

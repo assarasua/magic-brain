@@ -1,7 +1,8 @@
 # Magic Brain
 
-An open-source, investor-focused dashboard for Magic: The Gathering cards,
-backed by PostgreSQL.
+An open-source home for Magic: The Gathering collectors to organize cards and
+printings, discover new favourites, and understand collection value with clear
+market context. Backed by PostgreSQL.
 
 The software is licensed under [AGPL-3.0-only](LICENSE). Card records, prices,
 artwork, names, symbols, and provider data are third-party material and are not
@@ -10,13 +11,13 @@ redistributing data.
 
 ## Product areas
 
-- `/` — portfolio overview and live market signals
+- `/` — collection overview and recent price context
 - `/inventory` — complete paginated catalogue with advanced filters
-- `/market` — gainers and losers over 1, 7, or 30 days
+- `/market` — notable price movement over 1, 7, or 30 days
 - `/reserved` — dedicated Reserved List market
-- `/portfolio` — persistent holdings, cost basis, P&L, allocation, and history
+- `/portfolio` — persistent collection copies, cost basis, value, and history
 - `/watchlist` — persistent tracking and target prices
-- `/brain` — preference-driven portfolio generation using historical prices
+- `/brain` — preference-driven card selections using historical prices
 - `/predict` — set-level scenario analysis against inflation, S&P 500, and
   extreme risk/reward targets
 - `/donate` — optional PayPal.Me P2P contributions

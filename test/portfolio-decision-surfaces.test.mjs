@@ -46,7 +46,7 @@ test("fallback and verified ML states are visually distinct", async () => {
 test("empty states distinguish holdings, pricing, thresholds, and discovery paths", async () => {
   const source = await readSurface();
 
-  assert.match(source, /Your portfolio has no holdings yet/);
+  assert.match(source, /Your collection has no cards yet/);
   assert.match(source, /Current prices are missing/);
   assert.match(source, /No candidates pass the rules/);
   assert.match(source, /No useful review yet/);

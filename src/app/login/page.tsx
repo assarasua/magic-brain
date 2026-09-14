@@ -51,20 +51,20 @@ export default function LoginPage() {
       <section className="auth-onboarding">
         <div className="auth-onboarding-copy">
           <span className="pro-badge"><Sparkles size={13} /> Magic Brain</span>
-          <h1>{es ? "Tu ventaja en el mercado de Magic empieza aquí." : "Your edge in the Magic market starts here."}</h1>
-          <p>{es ? "Crea tu cuenta para seguir precios, analizar tu colección y descubrir oportunidades adaptadas a tu perfil." : "Create your account to track prices, analyse your collection, and discover opportunities tailored to you."}</p>
+          <h1>{es ? "Tu colección de Magic, más tuya que nunca." : "Know every card in your Magic collection."}</h1>
+          <p>{es ? "Organiza tus cartas y ediciones, descubre nuevas favoritas y entiende su valor con el contexto que necesitas." : "Organize your cards and printings, discover new favourites, and understand their value with useful market context."}</p>
           <div className="auth-benefits">
-            <div><span><BarChart3 size={18} /></span><div><strong>{es ? "Mercado bajo control" : "Market clarity"}</strong><small>{es ? "Historiales diarios y señales de movimiento." : "Daily histories and movement signals."}</small></div></div>
-            <div><span><WalletCards size={18} /></span><div><strong>{es ? "Tu cartera real" : "Your real portfolio"}</strong><small>{es ? "Rentabilidad, exposición y coste de compra." : "Returns, exposure, and purchase cost."}</small></div></div>
-            <div><span><Sparkles size={18} /></span><div><strong>Magic Brain Pro</strong><small>{es ? "Predicción avanzada, señales personalizadas, inteligencia automatizada de carteras y análisis más profundos. Gratis para usuarios pioneros." : "Advanced prediction, personalised signals, automated portfolio intelligence, and deeper analysis. Free for early adopters."}</small></div></div>
+            <div><span><WalletCards size={18} /></span><div><strong>{es ? "Tu colección, bien organizada" : "Your collection, organized"}</strong><small>{es ? "Copias, ediciones, coste y valor actual en un solo lugar." : "Copies, printings, cost, and current value in one place."}</small></div></div>
+            <div><span><Sparkles size={18} /></span><div><strong>{es ? "Descubrimientos personales" : "Personal discoveries"}</strong><small>{es ? "Encuentra cartas que encajan con lo que disfrutas coleccionando." : "Find cards that fit what you love to collect."}</small></div></div>
+            <div><span><BarChart3 size={18} /></span><div><strong>{es ? "Contexto de mercado claro" : "Clear market context"}</strong><small>{es ? "Historial de precios y movimientos para cuidar mejor tu colección." : "Price history and movement to help you steward your collection."}</small></div></div>
           </div>
         </div>
 
         <div className="login-card signup-card">
           <div className="login-mark"><MagicBrainMark size={42} /></div>
           <span className="eyebrow">{es ? "CREA TU CUENTA GRATIS" : "CREATE YOUR FREE ACCOUNT"}</span>
-          <h2>{es ? "Empieza a invertir con más contexto." : "Start investing with more context."}</h2>
-          <p>{es ? "Un único acceso para tu cartera, watchlist y preferencias." : "One secure account for your portfolio, watchlist, and preferences."}</p>
+          <h2>{es ? "Empieza a conocer mejor tu colección." : "Start knowing your collection better."}</h2>
+          <p>{es ? "Un único acceso para tu colección, seguimiento y preferencias." : "One secure account for your collection, watchlist, and preferences."}</p>
           <button className="google-auth-cta" onClick={continueWithGoogle} disabled={loading}>
             {loading ? <LoaderCircle className="spin" size={19} /> : <GoogleMark />}
             {loading ? (es ? "Conectando…" : "Connecting…") : es ? "Continuar con Google" : "Continue with Google"}

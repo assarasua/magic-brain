@@ -1185,7 +1185,7 @@ export default function PortfolioPage() {
     <main className="account-page">
       <header className="account-topbar">
         <Link href="/" className="inventory-brand"><MagicBrainLogo /></Link>
-        <nav><Link href="/inventory">{t("Inventory")}</Link><Link href="/watchlist">{t("Watchlist")}</Link><Link href="/brain">Portfolio Builder</Link></nav>
+        <nav><Link href="/inventory">{t("Inventory")}</Link><Link href="/watchlist">{t("Watchlist")}</Link><Link href="/brain">{locale === "es" ? "Curador de colección" : "Collection Curator"}</Link></nav>
         <LanguageToggle />
         <AuthControl compact />
         <Link href="/" className="back-dashboard"><ArrowLeft size={15} /> {t("Dashboard")}</Link>
@@ -1193,7 +1193,7 @@ export default function PortfolioPage() {
 
       <div className="account-content">
         <div className="account-heading">
-          <div><span className="eyebrow">{locale === "es" ? "Rendimiento personal" : "Personal performance"}</span><h1>{t("My portfolio")}</h1><p>{locale === "es" ? "Valoración en tiempo real según tus precios de compra." : "Real-time valuation based on your actual purchase prices."}</p></div>
+          <div><span className="eyebrow">{locale === "es" ? "TUS CARTAS Y EDICIONES" : "YOUR CARDS AND PRINTINGS"}</span><h1>{t("My portfolio")}</h1><p>{locale === "es" ? "Organiza tus copias y consulta su valor con precios de mercado observados." : "Organize your copies and understand their value with observed market prices."}</p></div>
           <div className={styles.headingActions}>
             <button className={styles.importButton} onClick={() => setShowImport(true)}><Upload size={16} /> {locale === "es" ? "Importar" : "Import"}</button>
             <button ref={addButtonRef} className="primary-button" onClick={() => setShowAdd(true)}><Plus size={16} /> {t("Add holding")}</button>
@@ -1203,7 +1203,7 @@ export default function PortfolioPage() {
         {error && <div className="inline-error" role="alert">{error}</div>}
 
         {!loading && data.lists.length > 0 && (
-          <section className={styles.listWorkspace} aria-busy={Boolean(switchingListId)} aria-label={locale === "es" ? "Listas de cartera" : "Portfolio lists"}>
+          <section className={styles.listWorkspace} aria-busy={Boolean(switchingListId)} aria-label={locale === "es" ? "Listas de colección" : "Collection lists"}>
             <div className={styles.listSwitcher}>
               <div>
                 <span className={styles.listLabel}>{locale === "es" ? "Tus listas" : "Your lists"}</span>
@@ -1379,7 +1379,7 @@ export default function PortfolioPage() {
         ) : (
           <>
             <section className="account-metrics">
-              <div><span>{locale === "es" ? "Coste total invertido" : "Total invested cost"}</span><strong>{formatCurrency(data.summary.invested)}</strong><small>{data.summary.cardCount} {locale === "es" ? "cartas en cartera" : "cards held"}</small></div>
+              <div><span>{locale === "es" ? "Coste registrado" : "Recorded cost"}</span><strong>{formatCurrency(data.summary.invested)}</strong><small>{data.summary.cardCount} {locale === "es" ? "cartas en la colección" : "cards in collection"}</small></div>
               <div><span>{locale === "es" ? "Valor actual conocido" : "Known current value"}</span><strong>{formatCurrency(data.summary.value)}</strong><small>{data.summary.pricedHoldings}/{data.holdings.length} {locale === "es" ? "posiciones con precio" : "holdings priced"} · {data.summary.pricingCoveragePercent.toFixed(0)}%</small></div>
               <div><span>{locale === "es" ? "Ganancia/pérdida no realizada" : "Unrealized gain/loss"}</span><strong className={data.summary.unrealizedGain >= 0 ? "up" : "down"}>{data.summary.unrealizedGain >= 0 ? <TrendingUp size={16} aria-hidden="true" /> : <TrendingDown size={16} aria-hidden="true" />}{data.summary.unrealizedGain >= 0 ? "+" : ""}{formatCurrency(data.summary.unrealizedGain)}</strong><small>{locale === "es" ? "Solo posiciones con precio actual" : "Priced holdings only"}</small></div>
               <div><span>{locale === "es" ? "Rentabilidad no realizada" : "Unrealized return"}</span><strong className={(data.summary.unrealizedGainPercent ?? 0) >= 0 ? "up" : "down"}>{data.summary.unrealizedGainPercent === null ? "—" : `${data.summary.unrealizedGainPercent >= 0 ? "▲ +" : "▼ "}${data.summary.unrealizedGainPercent.toFixed(2)}%`}</strong><small>{data.summary.unrealizedGainPercent === null ? (locale === "es" ? "No disponible: coste valorado cero" : "Unavailable: valued cost is zero") : (locale === "es" ? `Sobre ${formatCurrency(data.summary.valuedInvested)} de coste valorado` : `On ${formatCurrency(data.summary.valuedInvested)} priced cost`)}</small></div>
@@ -1401,7 +1401,7 @@ export default function PortfolioPage() {
 
             <section className="portfolio-workspace">
               <div className="fintech-panel performance-panel">
-                <div className="section-title"><div><span className="eyebrow">{t("Portfolio performance")}</span><h2>{locale === "es" ? "Valor conocido frente a coste valorado" : "Known value versus priced cost"}</h2></div><span className="live-badge"><i /> Live</span></div>
+                <div className="section-title"><div><span className="eyebrow">{t("Portfolio performance")}</span><h2>{locale === "es" ? "Valor conocido frente a coste registrado" : "Known value versus recorded cost"}</h2></div><span className="live-badge"><i /> Live</span></div>
                 <PortfolioChart points={data.history} locale={locale} />
               </div>
               <div className="fintech-panel allocation-panel">
@@ -1478,7 +1478,7 @@ export default function PortfolioPage() {
             </section>
 
             <section className="fintech-panel holdings-table">
-              <div className="section-title"><div><span className="eyebrow">{t("Your collection")}</span><h2>{locale === "es" ? "Posiciones" : "Holdings"} · {activeList?.name}</h2></div><span>{data.holdings.length} {locale === "es" ? "lotes" : "lots"}</span></div>
+              <div className="section-title"><div><span className="eyebrow">{t("Your collection")}</span><h2>{locale === "es" ? "Cartas y copias" : "Cards and copies"} · {activeList?.name}</h2></div><span>{data.holdings.length} {locale === "es" ? "ediciones" : "printings"}</span></div>
             <div className={styles.selectionControls}>
               <span>{locale === "es" ? "Gestionar posiciones" : "Manage holdings"}</span>
               <button type="button" onClick={() => setSelectedHoldingIds(data.holdings.map((holding) => holding.id))}>{locale === "es" ? "Seleccionar todo" : "Select all"}</button>
@@ -1599,7 +1599,7 @@ export default function PortfolioPage() {
         <div className="card-detail-backdrop" onMouseDown={() => setShowAdd(false)}>
           <form className="holding-form" role="dialog" aria-modal="true" aria-labelledby="holding-form-title" onSubmit={addHolding} onMouseDown={(event) => event.stopPropagation()}>
             <button ref={closeButtonRef} type="button" className="detail-close" onClick={() => setShowAdd(false)} aria-label={locale === "es" ? "Cerrar" : "Close"}><X size={18} /></button>
-            <span className="eyebrow">{t("Portfolio")}</span><h2 id="holding-form-title">{t("Add holding")}</h2>
+            <span className="eyebrow">{t("Collection")}</span><h2 id="holding-form-title">{locale === "es" ? "Añadir cartas" : "Add cards"}</h2>
             <label>{t("Card name")}<div className="holding-card-search"><Search size={15} /><input value={cardQuery} onChange={(event) => { setCardQuery(event.target.value); setSelectedCard(null); }} placeholder="Black Lotus…" /></div></label>
             {!selectedCard && results.length > 0 && <div className="holding-results">{results.map((card) => <button type="button" key={card.id} onClick={() => { setSelectedCard(card); setCardQuery(`${card.name} · ${card.setCode.toUpperCase()}`); setResults([]); }}>{card.imageUrl && <img src={card.imageUrl} alt="" />}<span><strong>{card.name}</strong><small>{card.setName}</small></span><b>{card.price === null ? "—" : formatCurrency(card.price)}</b></button>)}</div>}
             <div className="form-grid"><label>Quantity<input name="quantity" type="number" min="1" defaultValue="1" required /></label><label>{locale === "es" ? "Precio de compra unitario" : "Unit purchase price"}<input key={selectedCard?.id ?? "no-card"} name="purchasePrice" type="number" min="0" step=".01" defaultValue={selectedCard?.price ?? ""} required /></label></div>
