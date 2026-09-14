@@ -1,86 +1,83 @@
-const DEFAULT_CHECK_NAME = "production-migrations";
+import { signSchemaReadiness } from "../src/lib/schema-readiness.ts";
 
-export function repositorySlugFromPackage(packageJson) {
-  const repository =
-    typeof packageJson?.repository === "string"
-      ? packageJson.repository
-      : packageJson?.repository?.url;
-  if (typeof repository !== "string") {
-    throw new Error("package.json repository URL is required for the release gate");
-  }
-  const match = repository.match(
-    /github\.com[/:]([^/]+)\/([^/#]+?)(?:\.git)?$/,
-  );
-  if (!match) {
-    throw new Error("package.json repository must be a GitHub repository");
-  }
-  return `${match[1]}/${match[2]}`;
-}
-
-export async function waitForProductionMigrations({
+export async function waitForProductionSchema({
   commitSha,
-  repository,
+  filename,
+  checksum,
+  secret,
+  baseUrl = "https://magicbrain.es",
   fetchFn = fetch,
   sleep = (delayMs) =>
     new Promise((resolve) => setTimeout(resolve, delayMs)),
   maxAttempts = 40,
   pollIntervalMs = 15_000,
-  checkName = DEFAULT_CHECK_NAME,
   log = console.log,
 }) {
   if (!/^[0-9a-f]{40}$/i.test(commitSha ?? "")) {
     throw new Error("WORKERS_CI_COMMIT_SHA must be a full Git commit SHA");
   }
-  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository ?? "")) {
-    throw new Error("A valid package repository slug is required");
+  if (!/^\d{3}_[a-z0-9_]+\.sql$/.test(filename ?? "")) {
+    throw new Error("A valid latest migration filename is required");
+  }
+  if (!/^[0-9a-f]{64}$/i.test(checksum ?? "")) {
+    throw new Error("A valid latest migration checksum is required");
+  }
+  if (!secret) {
+    throw new Error("AUTH_SECRET is required for the production schema gate");
   }
   if (!Number.isInteger(maxAttempts) || maxAttempts < 1) {
     throw new RangeError("maxAttempts must be a positive integer");
   }
 
-  const endpoint =
-    `https://api.github.com/repos/${repository}/commits/${commitSha}/check-runs` +
-    `?check_name=${encodeURIComponent(checkName)}&filter=latest&per_page=10`;
-
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const response = await fetchFn(endpoint, {
-      headers: {
-        Accept: "application/vnd.github+json",
-        "User-Agent": "magic-brain-release-gate",
-      },
-    });
-    if (!response.ok) {
-      throw new Error(
-        `Unable to verify production migrations: GitHub returned ${response.status}`,
-      );
-    }
-    const payload = await response.json();
-    const check = payload.check_runs?.find(
-      (candidate) =>
-        candidate.name === checkName &&
-        candidate.head_sha === commitSha &&
-        candidate.app?.slug === "github-actions",
+    const expires = Math.floor(Date.now() / 1000) + 120;
+    const claim = { commit: commitSha, filename, checksum, expires };
+    const endpoint = new URL("/api/internal/schema-readiness", baseUrl);
+    Object.entries(claim).forEach(([key, value]) =>
+      endpoint.searchParams.set(key, String(value)),
     );
-
-    if (check?.status === "completed") {
-      if (check.conclusion === "success") {
-        log(`Production migrations passed for ${commitSha}.`);
-        return;
+    try {
+      const response = await fetchFn(endpoint, {
+        headers: {
+          "x-release-signature": signSchemaReadiness(secret, claim),
+        },
+        cache: "no-store",
+      });
+      if (response.ok) {
+        const payload = await response.json();
+        if (payload.ready === true) {
+          log(`Production schema includes ${filename}.`);
+          return;
+        }
+        throw new Error("Schema readiness response was malformed");
       }
-      throw new Error(
-        `Production migrations did not pass for ${commitSha}: ` +
-          `${check.conclusion ?? "unknown conclusion"}`,
-      );
+      if (![404, 409, 503].includes(response.status)) {
+        throw new Error(
+          `Production schema verification failed with HTTP ${response.status}`,
+        );
+      }
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.startsWith("Production schema verification failed")
+      ) {
+        throw error;
+      }
+      if (attempt === maxAttempts) {
+        throw new Error(
+          `Production schema was not ready for ${commitSha}; deployment aborted`,
+          { cause: error },
+        );
+      }
     }
-    if (attempt === maxAttempts) {
-      throw new Error(
-        `Timed out waiting for ${checkName} on ${commitSha}; deployment aborted`,
-      );
-    }
+    if (attempt === maxAttempts) break;
     log(
-      `Waiting for ${checkName} on ${commitSha} ` +
+      `Waiting for production schema ${filename} ` +
         `(attempt ${attempt}/${maxAttempts}).`,
     );
     await sleep(pollIntervalMs);
   }
+  throw new Error(
+    `Production schema was not ready for ${commitSha}; deployment aborted`,
+  );
 }
