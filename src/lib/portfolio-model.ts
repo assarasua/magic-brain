@@ -24,6 +24,88 @@ export type PortfolioUpdate = {
   language?: string;
 };
 
+export type PortfolioSaleInput = {
+  quantity: number;
+  saleUnitPrice: number;
+  soldAt: string;
+  listId: string;
+  requestId: string;
+};
+
+export type PortfolioSaleAmounts = {
+  proceeds: number;
+  costBasis: number;
+  realizedPnl: number;
+};
+
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function isValidCalendarDate(value: unknown, today?: string): value is string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+  const timestamp = Date.parse(`${value}T00:00:00Z`);
+  if (
+    !Number.isFinite(timestamp) ||
+    new Date(timestamp).toISOString().slice(0, 10) !== value
+  ) {
+    return false;
+  }
+  return today === undefined || value <= today;
+}
+
+export function parsePortfolioSale(
+  value: unknown,
+  today = new Date().toISOString().slice(0, 10),
+): PortfolioSaleInput | null {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const allowedKeys = new Set([
+    "quantity",
+    "saleUnitPrice",
+    "soldAt",
+    "listId",
+    "requestId",
+  ]);
+  if (
+    Object.keys(record).length !== allowedKeys.size ||
+    Object.keys(record).some((key) => !allowedKeys.has(key)) ||
+    !isValidPortfolioQuantity(record.quantity) ||
+    !isValidPortfolioUnitPrice(record.saleUnitPrice) ||
+    !isValidCalendarDate(record.soldAt, today) ||
+    typeof record.listId !== "string" ||
+    !uuidPattern.test(record.listId) ||
+    typeof record.requestId !== "string" ||
+    !uuidPattern.test(record.requestId)
+  ) {
+    return null;
+  }
+  return {
+    quantity: record.quantity,
+    saleUnitPrice: record.saleUnitPrice,
+    soldAt: record.soldAt,
+    listId: record.listId,
+    requestId: record.requestId,
+  };
+}
+
+export function calculatePortfolioSaleAmounts(
+  quantity: number,
+  purchaseUnitPrice: number,
+  saleUnitPrice: number,
+): PortfolioSaleAmounts {
+  const proceeds = Number((saleUnitPrice * quantity).toFixed(2));
+  const costBasis = Number((purchaseUnitPrice * quantity).toFixed(2));
+  return {
+    proceeds,
+    costBasis,
+    realizedPnl: Number((proceeds - costBasis).toFixed(2)),
+  };
+}
+
 export function parsePortfolioUpdate(
   value: unknown,
   isLanguage: (value: unknown) => value is string,

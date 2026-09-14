@@ -1,17 +1,19 @@
 "use client";
 
-import { useEffect, useRef, type KeyboardEvent } from "react";
-import type { PortfolioList } from "@/lib/portfolio";
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import type { PortfolioHolding, PortfolioList } from "@/lib/portfolio";
+import { formatCurrency } from "@/lib/data";
+import { calculatePortfolioSaleAmounts } from "@/lib/portfolio-model";
 import styles from "@/app/portfolio/portfolio.module.css";
 
 type Locale = "en" | "es";
 
-function useDialogFocus(
+function useDialogFocus<T extends HTMLElement>(
   open: boolean,
   busy: boolean,
   onClose: () => void,
 ) {
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<T>(null);
   const firstButtonRef = useRef<HTMLButtonElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
 
@@ -30,7 +32,7 @@ function useDialogFocus(
     };
   }, [open]);
 
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+  const onKeyDown = (event: KeyboardEvent<T>) => {
     if (event.key === "Escape" && !busy) {
       event.preventDefault();
       onClose();
@@ -81,7 +83,7 @@ export function BulkActionDialog({
   onConfirm: () => void;
 }) {
   const open = action !== null;
-  const { dialogRef, firstButtonRef, onKeyDown } = useDialogFocus(
+  const { dialogRef, firstButtonRef, onKeyDown } = useDialogFocus<HTMLDivElement>(
     open,
     busy,
     onClose,
@@ -194,7 +196,7 @@ export function ConfirmationDialog({
   onClose: () => void;
   onConfirm: () => void;
 }) {
-  const { dialogRef, firstButtonRef, onKeyDown } = useDialogFocus(
+  const { dialogRef, firstButtonRef, onKeyDown } = useDialogFocus<HTMLDivElement>(
     open,
     busy,
     onClose,
@@ -226,6 +228,160 @@ export function ConfirmationDialog({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+export function RecordSaleDialog({
+  holding,
+  busy,
+  error,
+  locale,
+  onClose,
+  onConfirm,
+}: {
+  holding: PortfolioHolding | null;
+  busy: boolean;
+  error: string;
+  locale: Locale;
+  onClose: () => void;
+  onConfirm: (input: {
+    quantity: number;
+    saleUnitPrice: number;
+    soldAt: string;
+  }) => void;
+}) {
+  const open = holding !== null;
+  const [quantity, setQuantity] = useState("1");
+  const [saleUnitPrice, setSaleUnitPrice] = useState(
+    holding?.currentPrice === null || holding === null
+      ? ""
+      : holding.currentPrice.toFixed(2),
+  );
+  const [soldAt, setSoldAt] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
+  const { dialogRef, onKeyDown } = useDialogFocus<HTMLFormElement>(
+    open,
+    busy,
+    onClose,
+  );
+
+  if (!holding) return null;
+  const numericQuantity = Number(quantity);
+  const numericSalePrice = Number(saleUnitPrice);
+  const valid =
+    Number.isInteger(numericQuantity) &&
+    numericQuantity >= 1 &&
+    numericQuantity <= holding.quantity &&
+    saleUnitPrice.trim() !== "" &&
+    Number.isFinite(numericSalePrice) &&
+    numericSalePrice >= 0 &&
+    Math.abs(numericSalePrice * 100 - Math.round(numericSalePrice * 100)) < 1e-7 &&
+    /^\d{4}-\d{2}-\d{2}$/.test(soldAt);
+  const amounts = valid
+    ? calculatePortfolioSaleAmounts(
+        numericQuantity,
+        holding.purchasePrice,
+        numericSalePrice,
+      )
+    : null;
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!valid || busy) return;
+    onConfirm({
+      quantity: numericQuantity,
+      saleUnitPrice: numericSalePrice,
+      soldAt,
+    });
+  };
+
+  return (
+    <div className={styles.actionBackdrop} onMouseDown={() => !busy && onClose()}>
+      <form
+        ref={dialogRef}
+        className={styles.actionDialog}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="record-sale-title"
+        aria-describedby="record-sale-description"
+        aria-busy={busy}
+        onSubmit={submit}
+        onKeyDown={onKeyDown}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <span className={styles.actionKicker}>
+          {holding.name} · {holding.quantity}×
+        </span>
+        <h2 id="record-sale-title">
+          {locale === "es" ? "Registrar venta" : "Record sale"}
+        </h2>
+        <p id="record-sale-description">
+          {locale === "es"
+            ? "Registra una venta parcial o completa. El historial de la venta se conservará."
+            : "Record a partial or full sale. The sale history will be preserved."}
+        </p>
+        <div className={styles.saleFields}>
+          <label>
+            <span>{locale === "es" ? "Cantidad vendida" : "Quantity sold"}</span>
+            <input
+              autoFocus
+              type="number"
+              min="1"
+              max={holding.quantity}
+              step="1"
+              required
+              value={quantity}
+              disabled={busy}
+              onChange={(event) => setQuantity(event.target.value)}
+            />
+          </label>
+          <label>
+            <span>{locale === "es" ? "Precio unitario (EUR)" : "Unit sale price (EUR)"}</span>
+            <input
+              type="number"
+              min="0"
+              max="999999999999.99"
+              step=".01"
+              required
+              value={saleUnitPrice}
+              disabled={busy}
+              onChange={(event) => setSaleUnitPrice(event.target.value)}
+            />
+          </label>
+          <label>
+            <span>{locale === "es" ? "Fecha de venta" : "Sale date"}</span>
+            <input
+              type="date"
+              min={holding.acquiredAt}
+              max={new Date().toISOString().slice(0, 10)}
+              required
+              value={soldAt}
+              disabled={busy}
+              onChange={(event) => setSoldAt(event.target.value)}
+            />
+          </label>
+        </div>
+        {amounts && (
+          <dl className={styles.salePreview} aria-live="polite">
+            <div><dt>{locale === "es" ? "Ingresos" : "Proceeds"}</dt><dd>{formatCurrency(amounts.proceeds)}</dd></div>
+            <div><dt>{locale === "es" ? "Coste asignado" : "Allocated cost basis"}</dt><dd>{formatCurrency(amounts.costBasis)}</dd></div>
+            <div data-positive={amounts.realizedPnl >= 0}><dt>{locale === "es" ? "P&L realizado" : "Realized P&L"}</dt><dd>{amounts.realizedPnl >= 0 ? "+" : ""}{formatCurrency(amounts.realizedPnl)}</dd></div>
+          </dl>
+        )}
+        {error && <p className={styles.dialogError} role="alert">{error}</p>}
+        <div className={styles.dialogActions}>
+          <button type="button" disabled={busy} onClick={onClose}>
+            {locale === "es" ? "Cancelar" : "Cancel"}
+          </button>
+          <button type="submit" disabled={busy || !valid}>
+            {busy
+              ? locale === "es" ? "Registrando…" : "Recording…"
+              : locale === "es" ? "Confirmar venta" : "Confirm sale"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

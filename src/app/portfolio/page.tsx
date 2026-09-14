@@ -4,6 +4,7 @@
 
 import {
   ArrowLeft,
+  Banknote,
   ChevronDown,
   ChevronUp,
   Check,
@@ -37,12 +38,13 @@ import {
 import {
   BulkActionDialog,
   ConfirmationDialog,
+  RecordSaleDialog,
 } from "@/components/portfolio-action-dialog";
 import { CARD_LANGUAGES, type CardLanguage } from "@/lib/card-languages";
 import type { CatalogCard } from "@/lib/catalog";
 import { formatCurrency } from "@/lib/data";
 import { calculateSeriesMetrics } from "@/lib/financial-analytics";
-import type { PortfolioHolding, PortfolioList } from "@/lib/portfolio";
+import type { PortfolioHolding, PortfolioList, PortfolioSale } from "@/lib/portfolio";
 import type { PortfolioForecast } from "@/lib/portfolio-forecast-model";
 import type { MlCardContext, MlRankingStatus } from "@/lib/ml-experience";
 import {
@@ -56,6 +58,7 @@ type PortfolioData = {
   lists: PortfolioList[];
   selectedListId: string;
   holdings: Array<PortfolioHolding & { ml?: MlCardContext | null }>;
+  recentSales: PortfolioSale[];
   summary: {
     invested: number;
     value: number;
@@ -87,6 +90,10 @@ type PortfolioData = {
       currentValue: number;
     } | null;
     cardCount: number;
+    realizedProceeds: number;
+    realizedCostBasis: number;
+    realizedPnl: number;
+    saleCount: number;
   };
   history: Array<{ date: string; value: number; invested: number }>;
   forecast: PortfolioForecast;
@@ -162,6 +169,7 @@ const emptyPortfolio: PortfolioData = {
   lists: [],
   selectedListId: "",
   holdings: [],
+  recentSales: [],
   summary: {
     invested: 0,
     value: 0,
@@ -181,6 +189,10 @@ const emptyPortfolio: PortfolioData = {
     bestContributor: null,
     worstContributor: null,
     cardCount: 0,
+    realizedProceeds: 0,
+    realizedCostBasis: 0,
+    realizedPnl: 0,
+    saleCount: 0,
   },
   history: [],
   forecast: {
@@ -344,6 +356,10 @@ export default function PortfolioPage() {
     | null
   >(null);
   const [confirmationBusy, setConfirmationBusy] = useState(false);
+  const [saleHolding, setSaleHolding] = useState<PortfolioHolding | null>(null);
+  const [saleBusy, setSaleBusy] = useState(false);
+  const [saleError, setSaleError] = useState("");
+  const [saleRequestId, setSaleRequestId] = useState("");
   const [share, setShare] = useState<{
     id: string;
     expiresAt: string;
@@ -624,9 +640,7 @@ export default function PortfolioPage() {
       const response = await fetch(`/api/portfolio/lists/${list.id}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          list.holdingCount ? { destinationListId: destination?.id } : {},
-        ),
+        body: JSON.stringify({ destinationListId: destination?.id }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "Unable to delete list");
@@ -821,10 +835,11 @@ export default function PortfolioPage() {
     if (confirmation.kind === "list") {
       return {
         title: locale === "es" ? "Eliminar lista" : "Delete list",
-        description: confirmation.list.holdingCount > 0
+        description:
+          confirmation.list.holdingCount > 0 || confirmation.list.saleCount > 0
           ? locale === "es"
-            ? `Las ${confirmation.list.holdingCount} posiciones de “${confirmation.list.name}” se moverán a “${data.lists.find((list) => list.isDefault)?.name}” antes de eliminar la lista.`
-            : `${confirmation.list.holdingCount} holdings in “${confirmation.list.name}” will move to “${data.lists.find((list) => list.isDefault)?.name}” before the list is deleted.`
+            ? `Las ${confirmation.list.holdingCount} posiciones y ${confirmation.list.saleCount} ventas de “${confirmation.list.name}” se moverán a “${data.lists.find((list) => list.isDefault)?.name}” antes de eliminar la lista.`
+            : `${confirmation.list.holdingCount} holdings and ${confirmation.list.saleCount} sales in “${confirmation.list.name}” will move to “${data.lists.find((list) => list.isDefault)?.name}” before the list is deleted.`
           : locale === "es"
             ? `La lista vacía “${confirmation.list.name}” se eliminará.`
             : `The empty list “${confirmation.list.name}” will be deleted.`,
@@ -909,6 +924,72 @@ export default function PortfolioPage() {
     }
   };
 
+  const recordSale = async (input: {
+    quantity: number;
+    saleUnitPrice: number;
+    soldAt: string;
+  }) => {
+    if (!saleHolding || saleBusy || !saleRequestId) return;
+    setSaleBusy(true);
+    setSaleError("");
+    try {
+      const response = await fetch(`/api/portfolio/${saleHolding.id}/sales`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...input,
+          listId: data.selectedListId,
+          requestId: saleRequestId,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const messages: Record<string, string> = {
+          holding_missing:
+            locale === "es"
+              ? "La posición ya no existe en esta lista."
+              : "The holding is no longer in this list.",
+          insufficient_quantity:
+            locale === "es"
+              ? `Solo quedan ${result.availableQuantity ?? 0} unidades.`
+              : `Only ${result.availableQuantity ?? 0} units remain.`,
+          sale_before_purchase:
+            locale === "es"
+              ? "La fecha de venta no puede ser anterior a la compra."
+              : "The sale date cannot be before the purchase date.",
+          idempotency_conflict:
+            locale === "es"
+              ? "Esta solicitud ya se usó para otra venta."
+              : "This request was already used for another sale.",
+        };
+        throw new Error(
+          messages[result.code] ??
+            (locale === "es"
+              ? "No se pudo registrar la venta."
+              : "Unable to record the sale."),
+        );
+      }
+      setSaleHolding(null);
+      setSaleRequestId("");
+      setNotice(
+        locale === "es"
+          ? "Venta registrada y posición actualizada."
+          : "Sale recorded and holding updated.",
+      );
+      await loadPortfolio(data.selectedListId);
+    } catch (saleFailure) {
+      setSaleError(
+        saleFailure instanceof Error
+          ? saleFailure.message
+          : locale === "es"
+            ? "No se pudo registrar la venta."
+            : "Unable to record the sale.",
+      );
+    } finally {
+      setSaleBusy(false);
+    }
+  };
+
   const patchHolding = async (
     id: number,
     update: {
@@ -953,7 +1034,10 @@ export default function PortfolioPage() {
       return {
         ...current,
         holdings,
-        summary,
+        summary: {
+          ...current.summary,
+          ...summary,
+        },
         opportunities: calculateOpportunityAnalytics(
           holdings,
           summary.value,
@@ -1267,7 +1351,7 @@ export default function PortfolioPage() {
               onToggleHolding={() => undefined}
             />
           </>
-        ) : data.holdings.length === 0 ? (
+        ) : data.holdings.length === 0 && data.recentSales.length === 0 ? (
           <>
             <PortfolioOnboarding onAdd={() => setShowAdd(true)} />
             <PortfolioDecisionSection
@@ -1299,12 +1383,14 @@ export default function PortfolioPage() {
               <div><span>{locale === "es" ? "Valor actual conocido" : "Known current value"}</span><strong>{formatCurrency(data.summary.value)}</strong><small>{data.summary.pricedHoldings}/{data.holdings.length} {locale === "es" ? "posiciones con precio" : "holdings priced"} · {data.summary.pricingCoveragePercent.toFixed(0)}%</small></div>
               <div><span>{locale === "es" ? "Ganancia/pérdida no realizada" : "Unrealized gain/loss"}</span><strong className={data.summary.unrealizedGain >= 0 ? "up" : "down"}>{data.summary.unrealizedGain >= 0 ? <TrendingUp size={16} aria-hidden="true" /> : <TrendingDown size={16} aria-hidden="true" />}{data.summary.unrealizedGain >= 0 ? "+" : ""}{formatCurrency(data.summary.unrealizedGain)}</strong><small>{locale === "es" ? "Solo posiciones con precio actual" : "Priced holdings only"}</small></div>
               <div><span>{locale === "es" ? "Rentabilidad no realizada" : "Unrealized return"}</span><strong className={(data.summary.unrealizedGainPercent ?? 0) >= 0 ? "up" : "down"}>{data.summary.unrealizedGainPercent === null ? "—" : `${data.summary.unrealizedGainPercent >= 0 ? "▲ +" : "▼ "}${data.summary.unrealizedGainPercent.toFixed(2)}%`}</strong><small>{data.summary.unrealizedGainPercent === null ? (locale === "es" ? "No disponible: coste valorado cero" : "Unavailable: valued cost is zero") : (locale === "es" ? `Sobre ${formatCurrency(data.summary.valuedInvested)} de coste valorado` : `On ${formatCurrency(data.summary.valuedInvested)} priced cost`)}</small></div>
+              <div><span>{locale === "es" ? "Ingresos realizados" : "Realized proceeds"}</span><strong>{formatCurrency(data.summary.realizedProceeds)}</strong><small>{data.summary.saleCount} {locale === "es" ? "ventas registradas" : "recorded sales"}</small></div>
+              <div><span>{locale === "es" ? "P&L realizado" : "Realized P&L"}</span><strong className={data.summary.realizedPnl >= 0 ? "up" : "down"}>{data.summary.realizedPnl >= 0 ? "+" : ""}{formatCurrency(data.summary.realizedPnl)}</strong><small>{locale === "es" ? `Coste asignado ${formatCurrency(data.summary.realizedCostBasis)}` : `Allocated cost ${formatCurrency(data.summary.realizedCostBasis)}`}</small></div>
             </section>
 
             <p className={styles.pnlDisclosure}>
               {locale === "es"
-                ? `Todas las cifras de rendimiento son no realizadas. Las ganancias/pérdidas realizadas requieren ventas registradas, y esta cartera todavía no tiene un registro de ventas.${data.summary.unpricedHoldings ? ` ${data.summary.unpricedHoldings} posición(es), con ${formatCurrency(data.summary.unpricedInvested)} de coste, no tienen precio actual y se excluyen del valor y P&L.` : ""}`
-                : `All return figures are unrealized. Realized P&L requires recorded sales, and this portfolio does not yet have a sales ledger.${data.summary.unpricedHoldings ? ` ${data.summary.unpricedHoldings} holding(s), representing ${formatCurrency(data.summary.unpricedInvested)} of cost, have no current price and are excluded from value and P&L.` : ""}`}
+                ? `El P&L no realizado incluye solo posiciones activas con precio. El P&L realizado usa el precio y coste unitario registrados en cada venta.${data.summary.unpricedHoldings ? ` ${data.summary.unpricedHoldings} posición(es), con ${formatCurrency(data.summary.unpricedInvested)} de coste, no tienen precio actual y se excluyen del valor y P&L no realizado.` : ""}`
+                : `Unrealized P&L includes active priced holdings only. Realized P&L uses the unit sale price and allocated purchase cost recorded for each sale.${data.summary.unpricedHoldings ? ` ${data.summary.unpricedHoldings} holding(s), representing ${formatCurrency(data.summary.unpricedInvested)} of cost, have no current price and are excluded from value and unrealized P&L.` : ""}`}
             </p>
 
             <PortfolioForecastChart
@@ -1400,6 +1486,13 @@ export default function PortfolioPage() {
               <strong role="status" aria-live="polite">{selectedHoldingIds.length} {locale === "es" ? "seleccionadas" : "selected"}</strong>
             </div>
             <div className="holdings-list">
+              {data.holdings.length === 0 && (
+                <p className={styles.emptyHoldings}>
+                  {locale === "es"
+                    ? "No quedan posiciones activas en esta lista."
+                    : "No active holdings remain in this list."}
+                </p>
+              )}
               {data.holdings.map((holding) => <div id={`holding-${holding.id}`} data-selected={selectedHoldingIds.includes(holding.id)} className={`portfolio-row card-surface ${styles.holdingRow} ${updatingHolding === holding.id ? styles.updating : ""}`} key={holding.id} {...cardSurfaceProps(holding.cardId)}>
                 <label className={styles.selectionBox} onClick={(event) => event.stopPropagation()}>
                   <input
@@ -1441,12 +1534,54 @@ export default function PortfolioPage() {
                 <div><span>{locale === "es" ? "P&L no realizado" : "Unrealized P&L"}</span><strong className={(holding.gain ?? 0) >= 0 ? "up" : "down"}>{holding.gain === null ? (locale === "es" ? "Sin precio actual" : "No current price") : `${holding.gain >= 0 ? "▲ +" : "▼ "}${formatCurrency(holding.gain)}`}</strong><small className={styles.holdingReturn}>{holding.gain === null ? (locale === "es" ? "Excluido del total" : "Excluded from total") : holding.gainPercent === null ? (locale === "es" ? "% no disponible: coste cero" : "% unavailable: zero cost") : `${holding.gainPercent >= 0 ? "▲ +" : "▼ "}${holding.gainPercent.toFixed(2)}%`}</small></div>
                 <div className={styles.actions}>
                   {updatingHolding === holding.id && <span className={styles.savingIndicator} role="status">{locale === "es" ? "Guardando" : "Saving"}</span>}
+                  <button
+                    type="button"
+                    className={styles.saleButton}
+                    disabled={updatingHolding === holding.id}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setSaleError("");
+                      setSaleRequestId(crypto.randomUUID());
+                      setSaleHolding(holding);
+                    }}
+                  >
+                    <Banknote size={14} />
+                    <span>{locale === "es" ? "Registrar venta" : "Record sale"}</span>
+                  </button>
                   {editingHolding === holding.id ? <><button disabled={updatingHolding === holding.id} onClick={() => saveHolding(holding.id)} aria-label={`Save ${holding.name}`}><Check size={15} /></button><button disabled={updatingHolding === holding.id} onClick={() => setEditingHolding(null)} aria-label={`Cancel editing ${holding.name}`}><X size={15} /></button></> : <button onClick={() => startEditingHolding(holding)} aria-label={`Edit ${holding.name}`}><Pencil size={14} /></button>}
                   <button disabled={updatingHolding === holding.id} onClick={(event) => { event.stopPropagation(); setConfirmation({ kind: "holding", id: holding.id, name: holding.name }); }} aria-label={`${locale === "es" ? "Eliminar posición" : "Remove holding"} ${holding.name}`}><Trash2 size={15} /></button>
                 </div>
               </div>)}
             </div>
             </section>
+            {data.recentSales.length > 0 && (
+              <section className={`fintech-panel ${styles.salesPanel}`}>
+                <div className="section-title">
+                  <div>
+                    <span className="eyebrow">{locale === "es" ? "Historial inmutable" : "Immutable history"}</span>
+                    <h2>{locale === "es" ? "Ventas recientes" : "Recent sales"} · {activeList?.name}</h2>
+                  </div>
+                  <span>{data.summary.saleCount} {locale === "es" ? "ventas totales" : "total sales"}</span>
+                </div>
+                <div className={styles.salesList}>
+                  {data.recentSales.map((sale) => (
+                    <article key={sale.id}>
+                      {sale.imageUrl && <img src={sale.imageUrl} alt="" />}
+                      <div>
+                        <strong>{sale.name}</strong>
+                        <span>{sale.setCode.toUpperCase()} · {sale.collectorNumber} · {sale.condition.replaceAll("_", " ")} · {sale.language.toUpperCase()}</span>
+                        <small>{new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${sale.soldAt}T00:00:00Z`))} · {sale.quantity}× {locale === "es" ? "a" : "at"} {formatCurrency(sale.saleUnitPrice)}</small>
+                      </div>
+                      <dl>
+                        <div><dt>{locale === "es" ? "Ingresos" : "Proceeds"}</dt><dd>{formatCurrency(sale.proceeds)}</dd></div>
+                        <div><dt>{locale === "es" ? "Coste" : "Cost basis"}</dt><dd>{formatCurrency(sale.costBasis)}</dd></div>
+                        <div><dt>{locale === "es" ? "P&L realizado" : "Realized P&L"}</dt><dd className={sale.realizedPnl >= 0 ? "up" : "down"}>{sale.realizedPnl >= 0 ? "+" : ""}{formatCurrency(sale.realizedPnl)}</dd></div>
+                      </dl>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            )}
             {selectedHoldingIds.length > 0 && (
               <div className={styles.bulkBar} role="region" aria-label={locale === "es" ? "Acciones para posiciones seleccionadas" : "Actions for selected holdings"}>
                 <div><strong>{selectedHoldingIds.length}</strong><span>{locale === "es" ? "seleccionadas" : "selected"}</span></div>
@@ -1503,6 +1638,20 @@ export default function PortfolioPage() {
           setBulkRequestId("");
         }}
         onConfirm={() => void runBulkAction()}
+      />
+      <RecordSaleDialog
+        key={saleHolding?.id ?? "closed-sale-dialog"}
+        holding={saleHolding}
+        busy={saleBusy}
+        error={saleError}
+        locale={locale}
+        onClose={() => {
+          if (saleBusy) return;
+          setSaleHolding(null);
+          setSaleError("");
+          setSaleRequestId("");
+        }}
+        onConfirm={(input) => void recordSale(input)}
       />
       <ConfirmationDialog
         open={confirmation !== null}

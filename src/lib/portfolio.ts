@@ -6,9 +6,11 @@ import {
   type PortfolioBulkRequest,
 } from "@/lib/portfolio-list-model";
 import {
+  calculatePortfolioSaleAmounts,
   calculateOpportunityAnalytics,
   calculatePortfolioSummary,
   classifyPortfolioOpportunity,
+  type PortfolioSaleInput,
   type PortfolioOpportunityClassification,
   type PortfolioUpdate,
 } from "@/lib/portfolio-model";
@@ -41,6 +43,28 @@ export type PortfolioHolding = {
   acquiredAt: string;
 };
 
+export type PortfolioSale = {
+  id: number;
+  sourceHoldingId: number;
+  cardId: string;
+  name: string;
+  setCode: string;
+  setName: string;
+  collectorNumber: string;
+  imageUrl: string | null;
+  condition: string;
+  language: string;
+  purchaseUnitPrice: number;
+  quantity: number;
+  saleUnitPrice: number;
+  acquiredAt: string;
+  soldAt: string;
+  proceeds: number;
+  costBasis: number;
+  realizedPnl: number;
+  createdAt: string;
+};
+
 type HoldingRow = {
   id: string;
   list_id: string;
@@ -66,6 +90,50 @@ type HoldingRow = {
   language: string;
   acquired_at: string;
 };
+
+type SaleRow = {
+  id: string;
+  source_holding_id: string;
+  scryfall_id: string;
+  card_name: string;
+  set_code: string;
+  set_name: string;
+  collector_number: string;
+  image_url: string | null;
+  condition: string;
+  language: string;
+  purchase_unit_price_eur: string;
+  quantity: number;
+  sale_unit_price_eur: string;
+  acquired_at: string;
+  sold_at: string;
+  proceeds_eur: string;
+  cost_basis_eur: string;
+  realized_pnl_eur: string;
+  created_at: string;
+};
+
+const mapSale = (row: SaleRow): PortfolioSale => ({
+  id: normalizeDatabaseHoldingId(row.id),
+  sourceHoldingId: normalizeDatabaseHoldingId(row.source_holding_id),
+  cardId: row.scryfall_id,
+  name: row.card_name,
+  setCode: row.set_code,
+  setName: row.set_name,
+  collectorNumber: row.collector_number,
+  imageUrl: row.image_url,
+  condition: row.condition,
+  language: row.language,
+  purchaseUnitPrice: Number(row.purchase_unit_price_eur),
+  quantity: row.quantity,
+  saleUnitPrice: Number(row.sale_unit_price_eur),
+  acquiredAt: row.acquired_at,
+  soldAt: row.sold_at,
+  proceeds: Number(row.proceeds_eur),
+  costBasis: Number(row.cost_basis_eur),
+  realizedPnl: Number(row.realized_pnl_eur),
+  createdAt: row.created_at,
+});
 
 const mapHolding = (row: HoldingRow): PortfolioHolding => {
   const change7d = row.change_7d === null ? null : Number(row.change_7d);
@@ -113,6 +181,7 @@ export type PortfolioList = {
   position: number;
   isDefault: boolean;
   holdingCount: number;
+  saleCount: number;
 };
 
 type PortfolioListRow = {
@@ -121,6 +190,7 @@ type PortfolioListRow = {
   position: number;
   is_default: boolean;
   holding_count: number;
+  sale_count: number;
 };
 
 const mapList = (row: PortfolioListRow): PortfolioList => ({
@@ -129,6 +199,7 @@ const mapList = (row: PortfolioListRow): PortfolioList => ({
   position: row.position,
   isDefault: row.is_default,
   holdingCount: row.holding_count,
+  saleCount: row.sale_count,
 });
 
 export async function ensurePortfolioLists(userId: string) {
@@ -159,7 +230,12 @@ export async function getPortfolioLists(userId: string) {
         list.name,
         list.position,
         list.is_default,
-        count(item.id)::integer as holding_count
+        count(item.id)::integer as holding_count,
+        (
+          select count(*)::integer
+          from app_portfolio_sales sale
+          where sale.user_id = list.user_id and sale.list_id = list.id
+        ) as sale_count
       from app_portfolio_lists list
       left join app_portfolio_items item
         on item.list_id = list.id and item.user_id = list.user_id
@@ -178,7 +254,7 @@ export async function getPortfolio(userId: string, requestedListId?: string) {
     ? lists.find((list) => list.id === requestedListId)
     : lists.find((list) => list.isDefault) ?? lists[0];
   if (!selectedList) return null;
-  const [{ rows }, historyResult] = await Promise.all([
+  const [{ rows }, historyResult, salesResult, realizedResult] = await Promise.all([
     query<HoldingRow>(
     `
       select
@@ -264,15 +340,49 @@ export async function getPortfolio(userId: string, requestedListId?: string) {
       `,
       [userId, selectedList.id],
     ),
+    query<SaleRow>(
+      `
+        select id::text, source_holding_id::text, scryfall_id::text, card_name,
+          set_code, set_name, collector_number, image_url, condition, language,
+          purchase_unit_price_eur::text, quantity, sale_unit_price_eur::text,
+          acquired_at::text, sold_at::text, proceeds_eur::text,
+          cost_basis_eur::text, realized_pnl_eur::text, created_at::text
+        from app_portfolio_sales
+        where user_id = $1 and list_id = $2
+        order by sold_at desc, id desc
+        limit 50
+      `,
+      [userId, selectedList.id],
+    ),
+    query<{ proceeds: string; cost_basis: string; realized_pnl: string; sale_count: number }>(
+      `
+        select coalesce(sum(proceeds_eur), 0)::text as proceeds,
+          coalesce(sum(cost_basis_eur), 0)::text as cost_basis,
+          coalesce(sum(realized_pnl_eur), 0)::text as realized_pnl,
+          count(*)::integer as sale_count
+        from app_portfolio_sales
+        where user_id = $1 and list_id = $2
+      `,
+      [userId, selectedList.id],
+    ),
   ]);
 
   const holdings = rows.map(mapHolding);
-  const summary = calculatePortfolioSummary(holdings);
+  const activeSummary = calculatePortfolioSummary(holdings);
+  const realized = realizedResult.rows[0];
+  const summary = {
+    ...activeSummary,
+    realizedProceeds: Number(realized.proceeds),
+    realizedCostBasis: Number(realized.cost_basis),
+    realizedPnl: Number(realized.realized_pnl),
+    saleCount: realized.sale_count,
+  };
 
   return {
     lists,
     selectedListId: selectedList.id,
     holdings,
+    recentSales: salesResult.rows.map(mapSale),
     summary,
     opportunities: calculateOpportunityAnalytics(holdings, summary.value),
     history: historyResult.rows.map((point) => ({
@@ -362,6 +472,164 @@ export async function updatePortfolioItem(
   return result.rowCount === 1;
 }
 
+export async function recordPortfolioSale(
+  userId: string,
+  itemId: number,
+  input: PortfolioSaleInput,
+) {
+  const client = await db.connect();
+  try {
+    await client.query("begin");
+    await client.query(`select id from app_users where id = $1 for update`, [
+      userId,
+    ]);
+    const replay = await client.query<SaleRow & { request_id: string; list_id: string }>(
+      `
+        select id::text, request_id::text, list_id::text,
+          source_holding_id::text, scryfall_id::text, card_name, set_code,
+          set_name, collector_number, image_url, condition, language,
+          purchase_unit_price_eur::text, quantity, sale_unit_price_eur::text,
+          acquired_at::text, sold_at::text, proceeds_eur::text,
+          cost_basis_eur::text, realized_pnl_eur::text, created_at::text
+        from app_portfolio_sales
+        where user_id = $1 and request_id = $2
+      `,
+      [userId, input.requestId],
+    );
+    if (replay.rows[0]) {
+      const previous = replay.rows[0];
+      const matches =
+        previous.list_id === input.listId &&
+        normalizeDatabaseHoldingId(previous.source_holding_id) === itemId &&
+        previous.quantity === input.quantity &&
+        Number(previous.sale_unit_price_eur) === input.saleUnitPrice &&
+        previous.sold_at === input.soldAt;
+      await client.query(matches ? "commit" : "rollback");
+      return matches
+        ? { status: "recorded" as const, sale: mapSale(previous), replayed: true }
+        : { status: "conflict" as const };
+    }
+
+    const holding = await client.query<{
+      id: string;
+      scryfall_id: string;
+      quantity: number;
+      purchase_price_eur: string;
+      condition: string;
+      language: string;
+      acquired_at: string;
+      name: string;
+      set_code: string;
+      set_name: string;
+      collector_number: string;
+      image_url: string | null;
+    }>(
+      `
+        select i.id::text, i.scryfall_id::text, i.quantity,
+          i.purchase_price_eur::text, i.condition, i.language,
+          i.acquired_at::text, c.name, c.set_code, c.set_name,
+          c.collector_number,
+          coalesce(c.image_url, c.image_uris->>'normal') as image_url
+        from app_portfolio_items i
+        join cards c on c.scryfall_id = i.scryfall_id
+        where i.id = $1 and i.user_id = $2 and i.list_id = $3
+        for update of i
+      `,
+      [itemId, userId, input.listId],
+    );
+    const source = holding.rows[0];
+    if (!source) {
+      await client.query("rollback");
+      return { status: "missing" as const };
+    }
+    if (input.soldAt < source.acquired_at) {
+      await client.query("rollback");
+      return { status: "invalid_date" as const };
+    }
+    if (input.quantity > source.quantity) {
+      await client.query("rollback");
+      return {
+        status: "insufficient_quantity" as const,
+        availableQuantity: source.quantity,
+      };
+    }
+
+    const amounts = calculatePortfolioSaleAmounts(
+      input.quantity,
+      Number(source.purchase_price_eur),
+      input.saleUnitPrice,
+    );
+    const inserted = await client.query<SaleRow>(
+      `
+        insert into app_portfolio_sales (
+          user_id, list_id, request_id, source_holding_id, scryfall_id,
+          card_name, set_code, set_name, collector_number, image_url,
+          condition, language, purchase_unit_price_eur, quantity,
+          sale_unit_price_eur, acquired_at, sold_at, proceeds_eur,
+          cost_basis_eur, realized_pnl_eur
+        )
+        values (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+          $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
+        )
+        returning id::text, source_holding_id::text, scryfall_id::text,
+          card_name, set_code, set_name, collector_number, image_url,
+          condition, language, purchase_unit_price_eur::text, quantity,
+          sale_unit_price_eur::text, acquired_at::text, sold_at::text,
+          proceeds_eur::text, cost_basis_eur::text, realized_pnl_eur::text,
+          created_at::text
+      `,
+      [
+        userId,
+        input.listId,
+        input.requestId,
+        itemId,
+        source.scryfall_id,
+        source.name,
+        source.set_code,
+        source.set_name,
+        source.collector_number,
+        source.image_url,
+        source.condition,
+        source.language,
+        source.purchase_price_eur,
+        input.quantity,
+        input.saleUnitPrice,
+        source.acquired_at,
+        input.soldAt,
+        amounts.proceeds,
+        amounts.costBasis,
+        amounts.realizedPnl,
+      ],
+    );
+    if (input.quantity === source.quantity) {
+      await client.query(
+        `delete from app_portfolio_items
+         where id = $1 and user_id = $2 and list_id = $3`,
+        [itemId, userId, input.listId],
+      );
+    } else {
+      await client.query(
+        `update app_portfolio_items
+         set quantity = quantity - $1, updated_at = now()
+         where id = $2 and user_id = $3 and list_id = $4`,
+        [input.quantity, itemId, userId, input.listId],
+      );
+    }
+    await client.query("commit");
+    return {
+      status: "recorded" as const,
+      sale: mapSale(inserted.rows[0]),
+      replayed: false,
+    };
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export async function createPortfolioList(userId: string, name: string) {
   const client = await db.connect();
   try {
@@ -382,7 +650,8 @@ export async function createPortfolioList(userId: string, name: string) {
         insert into app_portfolio_lists (user_id, name, position, is_default)
         select $1, $2, coalesce(max(position) + 1, 0), count(*) = 0
         from app_portfolio_lists where user_id = $1
-        returning id::text, name, position, is_default, 0::integer as holding_count
+        returning id::text, name, position, is_default,
+          0::integer as holding_count, 0::integer as sale_count
       `,
       [userId, name],
     );
@@ -465,6 +734,7 @@ export async function deletePortfolioList(
       id: string;
       is_default: boolean;
       holding_count: number;
+      sale_count: number;
     }>(
       `
         select list.id::text, list.is_default,
@@ -472,7 +742,12 @@ export async function deletePortfolioList(
             select count(*)::integer
             from app_portfolio_items item
             where item.list_id = list.id and item.user_id = list.user_id
-          ) as holding_count
+          ) as holding_count,
+          (
+            select count(*)::integer
+            from app_portfolio_sales sale
+            where sale.list_id = list.id and sale.user_id = list.user_id
+          ) as sale_count
         from app_portfolio_lists list
         where list.user_id = $1
         order by list.position
@@ -489,7 +764,7 @@ export async function deletePortfolioList(
       await client.query("rollback");
       return "protected" as const;
     }
-    if (source.holding_count > 0) {
+    if (source.holding_count > 0 || source.sale_count > 0) {
       const destination = lists.rows.find(
         (list) => list.id === destinationListId && list.id !== listId,
       );
@@ -499,6 +774,11 @@ export async function deletePortfolioList(
       }
       await client.query(
         `update app_portfolio_items set list_id = $1, updated_at = now()
+         where user_id = $2 and list_id = $3`,
+        [destination.id, userId, listId],
+      );
+      await client.query(
+        `update app_portfolio_sales set list_id = $1
          where user_id = $2 and list_id = $3`,
         [destination.id, userId, listId],
       );
