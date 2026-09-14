@@ -21,12 +21,21 @@ export type OAuthConsentTransaction = {
   consume(
     ownerId: string,
     requestToken: string,
+    decision: "allow" | "deny",
+    authorizationCodeHash: string,
+  ): Promise<OAuthConsentGrant | null>;
+  recover(
+    ownerId: string,
+    requestToken: string,
+    decision: "allow" | "deny",
+    authorizationCodeHash: string,
   ): Promise<OAuthConsentGrant | null>;
   issueAuthorizationCode(
     ownerId: string,
     consent: OAuthConsentGrant,
+    authorizationCode: string,
     requestId: string | null,
-  ): Promise<string>;
+  ): Promise<void>;
   recordDenial(
     ownerId: string,
     consent: OAuthConsentGrant,
@@ -47,14 +56,29 @@ export async function finalizeOAuthConsent(
     requestToken: string;
     decision: "allow" | "deny";
     requestId: string | null;
+    authorizationCode: string;
+    authorizationCodeHash: string;
   },
 ): Promise<OAuthConsentCompletion> {
   return store.transaction(async (transaction) => {
     const consent = await transaction.consume(
       input.ownerId,
       input.requestToken,
+      input.decision,
+      input.authorizationCodeHash,
     );
-    if (!consent) throw new OAuthConsentLifecycleError();
+    if (!consent) {
+      const recovered = await transaction.recover(
+        input.ownerId,
+        input.requestToken,
+        input.decision,
+        input.authorizationCodeHash,
+      );
+      if (!recovered) throw new OAuthConsentLifecycleError();
+      return input.decision === "allow"
+        ? { decision: "allow", consent: recovered, code: input.authorizationCode }
+        : { decision: "deny", consent: recovered, code: null };
+    }
     if (input.decision === "deny") {
       await transaction.recordDenial(
         input.ownerId,
@@ -63,11 +87,12 @@ export async function finalizeOAuthConsent(
       );
       return { decision: "deny", consent, code: null };
     }
-    const code = await transaction.issueAuthorizationCode(
+    await transaction.issueAuthorizationCode(
       input.ownerId,
       consent,
+      input.authorizationCode,
       input.requestId,
     );
-    return { decision: "allow", consent, code };
+    return { decision: "allow", consent, code: input.authorizationCode };
   });
 }
