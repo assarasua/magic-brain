@@ -11,7 +11,7 @@ test("robots permits only public content and framework assets", () => {
   assert.deepEqual(policy, {
     rules: {
       userAgent: "*",
-      allow: ["/developers", "/_next/static/", "/_next/image"],
+      allow: ["/developers", "/console", "/_next/static/", "/_next/image"],
       disallow: "/",
     },
     host: "https://magicbrain.es",
