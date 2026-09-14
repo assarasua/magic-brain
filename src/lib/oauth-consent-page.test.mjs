@@ -15,9 +15,11 @@ test("renders a same-document consent form with complete fallback fields", () =>
   });
   assert.match(html, /<form id="consent-form" method="post" action="">/);
   assert.doesNotMatch(html, /<base\b/i);
+  const action = html.match(/<form[^>]* action="([^"]*)"/)?.[1];
+  assert.equal(action, "");
   const effectivePage =
     "https://noncanonical.example/oauth/authorize?client_id=test";
-  assert.equal(new URL("", effectivePage).origin, new URL(effectivePage).origin);
+  assert.equal(new URL(action, effectivePage).origin, new URL(effectivePage).origin);
   assert.match(html, /name="consent_request" value="opaque-request"/);
   assert.match(html, /name="decision_button"[^>]+value="allow"/);
   assert.match(html, /name="decision_button"[^>]+value="deny"/);
