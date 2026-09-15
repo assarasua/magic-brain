@@ -106,12 +106,12 @@ async function getNewestMarketDates(): Promise<DateRow> {
         latest_date::text,
         (
           select max(date)::text from prices
-          where source = $1 and eur is not null
+          where source in ('scryfall', 'mtgjson') and eur is not null
             and date <= latest_date - 7
         ) as comparison_7d_date,
         (
           select max(date)::text from prices
-          where source = $1 and eur is not null
+          where source in ('scryfall', 'mtgjson') and eur is not null
             and date <= latest_date - 30
         ) as comparison_30d_date
       from latest
@@ -133,12 +133,12 @@ async function getMarketDates(marketDataDate: string): Promise<DateRow> {
         $2::date::text as latest_date,
         (
           select max(date)::text from prices
-          where source = $1 and eur is not null
+          where source in ('scryfall', 'mtgjson') and eur is not null
             and date <= $2::date - 7
         ) as comparison_7d_date,
         (
           select max(date)::text from prices
-          where source = $1 and eur is not null
+          where source in ('scryfall', 'mtgjson') and eur is not null
             and date <= $2::date - 30
         ) as comparison_30d_date
     `,
@@ -185,14 +185,26 @@ async function loadSnapshots(dates: DateRow): Promise<MarketPriceSnapshot[]> {
         thirty_day.eur::text as price_30d
       from prices current_price
       join cards c on c.scryfall_id = current_price.scryfall_id
-      left join prices seven_day
-        on seven_day.scryfall_id = current_price.scryfall_id
-        and seven_day.source = current_price.source
-        and seven_day.date = $3::date
-      left join prices thirty_day
-        on thirty_day.scryfall_id = current_price.scryfall_id
-        and thirty_day.source = current_price.source
-        and thirty_day.date = $4::date
+      left join lateral (
+        select historical.eur
+        from prices historical
+        where historical.scryfall_id = current_price.scryfall_id
+          and historical.date = $3::date
+          and historical.source in ('scryfall', 'mtgjson')
+          and historical.eur is not null
+        order by case historical.source when 'scryfall' then 0 else 1 end
+        limit 1
+      ) seven_day on true
+      left join lateral (
+        select historical.eur
+        from prices historical
+        where historical.scryfall_id = current_price.scryfall_id
+          and historical.date = $4::date
+          and historical.source in ('scryfall', 'mtgjson')
+          and historical.eur is not null
+        order by case historical.source when 'scryfall' then 0 else 1 end
+        limit 1
+      ) thirty_day on true
       where current_price.source = $1
         and current_price.date = $2::date
         and current_price.eur between 2 and 5000

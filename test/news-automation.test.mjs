@@ -23,3 +23,18 @@ test("scheduled workflow publishes every day without a deployment", async () => 
   assert.match(workflow, /secrets\.NEWS_CRON_SECRET/);
   assert.match(workflow, /https:\/\/magicbrain\.es\/api\/jobs\/news/);
 });
+
+test("Scryfall briefs fall back to the longer MTGJSON comparison history", async () => {
+  const source = await readFile("src/lib/market-news.ts", "utf8");
+  assert.match(source, /source in \('scryfall', 'mtgjson'\)/);
+  assert.match(source, /left join lateral/);
+  assert.match(source, /case historical\.source when 'scryfall' then 0 else 1 end/);
+});
+
+test("the affected empty Scryfall briefs are rebuilt once", async () => {
+  const migration = await readFile("db/028_rebuild_scryfall_market_briefs.sql", "utf8");
+  const registry = await readFile("scripts/migrate.mjs", "utf8");
+  assert.match(migration, /delete from market_briefs\s+where source = 'scryfall'/);
+  assert.match(migration, /create trigger market_briefs_immutable/);
+  assert.match(registry, /028_rebuild_scryfall_market_briefs\.sql/);
+});

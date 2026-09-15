@@ -56,6 +56,7 @@ try {
       "025_portfolio_sales.sql",
       "026_card_scan_lookup.sql",
       "027_portfolio_batch_requests.sql",
+      "028_rebuild_scryfall_market_briefs.sql",
   ];
   let applied = 0;
   for (const filename of filenames) {
