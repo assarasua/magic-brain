@@ -24,6 +24,12 @@ redistributing data.
 
 English and Spanish are available from the header language control.
 
+Daily market briefs are materialized from every unpublished MTGJSON price date
+when the private news job runs. Configure the same `NEWS_CRON_SECRET` in the
+deployed worker and in GitHub Actions; `.github/workflows/daily-news.yml` calls
+the job every day at 09:15 Europe/Madrid during summer time. The job is
+idempotent and also backfills missed market-data dates.
+
 ## Magic Brain MCP connector
 
 Connect Claude, Cursor, VS Code with GitHub Copilot, ChatGPT, or the OpenAI

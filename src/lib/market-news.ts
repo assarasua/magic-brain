@@ -14,6 +14,10 @@ type DateRow = {
   comparison_30d_date: string | null;
 };
 
+type PublicationDateRow = {
+  market_data_date: string;
+};
+
 type SnapshotRow = {
   card_id: string;
   name: string;
@@ -122,6 +126,50 @@ async function getNewestMarketDates(): Promise<DateRow> {
   };
 }
 
+async function getMarketDates(marketDataDate: string): Promise<DateRow> {
+  const { rows } = await query<DateRow>(
+    `
+      select
+        $2::date::text as latest_date,
+        (
+          select max(date)::text from prices
+          where source = $1 and eur is not null
+            and date <= $2::date - 7
+        ) as comparison_7d_date,
+        (
+          select max(date)::text from prices
+          where source = $1 and eur is not null
+            and date <= $2::date - 30
+        ) as comparison_30d_date
+    `,
+    [MARKET_SOURCE, marketDataDate],
+  );
+  return rows[0];
+}
+
+async function getUnpublishedMarketDates(limit: number) {
+  const { rows } = await query<PublicationDateRow>(
+    `
+      select distinct prices.date::text as market_data_date
+      from prices
+      where prices.source = $1
+        and prices.eur is not null
+        and prices.date > coalesce(
+          (select max(market_data_date) from market_briefs),
+          (select max(date) - 1 from prices where source = $1 and eur is not null)
+        )
+        and not exists (
+          select 1 from market_briefs
+          where market_briefs.market_data_date = prices.date
+        )
+      order by market_data_date asc
+      limit $2
+    `,
+    [MARKET_SOURCE, limit],
+  );
+  return rows.map((row) => row.market_data_date);
+}
+
 async function loadSnapshots(dates: DateRow): Promise<MarketPriceSnapshot[]> {
   if (!dates.latest_date) return [];
 
@@ -186,8 +234,7 @@ async function findBriefByDate(
   return rows[0] ? mapBrief(rows[0]) : null;
 }
 
-export async function materializeLatestMarketBrief(): Promise<MarketBrief | null> {
-  const dates = await getNewestMarketDates();
+async function materializeMarketBrief(dates: DateRow): Promise<MarketBrief | null> {
   if (!dates.latest_date) return null;
 
   const existing = await findBriefByDate(dates.latest_date);
@@ -222,8 +269,25 @@ export async function materializeLatestMarketBrief(): Promise<MarketBrief | null
   return findBriefByDate(dates.latest_date);
 }
 
+export async function materializeLatestMarketBrief(): Promise<MarketBrief | null> {
+  return materializeMarketBrief(await getNewestMarketDates());
+}
+
+export async function materializeMissingMarketBriefs(limit = 31) {
+  const dates = await getUnpublishedMarketDates(
+    Math.min(Math.max(Math.trunc(limit), 1), 366),
+  );
+  const briefs: MarketBrief[] = [];
+  for (const marketDataDate of dates) {
+    const brief = await materializeMarketBrief(await getMarketDates(marketDataDate));
+    if (brief) briefs.push(brief);
+  }
+  return briefs;
+}
+
 export async function listMarketBriefs(limit = 30) {
-  const latest = await materializeLatestMarketBrief();
+  const materialized = await materializeMissingMarketBriefs();
+  const latest = materialized.at(-1) ?? await materializeLatestMarketBrief();
   const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 100);
   const { rows } = await query<BriefRow>(
     `
