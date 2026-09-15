@@ -38,3 +38,10 @@ test("the affected empty Scryfall briefs are rebuilt once", async () => {
   assert.match(migration, /create trigger market_briefs_immutable/);
   assert.match(registry, /028_rebuild_scryfall_market_briefs\.sql/);
 });
+
+test("daily ML snapshots and labels use the live Scryfall feed", async () => {
+  const workflow = await readFile(".github/workflows/ml-point-in-time-daily.yml", "utf8");
+  assert.match(workflow, /daily --source scryfall/);
+  assert.match(workflow, /mature-labels --source scryfall/);
+  assert.doesNotMatch(workflow, /--source mtgjson/);
+});

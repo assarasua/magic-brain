@@ -30,6 +30,6 @@ jobs:
       - name: Apply ordered migrations
         run: npm run db:migrate
       - name: Produce today's snapshots
-        run: npm run ml:produce -- daily --source mtgjson --batch-size 250 --max-rows 100000
+        run: npm run ml:produce -- daily --source scryfall --batch-size 250 --max-rows 100000
       - name: Mature exact-date labels
-        run: npm run ml:produce -- mature-labels --source mtgjson --batch-size 250 --max-rows 100000
+        run: npm run ml:produce -- mature-labels --source scryfall --batch-size 250 --max-rows 100000
