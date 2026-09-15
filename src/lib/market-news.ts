@@ -106,12 +106,12 @@ async function getNewestMarketDates(): Promise<DateRow> {
         latest_date::text,
         (
           select max(date)::text from prices
-          where source in ('scryfall', 'mtgjson') and eur is not null
+          where source in ($1, 'mtgjson') and eur is not null
             and date <= latest_date - 7
         ) as comparison_7d_date,
         (
           select max(date)::text from prices
-          where source in ('scryfall', 'mtgjson') and eur is not null
+          where source in ($1, 'mtgjson') and eur is not null
             and date <= latest_date - 30
         ) as comparison_30d_date
       from latest
@@ -133,12 +133,12 @@ async function getMarketDates(marketDataDate: string): Promise<DateRow> {
         $2::date::text as latest_date,
         (
           select max(date)::text from prices
-          where source in ('scryfall', 'mtgjson') and eur is not null
+          where source in ($1, 'mtgjson') and eur is not null
             and date <= $2::date - 7
         ) as comparison_7d_date,
         (
           select max(date)::text from prices
-          where source in ('scryfall', 'mtgjson') and eur is not null
+          where source in ($1, 'mtgjson') and eur is not null
             and date <= $2::date - 30
         ) as comparison_30d_date
     `,
