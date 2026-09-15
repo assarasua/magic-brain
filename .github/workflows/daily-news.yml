@@ -1,0 +1,29 @@
+name: Publish daily market news
+
+on:
+  schedule:
+    - cron: "15 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-market-news
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Publish all pending market briefs
+        env:
+          NEWS_CRON_SECRET: ${{ secrets.NEWS_CRON_SECRET }}
+        run: |
+          test -n "$NEWS_CRON_SECRET"
+          curl --fail-with-body --silent --show-error \
+            --retry 3 \
+            --request POST \
+            --header "Authorization: Bearer $NEWS_CRON_SECRET" \
+            https://magicbrain.es/api/jobs/news
