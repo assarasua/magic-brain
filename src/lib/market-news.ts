@@ -6,7 +6,7 @@ import {
   type MarketPriceSnapshot,
 } from "@/lib/market-news-model";
 
-const MARKET_SOURCE = "mtgjson";
+const MARKET_SOURCE = "scryfall";
 
 type DateRow = {
   latest_date: string | null;
