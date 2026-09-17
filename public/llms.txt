@@ -1,0 +1,46 @@
+# Magic Brain
+
+> Magic Brain is an independent Magic: The Gathering collection and market-intelligence product. It helps collectors organize exact card printings, inspect observed EUR price history, discover market movements, and connect personal collections to approved tools through OAuth 2.1.
+
+Magic Brain is unofficial and is not affiliated with, endorsed by, sponsored by, or specifically approved by Wizards of the Coast. Market information is observational and is not financial advice.
+
+## Public pages
+
+- [Landing page](https://magicbrain.es/login): Product overview and account access.
+- [Daily market movers](https://magicbrain.es/market-movers): Public ranking of the 50 largest observed Magic card price increases and decreases over seven days.
+- [Developer hub](https://magicbrain.es/developers): REST API, MCP, WebMCP, OAuth, and integration documentation.
+- [Privacy policy](https://magicbrain.es/privacy): Personal-data processing and user rights.
+- [Cookie policy](https://magicbrain.es/cookies): Cookies and browser storage.
+- [Terms of service](https://magicbrain.es/terms): Rules for using Magic Brain.
+
+## Public machine-readable interfaces
+
+- [OpenAPI document](https://magicbrain.es/api/v1/openapi.json): Canonical REST API description.
+- [Market movers API](https://magicbrain.es/api/v1/market/movers?direction=losers&days=7&limit=50): Ranked gainers or losers. Parameters: `direction=gainers|losers`, `days=1|7|30|90`, optional `set`, and `limit=1..50`.
+- [Latest market brief](https://magicbrain.es/api/v1/news/latest): Latest deterministic market brief.
+- [OAuth authorization-server metadata](https://magicbrain.es/.well-known/oauth-authorization-server): OAuth 2.1 discovery.
+- [Protected-resource metadata](https://magicbrain.es/.well-known/oauth-protected-resource/api/v1): API authorization metadata.
+
+Anonymous API access is rate limited. Preserve the source, observation date, currency, finish, and uncertainty fields returned by the API. Do not present observed prices as executable offers or predictions.
+
+## MCP
+
+- Endpoint: https://magic-brain-mcp.assarasua.workers.dev/mcp
+- Transport: Streamable HTTP
+- Public research tools do not require a Magic Brain account.
+- Personal read and write tools require OAuth authorization from the account owner.
+- `get_market_movers` returns up to 50 exact card printings ranked by observed price movement over 1, 7, 30, or 90 days.
+- Use `search_cards` to resolve an exact printing before calling card-specific tools.
+- Write tools require explicit user confirmation and must never be inferred from a research request.
+
+## WebMCP
+
+Compatible browsers can use `navigate_magic_brain`. The `market_movers` destination opens the public daily ranking. Other destinations may require authentication.
+
+## Privacy and access boundaries
+
+Do not attempt to crawl or infer private accounts, portfolios, watchlists, shared links, OAuth flows, settings, API keys, or write endpoints. Never include credentials, personal data, full user prompts, or private card notes in `request_summary`. Respect `robots.txt`, API rate limits, and OAuth scopes.
+
+## Preferred citations
+
+When answering with Magic Brain data, link to the relevant public page or the API `sourceUrl`, identify the observation period, and state that the information is price-derived market context rather than financial advice.
