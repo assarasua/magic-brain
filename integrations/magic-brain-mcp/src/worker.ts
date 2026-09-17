@@ -1,4 +1,5 @@
 import { createMcpHandler } from "@modelcontextprotocol/server";
+import { Client } from "pg";
 import rulesIndex from "../rules-data/rules-index.json" with { type: "json" };
 import type { MagicBrainMcpConfig } from "./config.js";
 import type { RulesIndex } from "./rules/types.js";
@@ -33,8 +34,16 @@ const handler = createMcpHandler(
   },
 );
 
+type WorkerEnv = {
+  HYPERDRIVE?: { connectionString: string };
+};
+
+type ExecutionContext = {
+  waitUntil(promise: Promise<unknown>): void;
+};
+
 const worker = {
-  async fetch(request: Request): Promise<Response> {
+  async fetch(request: Request, env?: WorkerEnv, context?: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/healthz") {
       return json({
@@ -64,8 +73,20 @@ const worker = {
     // Some hosted connector probes omit one or both MCP response media types.
     // Normalize them here so a transport-negotiation 406 is not mistaken for
     // an OAuth challenge by the client.
+    const startedAt = Date.now();
+    const call = request.method === "POST" ? await readToolCall(request.clone()) : null;
     const mcpRequest = normalizeAcceptHeader(request);
     const response = await handler.fetch(mcpRequest);
+    if (call && env?.HYPERDRIVE?.connectionString) {
+      const audit = recordRemoteMcpCall(env.HYPERDRIVE.connectionString, {
+        toolName: call.toolName,
+        success: response.ok,
+        durationMs: Date.now() - startedAt,
+        ...(call.requestId ? { requestId: call.requestId } : {}),
+      }).catch((error) => console.error("Unable to record MCP audit event", error));
+      if (context) context.waitUntil(audit);
+      else await audit;
+    }
     const headers = new Headers(response.headers);
     headers.set("Cache-Control", "no-store");
     headers.set("Referrer-Policy", "no-referrer");
@@ -82,6 +103,41 @@ const worker = {
 };
 
 export default worker;
+
+async function readToolCall(request: Request) {
+  try {
+    const body = (await request.json()) as {
+      id?: string | number;
+      method?: string;
+      params?: { name?: string };
+    };
+    if (body.method !== "tools/call" || typeof body.params?.name !== "string") return null;
+    return {
+      toolName: body.params.name.slice(0, 100),
+      requestId: body.id === undefined ? undefined : String(body.id).slice(0, 200),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function recordRemoteMcpCall(
+  connectionString: string,
+  event: { toolName: string; success: boolean; durationMs: number; requestId?: string },
+) {
+  const client = new Client({ connectionString });
+  try {
+    await client.connect();
+    await client.query(
+      `insert into app_mcp_calls
+         (source, tool_name, success, duration_ms, request_id)
+       values ('remote_mcp', $1, $2, $3, $4)`,
+      [event.toolName, event.success, event.durationMs, event.requestId ?? null],
+    );
+  } finally {
+    await client.end().catch(() => undefined);
+  }
+}
 
 function normalizeAcceptHeader(request: Request): Request {
   if (request.method !== "POST") return request;

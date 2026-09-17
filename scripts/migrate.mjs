@@ -37,6 +37,7 @@ try {
       "009_donations.sql",
       "010_sets.sql",
       "011_public_api.sql",
+      "012_mcp_call_audit.sql",
   ];
   let applied = 0;
   for (const filename of filenames) {

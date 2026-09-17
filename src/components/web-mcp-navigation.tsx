@@ -49,6 +49,7 @@ export function WebMcpNavigation() {
         additionalProperties: false,
       },
       execute: ({ destination }) => {
+        const startedAt = performance.now();
         if (typeof destination !== "string") {
           return {
             isError: true,
@@ -65,6 +66,18 @@ export function WebMcpNavigation() {
         }
 
         router.push(match.path);
+        void fetch("/api/mcp/events", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            source: "webmcp",
+            toolName,
+            destination: match.id,
+            success: true,
+            durationMs: performance.now() - startedAt,
+          }),
+          keepalive: true,
+        }).catch(() => undefined);
         return {
           content: [{ type: "text", text: `Navigating to ${match.label} (${match.path}).` }],
         };
