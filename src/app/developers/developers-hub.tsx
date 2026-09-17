@@ -18,6 +18,7 @@ import {
   Menu,
   RefreshCw,
   ShieldCheck,
+  Signpost,
   Sparkles,
   Trash2,
   X,
@@ -86,6 +87,7 @@ cards = response.json()["data"]`,
 
 const navItems = [
   ["overview", "Overview"],
+  ["web-mcp", "WebMCP"],
   ["mcp", "MCP setup"],
   ["reference", "API reference"],
   ["examples", "Examples"],
@@ -584,7 +586,7 @@ export function DevelopersHub({
       <header className={styles.header}>
         <Link href="/" aria-label="Magic Brain home"><MagicBrainLogo /></Link>
         <nav aria-label="Developer navigation">
-          {navItems.slice(0, 6).map(([id, label]) => <a href={`#${id}`} key={id}>{label}</a>)}
+          {navItems.slice(0, 7).map(([id, label]) => <a href={`#${id}`} key={id}>{label}</a>)}
         </nav>
         <div className={styles.headerActions}>
           <a href="/api/v1/openapi.json">OpenAPI</a>
@@ -628,6 +630,28 @@ export function DevelopersHub({
       </section>
 
       <div className={styles.content}>
+        <section className={`${styles.section} ${styles.webMcpSection}`} id="web-mcp">
+          <div className={styles.sectionHeading}>
+            <span>Browser-native WebMCP</span>
+            <h2>Let an agent navigate Magic Brain.</h2>
+            <p>Magic Brain exposes a structured navigation tool directly in supported browsers. An agent can open a named product area without guessing URLs or operating menus, while every destination remains constrained to a reviewed allowlist.</p>
+          </div>
+          <div className={styles.webMcpCard}>
+            <div className={styles.webMcpIcon}><Signpost size={24} /></div>
+            <div>
+              <span className={styles.previewBadge}>Early preview</span>
+              <h3><code>navigate_magic_brain</code></h3>
+              <p>Available automatically while you browse magicbrain.es in a WebMCP-capable browser. No endpoint, extension, API key, or configuration file is required.</p>
+            </div>
+            <div className={styles.webMcpDetails}>
+              <span><Check size={14} /> Fixed destinations only</span>
+              <span><Check size={14} /> Client-side navigation</span>
+              <span><Check size={14} /> No write actions</span>
+            </div>
+          </div>
+          <p className={styles.webMcpNote}>WebMCP is an experimental browser capability. For ChatGPT, Claude, Cursor, VS Code, and API integrations today, use the hosted remote MCP below.</p>
+        </section>
+
         <section className={`${styles.section} ${styles.mcpSection}`} id="mcp">
           <div className={styles.sectionHeading}>
             <span>Remote MCP</span>

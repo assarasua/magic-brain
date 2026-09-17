@@ -259,6 +259,81 @@
   scroll-margin-top: 70px;
 }
 
+.webMcpCard {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 22px;
+  padding: 26px;
+  border: 1px solid rgba(127, 99, 255, 0.28);
+  border-radius: 16px;
+  background: linear-gradient(120deg, rgba(111, 76, 255, 0.11), rgba(47, 139, 255, 0.05));
+}
+
+.webMcpIcon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  color: #bdb2ff;
+  background: rgba(111, 76, 255, 0.16);
+}
+
+.webMcpCard h3 {
+  margin: 7px 0 6px;
+  font-size: 18px;
+}
+
+.webMcpCard p,
+.webMcpNote {
+  margin: 0;
+  color: var(--dev-muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.previewBadge {
+  color: #8fcfff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.webMcpDetails {
+  display: grid;
+  gap: 8px;
+  color: #b5c4d6;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.webMcpDetails span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.webMcpDetails svg {
+  color: #55cda5;
+}
+
+.webMcpNote {
+  margin-top: 14px;
+}
+
+@media (max-width: 760px) {
+  .webMcpCard {
+    grid-template-columns: auto 1fr;
+  }
+
+  .webMcpDetails {
+    grid-column: 1 / -1;
+    white-space: normal;
+  }
+}
+
 .sectionHeading {
   max-width: 620px;
   margin-bottom: 32px;

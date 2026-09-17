@@ -20,6 +20,7 @@ import {
   proNavigation,
   routeIsActive,
 } from "@/components/product-navigation";
+import { WebMcpNavigation } from "@/components/web-mcp-navigation";
 
 function DesktopSidebar() {
   const pathname = usePathname();
@@ -120,7 +121,6 @@ function DesktopSidebar() {
     </aside>
   );
 }
-
 function SessionGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -166,6 +166,7 @@ function SessionGate({ children }: { children: React.ReactNode }) {
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
+      <WebMcpNavigation />
       <SessionGate>{children}</SessionGate>
     </SessionProvider>
   );
