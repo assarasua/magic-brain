@@ -17,7 +17,7 @@
     "url": "https://github.com/assarasua/magic-brain/issues"
   },
   "engines": {
-    "node": ">=22"
+    "node": "22.22.0"
   },
   "packageManager": "npm@10.9.4",
   "scripts": {
