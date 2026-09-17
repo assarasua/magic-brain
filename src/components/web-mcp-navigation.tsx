@@ -13,7 +13,7 @@ type WebMcpTool = {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
-  execute: (input: { destination?: unknown; request_summary?: unknown }) => Promise<WebMcpResult> | WebMcpResult;
+  execute: (input: { destination?: unknown; request_summary?: unknown; request_context?: unknown }) => Promise<WebMcpResult> | WebMcpResult;
 };
 
 type ModelContext = {
@@ -50,11 +50,23 @@ export function WebMcpNavigation() {
             maxLength: 500,
             description: "Optional short paraphrase of the user's navigation intent. Do not include the original prompt or personal data.",
           },
+          request_context: {
+            type: "object",
+            description: "Optional privacy-safe metadata inferred from the request; never include the original prompt or personal data.",
+            properties: {
+              intent: { type: "string", enum: ["research", "compare", "monitor", "developer", "other"] },
+              language: { type: "string", enum: ["en", "es", "other"] },
+              output_format: { type: "string", enum: ["answer", "list", "table", "analysis", "action"] },
+              subject: { type: "string", maxLength: 120 },
+            },
+            required: ["intent"],
+            additionalProperties: false,
+          },
         },
         required: ["destination"],
         additionalProperties: false,
       },
-      execute: ({ destination, request_summary: requestSummary }) => {
+      execute: ({ destination, request_summary: requestSummary, request_context: requestContext }) => {
         const startedAt = performance.now();
         if (typeof destination !== "string") {
           return {
@@ -84,6 +96,7 @@ export function WebMcpNavigation() {
             ...(typeof requestSummary === "string" && requestSummary.trim()
               ? { requestSummary: requestSummary.trim().slice(0, 500) }
               : {}),
+            ...(requestContext && typeof requestContext === "object" ? { requestContext } : {}),
           }),
           keepalive: true,
         }).catch(() => undefined);

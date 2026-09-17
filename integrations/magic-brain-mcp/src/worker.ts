@@ -173,6 +173,20 @@ const worker = {
         durationMs: Date.now() - startedAt,
         ...(call.requestId ? { requestId: call.requestId } : {}),
         ...(call.requestSummary ? { requestSummary: call.requestSummary } : {}),
+        metadata: {
+          auth_mode: authInfo ? "oauth" : "anonymous",
+          oauth_client_id: authInfo?.clientId?.slice(0, 200) ?? null,
+          oauth_scopes: authInfo?.scopes.slice().sort().join(" ") || null,
+          protocol_version: request.headers.get("mcp-protocol-version")?.slice(0, 40) ?? null,
+          client_user_agent: request.headers.get("user-agent")?.slice(0, 200) ?? null,
+          origin: origin ? new URL(origin).origin.slice(0, 200) : null,
+          argument_names: call.argumentNames.join(",").slice(0, 500) || null,
+          prompt_intent: call.requestContext?.intent ?? null,
+          prompt_language: call.requestContext?.language ?? null,
+          requested_output_format: call.requestContext?.output_format ?? null,
+          prompt_subject: call.requestContext?.subject ?? null,
+          http_status: response.status,
+        },
       }).catch((error) => console.error("Unable to record MCP audit event", error));
       if (context) context.waitUntil(audit);
       else await audit;
@@ -199,7 +213,7 @@ async function readToolCall(request: Request) {
     const body = (await request.json()) as {
       id?: string | number;
       method?: string;
-      params?: { name?: string; arguments?: { request_summary?: unknown } };
+      params?: { name?: string; arguments?: Record<string, unknown> };
     };
     if (body.method !== "tools/call" || typeof body.params?.name !== "string") {
       return null;
@@ -211,6 +225,11 @@ async function readToolCall(request: Request) {
         typeof body.params.arguments?.request_summary === "string"
           ? body.params.arguments.request_summary.trim().slice(0, 500) || undefined
           : undefined,
+      requestContext: parseRequestContext(body.params.arguments?.request_context),
+      argumentNames: Object.keys(body.params.arguments ?? {})
+        .filter((name) => name !== "request_summary" && name !== "request_context")
+        .sort()
+        .slice(0, 50),
     };
   } catch {
     return null;
@@ -225,6 +244,7 @@ async function recordRemoteMcpCall(
     durationMs: number;
     requestId?: string;
     requestSummary?: string;
+    metadata: Record<string, string | number | boolean | null>;
   },
 ) {
   const client = new Client({ connectionString });
@@ -232,19 +252,35 @@ async function recordRemoteMcpCall(
     await client.connect();
     await client.query(
       `insert into app_mcp_calls
-         (source, tool_name, success, duration_ms, request_id, request_summary)
-       values ('remote_mcp', $1, $2, $3, $4, $5)`,
+         (source, tool_name, success, duration_ms, request_id, request_summary, metadata)
+       values ('remote_mcp', $1, $2, $3, $4, $5, $6::jsonb)`,
       [
         event.toolName,
         event.success,
         event.durationMs,
         event.requestId ?? null,
         event.requestSummary ?? null,
+        JSON.stringify(event.metadata),
       ],
     );
   } finally {
     await client.end().catch(() => undefined);
   }
+}
+
+function parseRequestContext(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const input = value as Record<string, unknown>;
+  const intents = new Set(["research", "compare", "monitor", "manage_collection", "manage_watchlist", "developer", "rules", "other"]);
+  const languages = new Set(["en", "es", "other"]);
+  const formats = new Set(["answer", "list", "table", "analysis", "action"]);
+  if (typeof input.intent !== "string" || !intents.has(input.intent)) return undefined;
+  return {
+    intent: input.intent,
+    ...(typeof input.language === "string" && languages.has(input.language) ? { language: input.language } : {}),
+    ...(typeof input.output_format === "string" && formats.has(input.output_format) ? { output_format: input.output_format } : {}),
+    ...(typeof input.subject === "string" && input.subject.trim() ? { subject: input.subject.trim().slice(0, 120) } : {}),
+  };
 }
 
 function workerConfig(env: WorkerEnv): MagicBrainMcpConfig {

@@ -54,6 +54,14 @@ and product tools query pinned local knowledge.
 Every tool accepts an optional `request_summary` of up to 500 characters. It
 must paraphrase intent and must not include the original prompt, personal data,
 credentials, or secrets. When supplied, it is stored in `app_mcp_calls`.
+Every tool also accepts optional structured `request_context`: an intent,
+language, desired output format, and short non-personal subject. The hosted MCP
+stores these fields with protocol version, client user agent, origin, OAuth
+client and scopes, argument names, HTTP status, timing, and request ID in the
+`metadata` JSONB column. The MCP protocol does not expose the original host
+conversation prompt, so clients must never copy that prompt into either field.
+In Railway, query `app_mcp_call_insights` for flattened reporting or
+`app_mcp_calls` for the underlying audit event and complete metadata object.
 
 ## Account actions
 
