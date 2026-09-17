@@ -76,6 +76,15 @@ export default function MarketPage() {
   const [setCardsError, setSetCardsError] = useState(false);
   const [setCardsRetry, setSetCardsRetry] = useState(0);
   const setCardsPanel = useRef<HTMLElement>(null);
+  const openedLinkedCard = useRef(false);
+
+  useEffect(() => {
+    if (openedLinkedCard.current) return;
+    const linkedCard = new URLSearchParams(window.location.search).get("card");
+    if (!linkedCard || !/^[a-zA-Z0-9-]{1,80}$/.test(linkedCard)) return;
+    openedLinkedCard.current = true;
+    openCard(linkedCard);
+  }, [openCard]);
 
   useEffect(() => {
     const controller = new AbortController();

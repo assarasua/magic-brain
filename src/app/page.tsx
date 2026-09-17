@@ -24,6 +24,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
+import { LandingContact } from "@/components/landing-contact";
 import { PortfolioOnboarding } from "@/components/portfolio-onboarding";
 import { useCardDetail } from "@/components/card-detail-provider";
 import {
@@ -522,6 +523,8 @@ export default function Home() {
               </div>
             </div>
           </section>
+
+          <LandingContact />
 
           <footer>
             <span>Market data for information only. Not financial advice.</span>

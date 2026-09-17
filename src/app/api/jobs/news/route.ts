@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { materializeMissingMarketBriefs } from "@/lib/market-news";
+import { materializeLatestMarketBrief, materializeMissingMarketBriefs } from "@/lib/market-news";
+import { newsletterDeliveryConfigured, sendDailyBriefNewsletter } from "@/lib/resend";
 
 export const runtime = "nodejs";
 
@@ -19,9 +20,14 @@ export async function POST(request: NextRequest) {
   }
   try {
     const briefs = await materializeMissingMarketBriefs(366);
+    const latest = briefs.at(-1) ?? await materializeLatestMarketBrief();
+    const newsletter = latest && newsletterDeliveryConfigured()
+      ? { status: "sent", broadcastId: await sendDailyBriefNewsletter(latest), marketDataDate: latest.marketDataDate }
+      : { status: "not_configured" };
     return NextResponse.json({
       published: briefs.length,
       dates: briefs.map((brief) => brief.marketDataDate),
+      newsletter,
     });
   } catch (error) {
     console.error("Unable to publish scheduled market briefs", error);
