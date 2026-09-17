@@ -537,8 +537,8 @@ export default function Home() {
           <div className="page-heading">
             <div>
               <span className="eyebrow">{locale === "es" ? "Sábado, 12 de septiembre" : "Saturday, 12 September"}</span>
-              <h1>{t("Your collection, in focus.")}</h1>
-              <p>{t("Track market momentum and make your next move with confidence.")}</p>
+              <h1>{t("Your Magic: The Gathering collection, in focus.")}</h1>
+              <p>{t("Track MTG card prices and market momentum, then make your next move with confidence.")}</p>
             </div>
             <div className="market-status"><span /> {locale === "es" ? "Precios actualizados hace 12 min" : "Cardmarket prices updated 12 min ago"}</div>
           </div>

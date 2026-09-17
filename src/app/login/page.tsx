@@ -51,8 +51,8 @@ export default function LoginPage() {
       <section className="auth-onboarding">
         <div className="auth-onboarding-copy">
           <span className="pro-badge"><Sparkles size={13} /> Magic Brain</span>
-          <h1>{es ? "Tu ventaja en el mercado de Magic empieza aquí." : "Your edge in the Magic market starts here."}</h1>
-          <p>{es ? "Crea tu cuenta para seguir precios, analizar tu colección y descubrir oportunidades adaptadas a tu perfil." : "Create your account to track prices, analyse your collection, and discover opportunities tailored to you."}</p>
+          <h1>{es ? "Tu ventaja en el mercado de cartas de Magic: The Gathering empieza aquí." : "Your edge in the Magic: The Gathering card market starts here."}</h1>
+          <p>{es ? "Sigue precios de cartas, analiza el valor de tu colección y descubre oportunidades adaptadas a tu perfil." : "Track card prices, understand your collection’s value, and discover opportunities tailored to you."}</p>
           <div className="auth-benefits">
             <div><span><BarChart3 size={18} /></span><div><strong>{es ? "Mercado bajo control" : "Market clarity"}</strong><small>{es ? "Historiales diarios y señales de movimiento." : "Daily histories and movement signals."}</small></div></div>
             <div><span><WalletCards size={18} /></span><div><strong>{es ? "Tu cartera real" : "Your real portfolio"}</strong><small>{es ? "Rentabilidad, exposición y coste de compra." : "Returns, exposure, and purchase cost."}</small></div></div>
