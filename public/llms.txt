@@ -39,7 +39,9 @@ Compatible browsers can use `navigate_magic_brain`. The `market_movers` destinat
 
 ## Privacy and access boundaries
 
-Do not attempt to crawl or infer private accounts, portfolios, watchlists, shared links, OAuth flows, settings, API keys, or write endpoints. Never include credentials, personal data, full user prompts, or private card notes in `request_summary`. Respect `robots.txt`, API rate limits, and OAuth scopes.
+Private account data is available to agents only through the MCP OAuth flow and only after the account owner authorizes the requested scopes. Authorized tools may read the owner's profile, portfolio lists, holdings, watchlist, preferences, personalized opportunities, and portfolio intelligence. Authorized write tools may update lists, holdings, and watchlists only when their required scope is granted and the user explicitly confirms the mutation.
+
+Do not crawl, scrape, or infer private data from website routes or unauthenticated APIs. Never access another user's data, exceed the granted OAuth scopes, or reuse access after revocation. Never include credentials, personal data, full user prompts, or private card notes in `request_summary`. Respect `robots.txt`, API rate limits, OAuth scopes, and the tool's confirmation requirements.
 
 ## Preferred citations
 
