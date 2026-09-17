@@ -14,6 +14,7 @@ import {
   Newspaper,
   ShieldCheck,
   Sparkles,
+  TrendingDown,
   TrendingUp,
   WalletCards,
 } from "lucide-react";
@@ -70,7 +71,10 @@ export default function LoginPage() {
         <Link href="/" className="inventory-brand">
           <MagicBrainLogo />
         </Link>
-        <LanguageToggle />
+        <div className="landing-header-actions">
+          <Link href="/market-movers" className="landing-movers-link"><TrendingDown size={15} />{es ? "Top cartas hoy" : "Today’s top cards"}</Link>
+          <LanguageToggle />
+        </div>
       </header>
       <section className="auth-onboarding">
         <div className="auth-onboarding-copy">

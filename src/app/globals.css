@@ -8401,6 +8401,9 @@ button:active,
   background: rgba(8, 10, 13, 0.66);
   backdrop-filter: blur(28px);
 }
+.landing-header-actions { display:flex; align-items:center; gap:12px }
+.landing-movers-link { display:inline-flex; align-items:center; gap:7px; min-height:38px; padding:0 13px; border:1px solid #29445e; border-radius:9px; color:#b9ddf8; background:#0c1926; font-size:12px; font-weight:750; text-decoration:none }
+.landing-movers-link:hover { border-color:#4a7ea7; color:white }
 
 .login-page > .landing-connect {
   width: min(1080px, calc(100% - 40px));
@@ -13463,6 +13466,7 @@ button:active,
     height: 64px;
     padding-inline: 14px;
   }
+  .landing-movers-link { min-height:40px; padding-inline:10px; font-size:11px }
 
   .auth-onboarding {
     gap: 26px;
