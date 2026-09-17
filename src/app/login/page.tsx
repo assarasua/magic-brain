@@ -39,17 +39,22 @@ function GoogleMark() {
 export default function LoginPage() {
   const { locale } = useLanguage();
   const [loading, setLoading] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const es = locale === "es";
   const storyCards = [...movers, portfolioCards[2]];
 
   useEffect(() => {
     const referral = new URLSearchParams(window.location.search).get("ref");
     if (/^[a-f0-9]{12}$/.test(referral ?? "")) {
-      document.cookie = `magic_brain_referral=${referral}; Max-Age=2592000; Path=/; SameSite=Lax; Secure`;
+      window.sessionStorage.setItem("magic-brain-pending-referral", referral!);
+      if (window.localStorage.getItem("magic-brain-cookie-consent-v1") === "all") {
+        document.cookie = `magic_brain_referral=${referral}; Max-Age=2592000; Path=/; SameSite=Lax; Secure`;
+      }
     }
   }, []);
 
   const continueWithGoogle = () => {
+    if (!acceptedTerms) return;
     setLoading(true);
     const requestedPath = new URLSearchParams(window.location.search).get("callbackUrl");
     const redirectTo =
@@ -96,7 +101,11 @@ export default function LoginPage() {
           <span className="eyebrow">{es ? "CREA TU CUENTA GRATIS" : "CREATE YOUR FREE ACCOUNT"}</span>
           <h2>{es ? "Empieza a conocer mejor tu colección." : "Start knowing your collection better."}</h2>
           <p>{es ? "Un único acceso para tu colección, seguimiento y preferencias." : "One secure account for your collection, watchlist, and preferences."}</p>
-          <button className="google-auth-cta" onClick={continueWithGoogle} disabled={loading}>
+          <label className="auth-legal-consent">
+            <input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} />
+            <span>{es ? <>Acepto los <Link href="/terms">Términos</Link> y confirmo que he leído la <Link href="/privacy">Política de privacidad</Link>.</> : <>I accept the <Link href="/terms">Terms</Link> and confirm I have read the <Link href="/privacy">Privacy Policy</Link>.</>}</span>
+          </label>
+          <button className="google-auth-cta" onClick={continueWithGoogle} disabled={loading || !acceptedTerms}>
             {loading ? <LoaderCircle className="spin" size={19} /> : <GoogleMark />}
             {loading ? (es ? "Conectando…" : "Connecting…") : es ? "Continuar con Google" : "Continue with Google"}
           </button>
@@ -107,7 +116,7 @@ export default function LoginPage() {
             <li><Check size={13} /> {es ? "Sin contraseña adicional" : "No additional password"}</li>
           </ul>
           <div className="login-security"><ShieldCheck size={15} /> {es ? "Magic Brain nunca recibe tu contraseña de Google." : "Magic Brain never receives your Google password."}</div>
-          <small className="auth-terms">{es ? "Al continuar aceptas crear una cuenta de Magic Brain." : "By continuing, you agree to create a Magic Brain account."}</small>
+          <small className="auth-terms">{es ? "El boletín es opcional y requiere una suscripción separada." : "The newsletter is optional and requires a separate subscription."}</small>
         </div>
       </section>
       <section className="landing-card-chronicle" aria-labelledby="card-chronicle-heading">
@@ -165,6 +174,7 @@ export default function LoginPage() {
         <a href="https://bizkardolab.eu" target="_blank" rel="noreferrer">
           Asier Sarasua · BizkardoLab
         </a>
+        <span className="legal-footer-links"><Link href="/privacy">{es ? "Privacidad" : "Privacy"}</Link><Link href="/cookies">Cookies</Link><Link href="/terms">{es ? "Términos" : "Terms"}</Link></span>
       </footer>
     </main>
   );

@@ -21,6 +21,7 @@ import {
   routeIsActive,
 } from "@/components/product-navigation";
 import { WebMcpNavigation } from "@/components/web-mcp-navigation";
+import { CookieConsent } from "@/components/cookie-consent";
 
 function DesktopSidebar() {
   const pathname = usePathname();
@@ -131,6 +132,9 @@ function SessionGate({ children }: { children: React.ReactNode }) {
   const isPublic =
     pathname === "/developers" ||
     pathname.startsWith("/developers/") ||
+    pathname === "/privacy" ||
+    pathname === "/cookies" ||
+    pathname === "/terms" ||
     pathname.startsWith("/shared/portfolio/");
 
   useEffect(() => {
@@ -170,6 +174,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <SessionProvider>
       <WebMcpNavigation />
       <SessionGate>{children}</SessionGate>
+      <CookieConsent />
     </SessionProvider>
   );
 }

@@ -1,4 +1,6 @@
 import { isSameOrigin, parseNewsletterInput, subscribeToNewsletter } from "@/lib/resend";
+import { createHash } from "node:crypto";
+import { query } from "@/lib/db";
 
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) return Response.json({ error: "Invalid origin" }, { status: 403 });
@@ -17,6 +19,12 @@ export async function POST(request: Request) {
 
   try {
     await subscribeToNewsletter(input);
+    await query(
+      `insert into app_privacy_consents
+        (email_hash, consent_type, policy_version, source)
+       values ($1, 'newsletter', '2026-09-17', 'public_newsletter_form')`,
+      [createHash("sha256").update(input.email).digest("hex")],
+    );
     return Response.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return Response.json({ error: "Subscription could not be completed" }, { status: 503 });

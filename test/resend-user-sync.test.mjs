@@ -2,17 +2,13 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("new authenticated users are added to the Resend audience once", async () => {
+test("new authenticated users are not silently added to the marketing audience", async () => {
   const auth = await readFile("src/auth.ts", "utf8");
-  assert.match(auth, /let newlyCreated = false/);
-  assert.match(auth, /newlyCreated = true/);
-  assert.match(auth, /if \(newlyCreated\)/);
-  assert.match(auth, /subscribeToNewsletter/);
+  assert.doesNotMatch(auth, /subscribeToNewsletter/);
 });
 
-test("existing-user sync selects authenticated accounts without logging addresses", async () => {
+test("bulk audience sync is disabled to preserve explicit consent", async () => {
   const script = await readFile("scripts/sync-resend-audience.mjs", "utf8");
-  assert.match(script, /authenticated_at is not null/);
-  assert.match(script, /email is not null/);
-  assert.doesNotMatch(script, /console\.log\([^\n]*row\.email/);
+  assert.match(script, /explicit newsletter consent/);
+  assert.doesNotMatch(script, /from app_users/);
 });

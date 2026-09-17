@@ -61,6 +61,7 @@ try {
   "030_referrals.sql",
   "031_driver_product_tour.sql",
   "032_expanded_product_tour.sql",
+  "033_privacy_consents.sql",
 ];
   let applied = 0;
   for (const filename of filenames) {

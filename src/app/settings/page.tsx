@@ -3,14 +3,17 @@
 import {
   ArrowLeft,
   Check,
+  Download,
   LoaderCircle,
   Save,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  Trash2,
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
+import { signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { AuthControl } from "@/components/auth-control";
 import { MagicBrainLogo } from "@/components/brand-logo";
@@ -56,6 +59,8 @@ export default function SettingsPage() {
   const [preferences, setPreferences] = useState(defaultUserPreferences);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetch("/api/account")
@@ -107,6 +112,27 @@ export default function SettingsPage() {
         ? es ? "Preferencias guardadas en tu cuenta." : "Preferences saved to your account."
         : es ? "No se pudieron guardar los cambios." : "Unable to save your changes.",
     );
+  };
+
+  const downloadData = async () => {
+    const response = await fetch("/api/account/privacy", { cache: "no-store" });
+    if (!response.ok) { setNotice(es ? "No se pudo preparar la descarga." : "Unable to prepare your download."); return; }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `magic-brain-data-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const deleteAccount = async () => {
+    if (deleteConfirmation !== "DELETE") return;
+    setDeleting(true);
+    const response = await fetch("/api/account/privacy", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirmation: deleteConfirmation }) });
+    if (response.ok) { await signOut({ redirectTo: "/login" }); return; }
+    setDeleting(false);
+    setNotice(es ? "No se pudo eliminar la cuenta." : "Unable to delete your account.");
   };
 
   const riskLabel = (value: UserPreferences["risk"]) =>
@@ -220,6 +246,13 @@ export default function SettingsPage() {
               allLabel={es ? "Todas las ediciones" : "All sets"}
             />
             <button className={`settings-reserved ${preferences.reservedOnly ? "active" : ""}`} onClick={() => update("reservedOnly", !preferences.reservedOnly)}><span><Check size={14} /></span><div><strong>{es ? "Priorizar exclusivamente Reserved List" : "Reserved List only"}</strong><small>{es ? "Limita las estrategias a cartas de oferta fija." : "Limit strategies to fixed-supply cards."}</small></div></button>
+          </section>
+
+          <section className="settings-panel wide privacy-controls">
+            <div className="settings-section-title"><span><ShieldCheck size={19} /></span><div><h2>{es ? "Privacidad y tus datos" : "Privacy and your data"}</h2><p>{es ? "Descarga una copia legible o elimina definitivamente tu cuenta y colección." : "Download a readable copy or permanently delete your account and collection."}</p></div></div>
+            <div className="privacy-control-row"><div><strong>{es ? "Exportar datos" : "Export data"}</strong><small>{es ? "Incluye perfil, listas, cartas, seguimiento y referidos en JSON." : "Includes your profile, lists, cards, watchlist, and referrals as JSON."}</small></div><button className="secondary-action" onClick={downloadData}><Download size={16} />{es ? "Descargar" : "Download"}</button></div>
+            <div className="privacy-control-row danger"><div><strong>{es ? "Eliminar cuenta" : "Delete account"}</strong><small>{es ? "Esta acción borra la cuenta y los datos asociados y no se puede deshacer. Escribe DELETE para confirmar." : "This permanently removes your account and associated data. Type DELETE to confirm."}</small></div><div className="delete-confirm"><input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} placeholder="DELETE" aria-label={es ? "Confirmación de borrado" : "Deletion confirmation"} /><button onClick={deleteAccount} disabled={deleteConfirmation !== "DELETE" || deleting}><Trash2 size={16} />{deleting ? (es ? "Eliminando…" : "Deleting…") : es ? "Eliminar" : "Delete"}</button></div></div>
+            <p className="privacy-legal-links"><Link href="/privacy">{es ? "Política de privacidad" : "Privacy policy"}</Link><Link href="/cookies">{es ? "Política de cookies" : "Cookie policy"}</Link><Link href="/terms">{es ? "Términos" : "Terms"}</Link></p>
           </section>
 
         </div>
