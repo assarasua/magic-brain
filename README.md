@@ -214,4 +214,4 @@ identity, jurisdiction, subprocessors, retention, and actual data practices.
 ## Creator
 
 Magic Brain was created by
-[Asier Sarasua at BizkardoLab](https://bizkardolab.com).
+[Asier Sarasua at BizkardoLab](https://bizkardolab.eu).

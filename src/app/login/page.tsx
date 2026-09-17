@@ -117,7 +117,7 @@ export default function LoginPage() {
       <LandingContact />
       <footer className="creator-credit">
         {es ? "Creado por " : "Created by "}
-        <a href="https://bizkardolab.com" target="_blank" rel="noreferrer">
+        <a href="https://bizkardolab.eu" target="_blank" rel="noreferrer">
           Asier Sarasua · BizkardoLab
         </a>
       </footer>

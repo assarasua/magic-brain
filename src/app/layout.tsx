@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   title: "Magic Brain — Know and enjoy your Magic collection",
   description:
     "Organize your Magic: The Gathering collection, explore cards and editions, and understand value with clear market context.",
-  authors: [{ name: "Asier Sarasua", url: "https://bizkardolab.com" }],
+  authors: [{ name: "Asier Sarasua", url: "https://bizkardolab.eu" }],
   creator: "Asier Sarasua",
   publisher: "BizkardoLab",
 };
