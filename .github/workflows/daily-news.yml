@@ -2,7 +2,9 @@ name: Publish daily market news
 
 on:
   schedule:
-    - cron: "15 7 * * *"
+    # GitHub cron is UTC. Run in both possible Madrid UTC slots, then gate on
+    # the local hour so daylight-saving changes never shift the delivery time.
+    - cron: "0 6,7 * * *"
   workflow_dispatch:
 
 permissions:
@@ -17,7 +19,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Check the Madrid delivery hour
+        id: delivery-time
+        run: echo "send=$([ "$(TZ=Europe/Madrid date +%H)" = "08" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
       - name: Publish all pending market briefs
+        if: github.event_name == 'workflow_dispatch' || steps.delivery-time.outputs.send == 'true'
         env:
           NEWS_CRON_SECRET: ${{ secrets.NEWS_CRON_SECRET }}
         run: |

@@ -19,7 +19,9 @@ test("backfill starts after the last published brief instead of all history", as
 
 test("scheduled workflow publishes every day without a deployment", async () => {
   const workflow = await readFile(".github/workflows/daily-news.yml", "utf8");
-  assert.match(workflow, /cron: "15 7 \* \* \*"/);
+  assert.match(workflow, /cron: "0 6,7 \* \* \*"/);
+  assert.match(workflow, /TZ=Europe\/Madrid date \+%H/);
+  assert.match(workflow, /delivery-time\.outputs\.send == 'true'/);
   assert.match(workflow, /secrets\.NEWS_CRON_SECRET/);
   assert.match(workflow, /https:\/\/magicbrain\.es\/api\/jobs\/news/);
 });
