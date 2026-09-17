@@ -5,7 +5,9 @@
 import {
   ArrowRight,
   BarChart3,
+  Braces,
   Check,
+  Code2,
   Eye,
   Layers3,
   LoaderCircle,
@@ -144,6 +146,17 @@ export default function LoginPage() {
           <p>{es ? "Crea tu cuenta, añade tu primera carta y deja que Magic Brain conecte todas las piezas." : "Create your account, add your first card, and let Magic Brain connect every piece."}</p>
           <button onClick={continueWithGoogle} disabled={loading}>{es ? "Empezar mi colección" : "Start my collection"}<ArrowRight size={16} /></button>
         </div>
+      </section>
+      <section className="landing-developers" aria-labelledby="landing-developers-heading">
+        <div className="landing-developers-mark" aria-hidden="true"><Code2 size={34} /></div>
+        <div className="landing-developers-copy">
+          <span className="eyebrow">MAGIC BRAIN FOR DEVELOPERS</span>
+          <h2 id="landing-developers-heading">{es ? "Construye nuevas experiencias sobre el universo de Magic." : "Build new experiences on top of the Magic universe."}</h2>
+          <p>{es ? "Conecta datos de cartas, precios, colecciones y señales de mercado a tus propias herramientas. Usa la API, integra nuestro MCP o permite que agentes naveguen Magic Brain con WebMCP." : "Connect card data, prices, collections, and market signals to your own tools. Use the API, integrate our MCP, or let agents navigate Magic Brain through WebMCP."}</p>
+          <div className="landing-developer-tags"><span>REST API</span><span>MCP</span><span>WebMCP</span><span>OAuth 2.1</span></div>
+        </div>
+        <Link href="/developers" className="landing-developers-cta">{es ? "Explorar para developers" : "Explore for developers"}<ArrowRight size={16} /></Link>
+        <Braces className="landing-developers-braces" size={160} aria-hidden="true" />
       </section>
       <LandingContact />
       <footer className="creator-credit">
