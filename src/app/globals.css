@@ -1821,6 +1821,25 @@ footer {
 .delete-confirm input { width:120px; min-height:42px; color:#eaf5ff; background:#0b1723; border:1px solid #4b3440; border-radius:9px; padding:0 11px }
 .privacy-legal-links { display:flex; flex-wrap:wrap; gap:16px; margin:12px 0 0; font-size:13px }
 @media (max-width:700px) { .cookie-consent,.privacy-control-row { align-items:stretch; flex-direction:column }.cookie-actions,.delete-confirm { display:grid; grid-template-columns:1fr 1fr }.cookie-actions button { width:100% }.legal-page { padding:18px }.legal-page>article { padding:48px 0 }.legal-footer-links { width:100%; justify-content:center; margin:10px 0 0 } }
+.public-movers { min-height:100vh; padding:24px max(20px,calc((100vw - 1180px)/2)); background:#050b12; color:#eaf5ff }
+.public-movers>header,.public-movers>footer { display:flex; justify-content:space-between; align-items:center; gap:18px }
+.public-movers>header nav,.public-movers>footer { display:flex; gap:18px }
+.public-movers a { color:#79c5ff }
+.public-movers-heading { max-width:780px; padding:72px 0 40px }
+.public-movers-heading h1 { margin:9px 0 14px; font-size:clamp(42px,6vw,72px); letter-spacing:-.055em }
+.public-movers-heading p { color:#9fb0c1; font-size:18px; line-height:1.6 }
+.public-movers-heading code { display:inline-block; max-width:100%; overflow:auto; padding:10px 12px; border:1px solid #29445e; border-radius:8px; background:#0b1723; color:#8fd0ff }
+.public-movers-grid { display:grid; grid-template-columns:1fr 1fr; gap:26px }
+.public-movers-grid section { padding:22px; background:#0b1520; border:1px solid #1d3043; border-radius:16px }
+.public-movers-grid ol { margin:0; padding:0; list-style-position:inside }
+.public-movers-grid li { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:64px; padding:9px 0; border-top:1px solid #192b3d }
+.public-movers-grid li>div { display:inline-flex; align-items:center; gap:10px; min-width:0 }
+.public-movers-grid img { width:38px; height:52px; border-radius:4px; object-fit:cover }
+.public-movers-grid li span { display:flex; min-width:0; flex-direction:column }
+.public-movers-grid li small { color:#7f92a5 }
+.public-movers-grid li .positive { color:#58d6aa; text-align:right }.public-movers-grid li .negative { color:#ff8791; text-align:right }
+.public-movers>footer { margin-top:36px; padding:24px 0; border-top:1px solid #1d3043; color:#7f92a5 }
+@media (max-width:760px) { .public-movers-grid { grid-template-columns:1fr }.public-movers { padding:18px }.public-movers-heading { padding:52px 0 30px }.public-movers>header nav a:first-child { display:none } }
 
 /* Personalised card discovery */
 .discovery-content {

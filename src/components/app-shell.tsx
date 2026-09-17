@@ -135,6 +135,7 @@ function SessionGate({ children }: { children: React.ReactNode }) {
     pathname === "/privacy" ||
     pathname === "/cookies" ||
     pathname === "/terms" ||
+    pathname === "/market-movers" ||
     pathname.startsWith("/shared/portfolio/");
 
   useEffect(() => {
