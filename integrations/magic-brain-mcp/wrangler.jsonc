@@ -11,6 +11,12 @@
       "service": "magic-brain"
     }
   ],
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "4e073b9c05f94a81ad18bba6ac32ad5e"
+    }
+  ],
   "observability": {
     "enabled": true
   }
