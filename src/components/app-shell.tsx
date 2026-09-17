@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { MagicBrainLogo } from "@/components/brand-logo";
 import { MobileTabBar } from "@/components/mobile-tab-bar";
 import { ProductTour } from "@/components/product-tour";
+import { WebMcpNavigation } from "@/components/web-mcp-navigation";
 
 function SessionGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -49,6 +50,7 @@ function SessionGate({ children }: { children: React.ReactNode }) {
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
+      <WebMcpNavigation />
       <SessionGate>{children}</SessionGate>
     </SessionProvider>
   );
