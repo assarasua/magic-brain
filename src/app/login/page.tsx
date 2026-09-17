@@ -1,11 +1,14 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
+
 import {
   BarChart3,
   Check,
   LoaderCircle,
   ShieldCheck,
   Sparkles,
+  TrendingUp,
   WalletCards,
 } from "lucide-react";
 import Link from "next/link";
@@ -14,6 +17,7 @@ import { useState } from "react";
 import { MagicBrainLogo, MagicBrainMark } from "@/components/brand-logo";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { LandingContact } from "@/components/landing-contact";
+import { movers } from "@/lib/data";
 
 function GoogleMark() {
   return (
@@ -54,6 +58,18 @@ export default function LoginPage() {
           <span className="pro-badge"><Sparkles size={13} /> Magic Brain</span>
           <h1>{es ? "Tu colección de Magic, más tuya que nunca." : "Know every card in your Magic collection."}</h1>
           <p>{es ? "Organiza tus cartas y ediciones, descubre nuevas favoritas y entiende su valor con el contexto que necesitas." : "Organize your cards and printings, discover new favourites, and understand their value with useful market context."}</p>
+          <div className="auth-card-showcase" aria-label={es ? "Ejemplos de cartas analizadas" : "Examples of analysed cards"}>
+            <div className="auth-card-stack">
+              {movers.slice(0, 3).map((card, index) => (
+                <img key={card.id} src={card.image} alt={`${card.name} — ${card.set}`} style={{ "--card-index": index } as React.CSSProperties} />
+              ))}
+            </div>
+            <div className="auth-market-proof">
+              <span><TrendingUp size={14} /> {es ? "Contexto actualizado" : "Fresh market context"}</span>
+              <strong>90,000+</strong>
+              <small>{es ? "impresiones y precios para explorar" : "printings and prices to explore"}</small>
+            </div>
+          </div>
           <div className="auth-benefits">
             <div><span><WalletCards size={18} /></span><div><strong>{es ? "Tu colección, bien organizada" : "Your collection, organized"}</strong><small>{es ? "Copias, ediciones, coste y valor actual en un solo lugar." : "Copies, printings, cost, and current value in one place."}</small></div></div>
             <div><span><Sparkles size={18} /></span><div><strong>{es ? "Descubrimientos personales" : "Personal discoveries"}</strong><small>{es ? "Encuentra cartas que encajan con lo que disfrutas coleccionando." : "Find cards that fit what you love to collect."}</small></div></div>
@@ -77,6 +93,18 @@ export default function LoginPage() {
           </ul>
           <div className="login-security"><ShieldCheck size={15} /> {es ? "Magic Brain nunca recibe tu contraseña de Google." : "Magic Brain never receives your Google password."}</div>
           <small className="auth-terms">{es ? "Al continuar aceptas crear una cuenta de Magic Brain." : "By continuing, you agree to create a Magic Brain account."}</small>
+        </div>
+      </section>
+      <section className="landing-product-story" aria-labelledby="product-story-heading">
+        <div className="landing-product-heading">
+          <span className="eyebrow">{es ? "TODO TU MAGIC, CON CONTEXTO" : "ALL YOUR MAGIC, IN CONTEXT"}</span>
+          <h2 id="product-story-heading">{es ? "De una carpeta de cartas a una colección que conoces de verdad." : "From a binder of cards to a collection you truly understand."}</h2>
+          <p>{es ? "Magic Brain une catálogo, organización e inteligencia de mercado para ayudarte a disfrutar cada carta y tomar decisiones informadas." : "Magic Brain brings catalogue data, organization, and market intelligence together so you can enjoy every card and make informed decisions."}</p>
+        </div>
+        <div className="landing-product-grid">
+          <article><WalletCards size={21} /><span>01</span><h3>{es ? "Organiza cada impresión" : "Organize every printing"}</h3><p>{es ? "Registra copias, estado, idioma, coste y listas sin perder el detalle de la edición." : "Track copies, condition, language, cost, and lists without losing printing-level detail."}</p></article>
+          <article><BarChart3 size={21} /><span>02</span><h3>{es ? "Entiende el movimiento" : "Understand every move"}</h3><p>{es ? "Consulta precios históricos, tendencias y señales respaldadas por datos observados." : "Explore price history, trends, and signals grounded in observed market data."}</p></article>
+          <article><Sparkles size={21} /><span>03</span><h3>{es ? "Descubre qué mirar" : "Discover what to watch"}</h3><p>{es ? "Recibe oportunidades personalizadas, briefs diarios y contexto para nuevas cartas." : "Get personalized opportunities, daily briefs, and context for cards worth discovering."}</p></article>
         </div>
       </section>
       <LandingContact />
