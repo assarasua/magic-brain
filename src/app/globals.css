@@ -7629,6 +7629,17 @@ button:active,
   backdrop-filter: blur(28px);
 }
 
+.login-page > .landing-connect {
+  width: min(1080px, calc(100% - 40px));
+  margin: 8px auto 44px;
+}
+
+@media (max-width: 500px) {
+  .login-page > .landing-connect {
+    width: calc(100% - 28px);
+  }
+}
+
 .creator-credit {
   margin: 0;
   padding: 18px 20px 24px;

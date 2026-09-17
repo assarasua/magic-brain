@@ -13,6 +13,7 @@ import { signIn } from "next-auth/react";
 import { useState } from "react";
 import { MagicBrainLogo, MagicBrainMark } from "@/components/brand-logo";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
+import { LandingContact } from "@/components/landing-contact";
 
 function GoogleMark() {
   return (
@@ -78,6 +79,7 @@ export default function LoginPage() {
           <small className="auth-terms">{es ? "Al continuar aceptas crear una cuenta de Magic Brain." : "By continuing, you agree to create a Magic Brain account."}</small>
         </div>
       </section>
+      <LandingContact />
       <footer className="creator-credit">
         {es ? "Creado por " : "Created by "}
         <a href="https://bizkardolab.com" target="_blank" rel="noreferrer">
