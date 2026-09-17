@@ -12,7 +12,10 @@ bases, retention periods, and actual subprocessors before offering a service.
 Depending on enabled features, a deployment can process anonymous session
 tokens (stored as hashes), locale and preferences, portfolio/watchlist data,
 Google account ID, verified email, display name and avatar, server logs, IP
-addresses, and security/diagnostic records. Optional contributions are completed
+addresses, OAuth client registrations, hashed access and refresh tokens,
+approved OAuth scopes, and privacy-limited MCP audit records. An MCP client may
+optionally provide a short request summary; this is not the original prompt and
+clients are instructed not to include personal data or secrets. Optional contributions are completed
 on PayPal; Magic Brain does not receive or store payment details or status.
 
 ## Purposes

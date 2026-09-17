@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/server";
+import { McpServer, type ServerContext } from "@modelcontextprotocol/server";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import {
@@ -8,6 +8,7 @@ import {
 } from "./api-client.js";
 import type { MagicBrainMcpConfig } from "./config.js";
 import { registerProductKnowledgeTools } from "./product/tools.js";
+import { requestSummaryInput } from "./request-summary.js";
 import type { RulesKnowledgeBaseOptions } from "./rules/knowledge-base.js";
 import { registerRulesTools } from "./rules/tools.js";
 
@@ -49,6 +50,15 @@ const annotations = {
   openWorldHint: true,
 } as const;
 
+const writeAnnotations = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: false,
+  openWorldHint: false,
+} as const;
+
+const accountReadAnnotations = { ...annotations, openWorldHint: false } as const;
+
 export function createMagicBrainMcpServer(
   config: MagicBrainMcpConfig,
   fetchImpl: typeof fetch = fetch,
@@ -60,7 +70,7 @@ export function createMagicBrainMcpServer(
     title: "Magic Brain",
     version: "0.1.0",
     description:
-      "Read-only Magic: The Gathering card, price, rules, and source-cited Magic Brain product and business research.",
+      "Magic: The Gathering card, price, rules, product research, portfolio, and watchlist tools with account-scoped OAuth.",
     websiteUrl: "https://github.com/assarasua/magic-brain",
   });
 
@@ -71,6 +81,7 @@ export function createMagicBrainMcpServer(
       description:
         "Search Magic Brain's public card catalogue by name or text, with optional set, color, rarity, and type filters. Use this to discover card IDs before requesting details or prices. Returns a bounded cursor-paginated page and never accesses user collections.",
       inputSchema: z.object({
+        ...requestSummaryInput,
         query: z.string().trim().min(2).max(120).describe("Card name or text"),
         set_code: setCode.optional(),
         rarity: z
@@ -104,7 +115,7 @@ export function createMagicBrainMcpServer(
       title: "Get Card Details",
       description:
         "Get public catalogue details for one Magic card by ID, including printing and set metadata when available. Does not return ownership, watchlist, portfolio, or user data.",
-      inputSchema: z.object({ card_id: cardId }),
+      inputSchema: z.object({ card_id: cardId, ...requestSummaryInput }),
       outputSchema,
       annotations,
     },
@@ -119,6 +130,7 @@ export function createMagicBrainMcpServer(
       description:
         "Get the latest available public market prices for up to 100 card IDs in one read-only request. Price records preserve the API's source, observation time, currency, and finish metadata and are not financial advice.",
       inputSchema: z.object({
+        ...requestSummaryInput,
         card_ids: z
           .array(cardId)
           .min(1)
@@ -147,6 +159,7 @@ export function createMagicBrainMcpServer(
         "Get bounded public historical price observations for one card and date range. Use daily or weekly intervals; the maximum range is 366 days. Results are market observations, not investment guarantees.",
       inputSchema: z
         .object({
+          ...requestSummaryInput,
           card_id: cardId,
           start_date: date,
           end_date: date,
@@ -196,6 +209,7 @@ export function createMagicBrainMcpServer(
       description:
         "List normalized public Magic set metadata, optionally filtering by name/code, set type, release dates, and tabletop availability. Results are cursor-paginated and bounded.",
       inputSchema: z.object({
+        ...requestSummaryInput,
         query: z.string().trim().min(1).max(80).optional(),
         tabletop_only: z.boolean().default(true),
         cursor,
@@ -224,6 +238,7 @@ export function createMagicBrainMcpServer(
       description:
         "Get Magic Brain's transparent, read-only ranking of cards in the newest released tabletop expansion, or a requested set. Returns bounded signals such as momentum, stability, drawdown, risk, confidence, and rationale. These are research indicators, not financial advice.",
       inputSchema: z.object({
+        ...requestSummaryInput,
         set_code: setCode.optional(),
         minimum_confidence: z.number().min(0).max(1).default(0),
         limit: z.number().int().min(1).max(25).default(10),
@@ -247,6 +262,108 @@ export function createMagicBrainMcpServer(
       ),
   );
 
+  server.registerTool(
+    "get_portfolio",
+    {
+      title: "Get My Portfolio",
+      description: "View the connected Magic Brain account's portfolio holdings and summary. Requires portfolio:read OAuth permission.",
+      inputSchema: z.object({ ...requestSummaryInput }),
+      outputSchema,
+      annotations: accountReadAnnotations,
+    },
+    async (_input, ctx) => authenticatedTool(ctx, "portfolio:read", (token) =>
+      callTool(config, () => api.request("portfolio", { accessToken: token }))),
+  );
+
+  server.registerTool(
+    "add_to_portfolio",
+    {
+      title: "Add Card to My Portfolio",
+      description: "Add a confirmed card printing and purchase lot to the connected account's portfolio. Requires portfolio:write OAuth permission and should only be called after user confirmation.",
+      inputSchema: z.object({
+        ...requestSummaryInput,
+        card_id: cardId,
+        quantity: z.number().int().min(1).max(10_000),
+        purchase_price_eur: z.number().min(0).max(1_000_000),
+        condition: z.string().trim().min(1).max(30).default("near_mint"),
+        language: z.string().trim().min(2).max(10).default("en"),
+        acquired_at: date.optional(),
+      }),
+      outputSchema,
+      annotations: writeAnnotations,
+    },
+    async ({ card_id, quantity, purchase_price_eur, condition, language, acquired_at }, ctx) =>
+      authenticatedTool(ctx, "portfolio:write", (token) => callTool(config, () =>
+        api.request("portfolio", {
+          method: "POST",
+          accessToken: token,
+          body: {
+            cardId: card_id,
+            quantity,
+            purchasePrice: purchase_price_eur,
+            condition,
+            language,
+            ...(acquired_at ? { acquiredAt: acquired_at } : {}),
+          },
+        }))),
+  );
+
+  server.registerTool(
+    "remove_from_portfolio",
+    {
+      title: "Remove Portfolio Holding",
+      description: "Remove one holding by its portfolio item ID from the connected account. Requires portfolio:write OAuth permission and explicit user confirmation.",
+      inputSchema: z.object({ ...requestSummaryInput, holding_id: z.number().int().positive() }),
+      outputSchema,
+      annotations: { ...writeAnnotations, destructiveHint: true },
+    },
+    async ({ holding_id }, ctx) => authenticatedTool(ctx, "portfolio:write", (token) =>
+      callTool(config, () => api.request(`portfolio/${holding_id}`, { method: "DELETE", accessToken: token }))),
+  );
+
+  server.registerTool(
+    "get_watchlist",
+    {
+      title: "Get My Watchlist",
+      description: "View cards in the connected Magic Brain account's watchlist. Requires watchlist:read OAuth permission.",
+      inputSchema: z.object({ ...requestSummaryInput }),
+      outputSchema,
+      annotations: accountReadAnnotations,
+    },
+    async (_input, ctx) => authenticatedTool(ctx, "watchlist:read", (token) =>
+      callTool(config, () => api.request("watchlist", { accessToken: token }))),
+  );
+
+  server.registerTool(
+    "add_to_watchlist",
+    {
+      title: "Add Card to My Watchlist",
+      description: "Add a confirmed card printing to the connected account's watchlist. Requires watchlist:write OAuth permission.",
+      inputSchema: z.object({ ...requestSummaryInput, card_id: cardId }),
+      outputSchema,
+      annotations: writeAnnotations,
+    },
+    async ({ card_id }, ctx) => authenticatedTool(ctx, "watchlist:write", (token) =>
+      callTool(config, () => api.request("watchlist", {
+        method: "POST", accessToken: token, body: { cardId: card_id },
+      }))),
+  );
+
+  server.registerTool(
+    "remove_from_watchlist",
+    {
+      title: "Remove Card from My Watchlist",
+      description: "Remove a card printing from the connected account's watchlist. Requires watchlist:write OAuth permission and explicit user confirmation.",
+      inputSchema: z.object({ ...requestSummaryInput, card_id: cardId }),
+      outputSchema,
+      annotations: { ...writeAnnotations, destructiveHint: true },
+    },
+    async ({ card_id }, ctx) => authenticatedTool(ctx, "watchlist:write", (token) =>
+      callTool(config, () => api.request("watchlist", {
+        method: "DELETE", accessToken: token, query: { cardId: card_id },
+      }))),
+  );
+
   registerRulesTools(server, {
     ...(rulesOptions ?? {
       indexPath:
@@ -257,6 +374,23 @@ export function createMagicBrainMcpServer(
   registerProductKnowledgeTools(server);
 
   return server;
+}
+
+function authenticatedTool(
+  ctx: ServerContext,
+  requiredScope: string,
+  operation: (token: string) => ReturnType<typeof callTool>,
+) {
+  const auth = ctx.http?.authInfo;
+  if (!auth || !auth.scopes.includes(requiredScope)) {
+    return {
+      isError: true,
+      content: [{ type: "text" as const, text: JSON.stringify({
+        error: { code: "OAUTH_REQUIRED", message: `OAuth permission ${requiredScope} is required.` },
+      }) }],
+    };
+  }
+  return operation(auth.token);
 }
 
 async function callTool(

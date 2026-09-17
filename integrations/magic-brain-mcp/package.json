@@ -2,7 +2,7 @@
   "name": "@magic-brain/mcp-server",
   "version": "0.1.0",
   "private": true,
-  "description": "Read-only MCP for Magic data, rules, and source-cited product research.",
+  "description": "OAuth-enabled MCP for Magic data, research, portfolios, and watchlists.",
   "author": {
     "name": "Asier Sarasua",
     "url": "https://bizkardolab.com"

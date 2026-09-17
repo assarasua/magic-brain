@@ -38,6 +38,7 @@ try {
       "010_sets.sql",
       "011_public_api.sql",
       "012_mcp_call_audit.sql",
+      "013_mcp_oauth.sql",
   ];
   let applied = 0;
   for (const filename of filenames) {

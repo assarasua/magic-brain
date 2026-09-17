@@ -32,7 +32,7 @@ export type DeveloperEndpoint = {
   path: string;
   operationId: string;
   summary: string;
-  auth: "session" | "optional-key";
+  auth: "session" | "oauth" | "optional-key";
   parameters: Array<{
     name: string;
     location: string;
@@ -141,7 +141,7 @@ const mcpInstallers = [
     name: "ChatGPT",
     requirement: "Pro read/fetch, or Business/Enterprise/Edu",
     description:
-      "Enable Developer mode, choose Apps > Create, enter the endpoint without authentication, then Scan Tools.",
+      "Enable Developer mode, choose Apps > Create, enter the endpoint, select OAuth, then scan tools and connect your Magic Brain account.",
     snippet: mcpEndpoint,
     source: "https://help.openai.com/en/articles/12584461",
   },
@@ -181,6 +181,11 @@ const mcpToolGroups = [
     name: "Product & strategy",
     summary: "Retrieve source-cited diligence evidence while preserving fact, hypothesis, roadmap, and unknown status.",
     tools: ["search_product_knowledge", "get_product_context", "ask_product_question"],
+  },
+  {
+    name: "Your account",
+    summary: "View and update the connected user's portfolio and watchlist through scoped OAuth consent.",
+    tools: ["get_portfolio", "add_to_portfolio", "remove_from_portfolio", "get_watchlist", "add_to_watchlist", "remove_from_watchlist"],
   },
 ] as const;
 
@@ -232,10 +237,10 @@ function McpInstall() {
       <div className={styles.mcpCallout}>
         <ShieldCheck size={20} />
         <div>
-          <strong>Live remote connector · no Magic Brain API key required</strong>
+          <strong>Live remote connector · secure Magic Brain OAuth</strong>
           <p>
             Use the exact HTTPS URL below. It is a hosted Streamable HTTP endpoint,
-            separate from local self-hosting.
+            separate from local self-hosting. Your client will ask you to connect your Magic Brain account.
           </p>
         </div>
         <code>{mcpEndpoint}</code>
@@ -276,8 +281,8 @@ function McpInstall() {
       <div className={styles.toolCatalogue}>
         <div className={styles.toolCatalogueHeading}>
           <div>
-            <span>11 read-only tools</span>
-            <h3>Evidence for data, rules, and diligence.</h3>
+            <span>17 tools · scoped account access</span>
+            <h3>Research, portfolio, and watchlist workflows.</h3>
             <p>Explore the surface at a glance, then use the canonical reference for exact schemas, outputs, examples, caveats, and errors.</p>
           </div>
           <a href="https://github.com/assarasua/magic-brain/blob/main/docs/mcp-tools.md" target="_blank" rel="noreferrer">
@@ -331,7 +336,9 @@ function EndpointReference({ endpoints }: { endpoints: DeveloperEndpoint[] }) {
               <span>
                 {endpoint.auth === "session"
                   ? "Magic Brain account session required"
-                  : "Anonymous access or Bearer API key"}
+                  : endpoint.auth === "oauth"
+                    ? "OAuth scope required"
+                    : "Anonymous access or Bearer API key"}
               </span>
               <a href={`/api/v1/openapi.json#/${endpoint.operationId}`}>
                 OpenAPI <ExternalLink size={12} />
@@ -622,7 +629,7 @@ export function DevelopersHub({
           <div className={styles.sectionHeading}>
             <span>Remote MCP</span>
             <h2>Connect your AI client.</h2>
-            <p>Install the live read-only Magic Brain tools in the client you already use. Retrieve card, price, rules, and source-cited product diligence evidence with explicit fact, principle, hypothesis, roadmap, or unknown status. No Magic Brain account, OAuth flow, or user API key is currently required.</p>
+            <p>Install Magic Brain in the client you already use, then connect your account securely with Google-backed OAuth. Research public card, price, rules, and product evidence; with explicit permission, you can also view and update your portfolio and watchlist.</p>
           </div>
           <McpInstall />
         </section>

@@ -1,18 +1,18 @@
 # Install the Magic Brain MCP connector
 
-Connect a supported MCP client to Magic Brain's live, read-only remote server:
+Connect a supported MCP client to Magic Brain's hosted remote server:
 
 ```text
 https://magic-brain-mcp.assarasua.workers.dev/mcp
 ```
 
-The transport is **Streamable HTTP**. The hosted connector currently requires
-**no Magic Brain account, OAuth sign-in, or user API key**. Do not add an
-`Authorization` header or paste a Magic Brain data API key into a connector
-configuration.
+The transport is **Streamable HTTP**. The connector uses Magic Brain OAuth:
+your client opens a consent screen where you sign in with your existing Magic
+Brain Google account and approve portfolio and watchlist scopes. Do not paste a
+Magic Brain data API key into the connector configuration.
 
 After connecting, use the canonical [MCP tool reference](mcp-tools.md) for all
-11 tool inputs, outputs, limits, examples, evidence rules, and error behaviour.
+17 tool inputs, outputs, limits, examples, evidence rules, and error behaviour.
 
 In addition to card, price, set, and rules retrieval, the connector exposes
 deterministic, source-cited product research. Claude can use it for diligence on
@@ -40,14 +40,14 @@ Enterprise. Free accounts are limited to one custom connector.
 3. Name it `Magic Brain`.
 4. Enter `https://magic-brain-mcp.assarasua.workers.dev/mcp` as the MCP server
    URL.
-5. Choose **No sign-in** if Claude asks for authentication, then select **Add**.
+5. Select **Add**, then complete the Magic Brain sign-in and consent flow.
 6. In a chat, use the **+** menu, open **Connectors**, and enable Magic Brain.
 
 ### Team or Enterprise
 
 An Owner must first open **Organization settings > Connectors**, select **Add**,
-then **Custom** (and **Web** if prompted), enter the same endpoint, choose no
-sign-in, and add it. Members can then open **Customize > Connectors**, find the
+then **Custom** (and **Web** if prompted), enter the same endpoint, and add it.
+Members can then open **Customize > Connectors**, find the
 connector labeled **Custom**, and select **Connect**.
 
 Claude connects from Anthropic's cloud, so only the live public URL works
@@ -122,8 +122,8 @@ owners, and RBAC.
    users can use **Settings > Apps > Create**.
 3. Enter the required app metadata and
    `https://magic-brain-mcp.assarasua.workers.dev/mcp` as the endpoint.
-4. Do not configure authentication; Magic Brain does not require OAuth or a user
-   API key.
+4. Select OAuth authentication, then sign in to Magic Brain and approve the
+   requested portfolio and watchlist permissions.
 5. Select **Scan Tools**, wait for discovery to finish, then select **Create**.
 
 If **Create**, **Developer mode**, or the authentication option is absent, the
@@ -167,8 +167,8 @@ configuration health; it does not call the upstream Magic Brain API.
 - **Transport:** Choose HTTP or Streamable HTTP when a client asks. The MCP
   endpoint expects protocol requests, so opening it in a browser is not a valid
   connection test.
-- **Authentication:** Remove custom headers, OAuth settings, and Magic Brain API
-  keys. The hosted endpoint currently has no user authentication.
+- **Authentication:** Use the automatic OAuth flow. Do not paste a Magic Brain
+  data API key into the connector configuration.
 - **Discovery or connection errors:** Confirm `/healthz` first, then restart or
   refresh the server in the client and inspect that client's MCP logs or output.
 - **Organization restrictions:** Ask an administrator to allow the exact

@@ -1,6 +1,6 @@
 # Magic Brain MCP tool reference
 
-This is the canonical reference for the 11 read-only tools currently registered
+This is the canonical reference for the 17 tools currently registered
 by the Magic Brain MCP server. For installation and client configuration, see
 the [MCP installation guide](mcp-installation.md). The live endpoint is:
 
@@ -8,11 +8,11 @@ the [MCP installation guide](mcp-installation.md). The live endpoint is:
 https://magic-brain-mcp.assarasua.workers.dev/mcp
 ```
 
-The hosted connector requires no Magic Brain account, OAuth flow, or user API
-key. It can retrieve public card, price, set, rules, and product evidence only.
-It cannot access a user's account, portfolio, watchlist, collection,
-authentication records, payment, or contribution
-data, and it exposes no write or trading tools.
+The hosted connector uses scoped OAuth linked to an existing Magic Brain
+account. It can retrieve public card, price, set, rules, and product evidence,
+and—only after explicit consent—view or update the connected user's portfolio
+and watchlist. It cannot access payment or contribution data and exposes no
+trading tools.
 
 ## How answers are composed
 
@@ -41,9 +41,16 @@ tools and composes the final answer.
   score, confidence label, or entry range is not proof of liquidity, a profit
   probability, a price target, or financial advice.
 
-All tools are read-only, non-destructive, and idempotent. Public-data tools may
-change as the public catalogue changes. Rules and product tools query pinned
+Research tools are read-only, non-destructive, and idempotent. Account tools
+declare their read/write and destructive behavior in MCP annotations. Public
+data may change as the catalogue changes; rules and product tools query pinned
 local knowledge.
+
+Every tool also accepts an optional `request_summary` string of up to 500
+characters. Clients may use it to provide a short, non-verbatim explanation of
+the user's intent. It is stored for product analytics, so clients must omit
+personal data, credentials, secrets, and copied conversation text. The field is
+agent-supplied and may be absent; it is never the original user prompt.
 
 ## Card & price data
 
@@ -414,6 +421,28 @@ produce the final answer. It expressly forbids invented AUM-equivalent,
 conversion, retention, willingness-to-pay, market-size, user-behaviour,
 incident/SLA, or competitive-superiority claims. Product citations are public
 repository or website URLs; they do not expose private operational data.
+
+## Account tools
+
+Account tools require Magic Brain OAuth. The user signs in with the same Google
+account used on the website and approves the requested scopes. Tokens identify
+the account on the server; card ownership data is never accepted from tool
+arguments.
+
+- `get_portfolio` (`portfolio:read`) returns owned holdings and the portfolio
+  summary.
+- `add_to_portfolio` (`portfolio:write`) adds a confirmed printing, quantity,
+  EUR purchase price, condition, language, and optional acquisition date.
+- `remove_from_portfolio` (`portfolio:write`) removes an owned holding by its
+  portfolio item ID and is marked destructive.
+- `get_watchlist` (`watchlist:read`) returns the connected account's watchlist.
+- `add_to_watchlist` (`watchlist:write`) adds a confirmed card printing.
+- `remove_from_watchlist` (`watchlist:write`) removes an owned watchlist card
+  and is marked destructive.
+
+Clients should obtain explicit confirmation immediately before invoking a
+write tool. OAuth tokens and Google credentials are never accepted as tool
+arguments or included in tool results.
 
 ## Errors, limits, and freshness
 

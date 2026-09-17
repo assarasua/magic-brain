@@ -84,8 +84,11 @@ test("OpenAPI advertises every v1 data and key route", () => {
     "/cards/{id}/prices",
     "/latest-set/opportunities",
     "/openapi.json",
+    "/portfolio",
+    "/portfolio/{id}",
     "/prices/latest",
     "/sets",
+    "/watchlist",
   ]);
   assert.equal(publicApiOpenApi.openapi, "3.1.0");
   assert.equal(

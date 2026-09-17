@@ -89,7 +89,7 @@ describe("MagicBrainApiClient", () => {
 });
 
 describe("MCP contract", () => {
-  it("publishes only eleven read-only, well-described tools", async () => {
+  it("publishes public research plus OAuth-scoped account tools", async () => {
     const fetchMock = vi.fn<typeof fetch>(
       async () => new Response(JSON.stringify({ data: [] })),
     );
@@ -108,12 +108,18 @@ describe("MCP contract", () => {
       [
         "ask_product_question",
         "ask_rules",
+        "add_to_portfolio",
+        "add_to_watchlist",
         "get_card",
         "get_latest_prices",
         "get_latest_set_opportunities",
         "get_price_history",
+        "get_portfolio",
         "get_product_context",
+        "get_watchlist",
         "list_sets",
+        "remove_from_portfolio",
+        "remove_from_watchlist",
         "search_cards",
         "search_product_knowledge",
         "search_rules",
@@ -122,23 +128,24 @@ describe("MCP contract", () => {
     for (const tool of tools) {
       expect(tool.title).toBeTruthy();
       expect(tool.description?.length).toBeGreaterThan(40);
-      expect(tool.annotations).toMatchObject({
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-      });
-      expect(tool.annotations?.openWorldHint).toBe(
-        [
+      const writeTool = tool.name.startsWith("add_") || tool.name.startsWith("remove_");
+      expect(tool.annotations?.readOnlyHint).toBe(!writeTool);
+      expect(tool.annotations?.destructiveHint).toBe(tool.name.startsWith("remove_"));
+      expect(tool.annotations?.openWorldHint).toBe(![
           "ask_product_question",
           "ask_rules",
+          "add_to_portfolio",
+          "add_to_watchlist",
           "get_product_context",
+          "get_portfolio",
+          "get_watchlist",
+          "remove_from_portfolio",
+          "remove_from_watchlist",
           "search_product_knowledge",
           "search_rules",
-        ].includes(tool.name)
-          ? false
-          : true,
-      );
+        ].includes(tool.name));
       expect(tool.outputSchema).toBeTruthy();
+      expect(tool.inputSchema.properties).toHaveProperty("request_summary");
     }
 
     await client.close();

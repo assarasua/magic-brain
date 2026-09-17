@@ -1,9 +1,8 @@
 # Magic Brain MCP server
 
-An isolated, read-only remote MCP server for Magic Brain's versioned public
-Cards/Prices/Sets API, pinned Comprehensive Rules, and canonical public product
-knowledge. It exposes no resources, prompts, write tools, user accounts,
-portfolios, watchlists, authentication records, or payment data.
+An OAuth-protected remote MCP server for Magic Brain's public data, pinned
+Comprehensive Rules, canonical product knowledge, and account-scoped portfolio
+and watchlist workflows. It exposes no payment or trading tools.
 
 ## Install the live connector
 
@@ -13,7 +12,8 @@ Use the hosted Streamable HTTP endpoint:
 https://magic-brain-mcp.assarasua.workers.dev/mcp
 ```
 
-No Magic Brain account, OAuth sign-in, or user API key is currently required.
+Connect with an existing Magic Brain Google account through the automatic OAuth
+flow. Never paste a Magic Brain API key into an MCP client.
 See the canonical [MCP installation guide](../../docs/mcp-installation.md) for
 current Claude, Cursor, VS Code/GitHub Copilot, ChatGPT, and OpenAI Responses
 API instructions, requirements, and troubleshooting.
@@ -28,7 +28,7 @@ below run your own server and do not install the live connector.
 ## Tools
 
 The list below is a summary. The
-[canonical MCP tool reference](../../docs/mcp-tools.md) documents all 11 tools
+[canonical MCP tool reference](../../docs/mcp-tools.md) documents all 17 tools
 without duplicating their schemas here.
 
 - `search_cards` — bounded catalogue search with set/card filters
@@ -44,9 +44,14 @@ without duplicating their schemas here.
 - `get_product_context` — bounded evidence bundle for selected diligence topics
 - `ask_product_question` — cited evidence and answer constraints for host-model
   synthesis; it does not call another LLM
+- `get_portfolio` / `get_watchlist` — view data owned by the connected account
+- `add_to_portfolio` / `add_to_watchlist` — add a confirmed card or holding
+- `remove_from_portfolio` / `remove_from_watchlist` — remove an owned item after
+  explicit user confirmation
 
-Every tool has a title, strict input and output schemas, `readOnlyHint: true`,
-`destructiveHint: false`, and `idempotentHint: true`. Public API tools use
+Every tool has a title and strict input and output schemas. Research tools are
+read-only; account tools declare write and destructive behavior accurately.
+Public API tools use
 `openWorldHint: true`; local rules and product-knowledge tools use
 `openWorldHint: false`.
 Results include Magic Brain attribution, the queried public URL, fetch time,
@@ -74,6 +79,12 @@ superiority claims. See the canonical
 | `get_price_history` | `GET cards/{card_id}/prices` |
 | `list_sets` | `GET sets` |
 | `get_latest_set_opportunities` | `GET latest-set/opportunities` |
+| `get_portfolio` | `GET portfolio` with OAuth |
+| `add_to_portfolio` | `POST portfolio` with `portfolio:write` |
+| `remove_from_portfolio` | `DELETE portfolio/{holding_id}` with `portfolio:write` |
+| `get_watchlist` | `GET watchlist` with OAuth |
+| `add_to_watchlist` | `POST watchlist` with `watchlist:write` |
+| `remove_from_watchlist` | `DELETE watchlist?cardId=...` with `watchlist:write` |
 
 These paths are contract-tested against the versioned public surface. The
 connector never falls back to private application routes.

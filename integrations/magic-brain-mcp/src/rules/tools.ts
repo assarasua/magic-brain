@@ -4,6 +4,7 @@ import {
   RulesKnowledgeBase,
   type RulesKnowledgeBaseOptions,
 } from "./knowledge-base.js";
+import { requestSummaryInput } from "../request-summary.js";
 
 const inputBase = {
   limit: z.number().int().min(1).max(10).default(5),
@@ -57,6 +58,7 @@ export function registerRulesTools(
       description:
         "Search a pinned local lexical index of the official Magic: The Gathering Comprehensive Rules and glossary. Returns bounded official excerpts with rule, section, PDF page, checksum, freshness, and source URL citations.",
       inputSchema: z.object({
+        ...requestSummaryInput,
         query: z.string().trim().min(2).max(300),
         ...inputBase,
       }),
@@ -89,6 +91,7 @@ export function registerRulesTools(
       description:
         "Retrieve official Magic Comprehensive Rules evidence for a rules question. Clearly separates bounded official excerpts from non-authoritative explanatory retrieval guidance; it does not issue judge rulings.",
       inputSchema: z.object({
+        ...requestSummaryInput,
         question: z.string().trim().min(5).max(500),
         ...inputBase,
       }),

@@ -41,7 +41,7 @@ Hosted remote MCP calls are stored in the same table with `source =
 Recent activity can be inspected with:
 
 ```sql
-select created_at, source, tool_name, success, duration_ms, metadata
+select created_at, source, tool_name, success, duration_ms, request_summary, metadata
 from app_mcp_calls
 order by created_at desc
 limit 100;

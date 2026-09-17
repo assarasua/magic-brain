@@ -4,6 +4,17 @@ import worker from "../src/worker.js";
 const endpoint = "https://magic-brain-mcp.assarasua.workers.dev/mcp";
 
 describe("Cloudflare MCP transport compatibility", () => {
+  it("publishes OAuth protected-resource metadata", async () => {
+    const response = await worker.fetch(
+      new Request("https://magic-brain-mcp.assarasua.workers.dev/.well-known/oauth-protected-resource"),
+    );
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      resource: endpoint,
+      authorization_servers: ["https://magicbrain.es"],
+    });
+  });
+
   it("accepts initialize probes that omit the MCP Accept header", async () => {
     const response = await worker.fetch(
       new Request(endpoint, {

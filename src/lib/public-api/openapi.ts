@@ -193,6 +193,50 @@ export const publicApiOpenApi = {
         },
       },
     },
+    "/portfolio": {
+      get: {
+        operationId: "getOAuthPortfolio",
+        summary: "Get the connected user's portfolio",
+        security: [{ OAuth2: ["portfolio:read"] }],
+        responses: { "200": { description: "Portfolio holdings and summary" }, ...commonErrors },
+      },
+      post: {
+        operationId: "addOAuthPortfolioItem",
+        summary: "Add a holding to the connected user's portfolio",
+        security: [{ OAuth2: ["portfolio:write"] }],
+        responses: { "201": { description: "Updated portfolio" }, ...commonErrors },
+      },
+    },
+    "/portfolio/{id}": {
+      delete: {
+        operationId: "deleteOAuthPortfolioItem",
+        summary: "Remove an owned portfolio holding",
+        security: [{ OAuth2: ["portfolio:write"] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        responses: { "200": { description: "Updated portfolio" }, ...commonErrors },
+      },
+    },
+    "/watchlist": {
+      get: {
+        operationId: "getOAuthWatchlist",
+        summary: "Get the connected user's watchlist",
+        security: [{ OAuth2: ["watchlist:read"] }],
+        responses: { "200": { description: "Watchlist cards" }, ...commonErrors },
+      },
+      post: {
+        operationId: "addOAuthWatchlistItem",
+        summary: "Add a card to the connected user's watchlist",
+        security: [{ OAuth2: ["watchlist:write"] }],
+        responses: { "201": { description: "Updated watchlist" }, ...commonErrors },
+      },
+      delete: {
+        operationId: "deleteOAuthWatchlistItem",
+        summary: "Remove a card from the connected user's watchlist",
+        security: [{ OAuth2: ["watchlist:write"] }],
+        parameters: [{ name: "cardId", in: "query", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: { "200": { description: "Updated watchlist" }, ...commonErrors },
+      },
+    },
     "/api-keys": {
       get: {
         operationId: "listApiKeys",
@@ -227,6 +271,21 @@ export const publicApiOpenApi = {
     securitySchemes: {
       ApiKey: { type: "http", scheme: "bearer", bearerFormat: "Magic Brain API key" },
       CookieAuth: { type: "apiKey", in: "cookie", name: "authjs.session-token" },
+      OAuth2: {
+        type: "oauth2",
+        flows: {
+          authorizationCode: {
+            authorizationUrl: "/oauth/authorize",
+            tokenUrl: "/api/oauth/token",
+            scopes: {
+              "portfolio:read": "View portfolio holdings",
+              "portfolio:write": "Add and remove portfolio holdings",
+              "watchlist:read": "View watchlist cards",
+              "watchlist:write": "Add and remove watchlist cards",
+            },
+          },
+        },
+      },
     },
     parameters: {
       CardId: {
