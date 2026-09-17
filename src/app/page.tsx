@@ -220,7 +220,7 @@ export default function Home() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/portfolio")
+      fetch("/api/portfolio?scope=all")
         .then((response) => response.json())
         .then((portfolioResult) => {
           setPortfolio(portfolioResult);

@@ -34,10 +34,17 @@ export async function GET(request: NextRequest) {
     }
     const { user, newToken } = session;
     const listId = request.nextUrl.searchParams.get("listId") ?? undefined;
+    const scope = request.nextUrl.searchParams.get("scope");
     if (listId !== undefined && !isUuid(listId)) {
       return NextResponse.json({ error: "Invalid list ID" }, { status: 400 });
     }
-    const portfolio = await getPortfolio(user.id, listId);
+    if (scope !== null && scope !== "all") {
+      return NextResponse.json({ error: "Invalid portfolio scope" }, { status: 400 });
+    }
+    if (scope === "all" && listId !== undefined) {
+      return NextResponse.json({ error: "Choose a list or all lists, not both" }, { status: 400 });
+    }
+    const portfolio = await getPortfolio(user.id, listId, scope === "all");
     if (!portfolio) {
       return NextResponse.json({ error: "Portfolio list not found" }, { status: 404 });
     }

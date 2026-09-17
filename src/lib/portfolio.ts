@@ -249,12 +249,17 @@ export async function getPortfolioLists(userId: string) {
   return result.rows.map(mapList);
 }
 
-export async function getPortfolio(userId: string, requestedListId?: string) {
+export async function getPortfolio(
+  userId: string,
+  requestedListId?: string,
+  allLists = false,
+) {
   const lists = await getPortfolioLists(userId);
   const selectedList = requestedListId
     ? lists.find((list) => list.id === requestedListId)
     : lists.find((list) => list.isDefault) ?? lists[0];
   if (!selectedList) return null;
+  const scopedListId = allLists ? null : selectedList.id;
   const [{ rows }, historyResult, salesResult, realizedResult] = await Promise.all([
     query<HoldingRow>(
     `
@@ -318,10 +323,10 @@ export async function getPortfolio(userId: string, requestedListId?: string) {
         order by date desc
         limit 1
       ) month_price on true
-      where i.user_id = $1 and i.list_id = $2
+      where i.user_id = $1 and ($2::uuid is null or i.list_id = $2)
       order by current_value desc nulls last, i.created_at desc
     `,
-    [userId, selectedList.id],
+    [userId, scopedListId],
     ),
     query<{ date: string; value: string; invested: string }>(
       `
@@ -335,11 +340,13 @@ export async function getPortfolio(userId: string, requestedListId?: string) {
           and p.source = 'mtgjson'
           and p.date >= current_date - interval '365 days'
           and p.date >= i.acquired_at
-        where i.user_id = $1 and i.list_id = $2 and p.eur is not null
+        where i.user_id = $1
+          and ($2::uuid is null or i.list_id = $2)
+          and p.eur is not null
         group by p.date
         order by p.date
       `,
-      [userId, selectedList.id],
+      [userId, scopedListId],
     ),
     query<SaleRow>(
       `
@@ -349,11 +356,11 @@ export async function getPortfolio(userId: string, requestedListId?: string) {
           acquired_at::text, sold_at::text, proceeds_eur::text,
           cost_basis_eur::text, realized_pnl_eur::text, created_at::text
         from app_portfolio_sales
-        where user_id = $1 and list_id = $2
+        where user_id = $1 and ($2::uuid is null or list_id = $2)
         order by sold_at desc, id desc
         limit 50
       `,
-      [userId, selectedList.id],
+      [userId, scopedListId],
     ),
     query<{ proceeds: string; cost_basis: string; realized_pnl: string; sale_count: number }>(
       `
@@ -362,9 +369,9 @@ export async function getPortfolio(userId: string, requestedListId?: string) {
           coalesce(sum(realized_pnl_eur), 0)::text as realized_pnl,
           count(*)::integer as sale_count
         from app_portfolio_sales
-        where user_id = $1 and list_id = $2
+        where user_id = $1 and ($2::uuid is null or list_id = $2)
       `,
-      [userId, selectedList.id],
+      [userId, scopedListId],
     ),
   ]);
 
