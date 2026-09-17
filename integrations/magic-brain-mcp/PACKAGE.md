@@ -1,10 +1,8 @@
 # Magic Brain MCP server
 
-An isolated, read-only remote MCP server for Magic Brain's versioned public
-Cards/Prices/Sets, prediction-scenario, and market-brief APIs, pinned
-Comprehensive Rules, and canonical public product knowledge. It exposes no
-resources, prompts, write tools, user accounts, saved portfolios, watchlists,
-authentication records, or payment data.
+An isolated remote MCP server for Magic Brain's public research APIs and
+OAuth-scoped portfolio, list, and watchlist actions. It exposes no prompts,
+authentication records, payment data, or cross-account data.
 
 ## Install the live connector
 
@@ -15,7 +13,7 @@ https://magic-brain-mcp.assarasua.workers.dev/mcp
 ```
 
 Public research requires no account or API key. Optional OAuth sign-in unlocks
-owner-scoped personal read tools in compatible remote MCP clients.
+owner-scoped personal read and confirmed write tools in compatible clients.
 See the canonical [MCP installation guide](../../docs/mcp-installation.md) for
 current Claude, Cursor, VS Code/GitHub Copilot, ChatGPT, and OpenAI Responses
 API instructions, requirements, and troubleshooting.
@@ -30,7 +28,7 @@ below run your own server and do not install the live connector.
 ## Tools
 
 The list below is a summary. The
-[canonical MCP tool reference](../../docs/mcp-tools.md) documents all 22 tools
+[canonical MCP tool reference](../../docs/mcp-tools.md) documents all 28 tools
 without duplicating their schemas here.
 
 - `search_cards` — bounded catalogue search with set/card filters
@@ -51,10 +49,10 @@ without duplicating their schemas here.
 - `ask_product_question` — cited evidence and answer constraints for host-model
   synthesis; it does not call another LLM
 
-Every tool has a title, strict input and output schemas, `readOnlyHint: true`,
-`destructiveHint: false`, and `idempotentHint: true`. Public API tools use
-`openWorldHint: true`; local rules and product-knowledge tools use
-`openWorldHint: false`.
+Every tool has a title, bounded schemas, and accurate safety annotations.
+Account mutations require OAuth scopes, explicit confirmation, and an
+idempotency key. Public API tools use `openWorldHint: true`; local rules and
+product-knowledge tools use `openWorldHint: false`.
 Results include Magic Brain attribution, the queried public URL, fetch time,
 and any upstream request ID. Price output retains the source, as-of time,
 currency, and finish fields returned by the public API.
@@ -135,10 +133,11 @@ Safeguards include:
 
 Prediction ranges, model allocations, and market briefs are derived research
 outputs, not guarantees, recommendations, external journalism, or executable
-quotes. The scenario tool never saves a portfolio and no tool reads or writes
-user portfolio or watchlist data. Liquidity, seller inventory, fees, taxes,
-shipping, condition, language, and data freshness can materially affect real
-outcomes. This server does not provide financial advice.
+quotes. The scenario tool never saves a portfolio. Separate account tools may
+change only the authorizing owner's portfolio, lists, or watchlist after
+explicit confirmation. Liquidity, seller inventory, fees, taxes, shipping,
+condition, language, and data freshness can materially affect real outcomes.
+This server does not provide financial advice.
 
 ## Test
 

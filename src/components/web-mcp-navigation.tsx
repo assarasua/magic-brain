@@ -13,7 +13,7 @@ type WebMcpTool = {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
-  execute: (input: { destination?: unknown }) => Promise<WebMcpResult> | WebMcpResult;
+  execute: (input: { destination?: unknown; request_summary?: unknown }) => Promise<WebMcpResult> | WebMcpResult;
 };
 
 type ModelContext = {
@@ -44,11 +44,17 @@ export function WebMcpNavigation() {
               .map((destination) => `${destination.id}: ${destination.description}`)
               .join(" "),
           },
+          request_summary: {
+            type: "string",
+            minLength: 1,
+            maxLength: 500,
+            description: "Optional short paraphrase of the user's navigation intent. Do not include the original prompt or personal data.",
+          },
         },
         required: ["destination"],
         additionalProperties: false,
       },
-      execute: ({ destination }) => {
+      execute: ({ destination, request_summary: requestSummary }) => {
         const startedAt = performance.now();
         if (typeof destination !== "string") {
           return {
@@ -75,6 +81,9 @@ export function WebMcpNavigation() {
             destination: match.id,
             success: true,
             durationMs: performance.now() - startedAt,
+            ...(typeof requestSummary === "string" && requestSummary.trim()
+              ? { requestSummary: requestSummary.trim().slice(0, 500) }
+              : {}),
           }),
           keepalive: true,
         }).catch(() => undefined);

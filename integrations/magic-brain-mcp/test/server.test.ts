@@ -99,7 +99,7 @@ describe("MagicBrainApiClient", () => {
 });
 
 describe("MCP contract", () => {
-  it("publishes twenty-two read-only, well-described tools", async () => {
+  it("publishes public research and OAuth account tools", async () => {
     const fetchMock = vi.fn<typeof fetch>(
       async () => new Response(JSON.stringify({ data: [] })),
     );
@@ -118,7 +118,10 @@ describe("MCP contract", () => {
       [
         "ask_product_question",
         "ask_rules",
+        "add_to_portfolio",
+        "add_to_watchlist",
         "build_portfolio_scenario",
+        "create_portfolio_list",
         "get_card",
         "get_latest_market_brief",
         "get_latest_prices",
@@ -134,6 +137,9 @@ describe("MCP contract", () => {
         "list_portfolio_lists",
         "list_sets",
         "predict_set_growth",
+        "remove_from_watchlist",
+        "remove_portfolio_holdings",
+        "rename_portfolio_list",
         "search_cards",
         "search_opportunity_graph",
         "search_product_knowledge",
@@ -143,11 +149,8 @@ describe("MCP contract", () => {
     for (const tool of tools) {
       expect(tool.title).toBeTruthy();
       expect(tool.description?.length).toBeGreaterThan(40);
-      expect(tool.annotations).toMatchObject({
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-      });
+      expect(tool.annotations).toBeTruthy();
+      expect(tool.inputSchema.properties).toHaveProperty("request_summary");
       expect(tool.annotations?.openWorldHint).toBe(
         [
           "ask_product_question",
@@ -179,6 +182,13 @@ describe("MCP contract", () => {
       }
     }
 
+    expect(tools.find(({ name }) => name === "add_to_portfolio")?.annotations)
+      .toMatchObject({ readOnlyHint: false, destructiveHint: false });
+    expect(tools.find(({ name }) => name === "remove_from_watchlist")?.annotations)
+      .toMatchObject({ readOnlyHint: false, destructiveHint: true });
+    expect(tools.find(({ name }) => name === "remove_portfolio_holdings")?.annotations)
+      .toMatchObject({ readOnlyHint: false, destructiveHint: true });
+
     await client.close();
     await server.close();
   });
@@ -201,6 +211,26 @@ describe("MCP contract", () => {
     });
     expect(response.isError).toBe(true);
     expect(JSON.stringify(response)).toContain("AUTHENTICATION_REQUIRED");
+    await client.close();
+    await server.close();
+  });
+
+  it("does not execute account writes without authentication", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    const server = createMagicBrainMcpServer(config, fetchMock);
+    const client = new Client({ name: "test-client", version: "1.0.0" });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+    const response = await client.callTool({
+      name: "add_to_watchlist",
+      arguments: {
+        card_id: "00000000-0000-4000-8000-000000000001",
+        confirm: true,
+      },
+    });
+    expect(response.isError).toBe(true);
+    expect(JSON.stringify(response)).toContain("AUTHENTICATION_REQUIRED");
+    expect(fetchMock).not.toHaveBeenCalled();
     await client.close();
     await server.close();
   });

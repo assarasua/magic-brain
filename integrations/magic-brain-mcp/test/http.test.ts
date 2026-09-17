@@ -100,7 +100,7 @@ describe("HTTP surface", () => {
     await client.connect(transport);
 
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(22);
+    expect(tools).toHaveLength(28);
 
     await client.close();
   });

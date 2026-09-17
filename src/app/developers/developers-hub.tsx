@@ -186,6 +186,11 @@ const mcpToolGroups = [
     tools: ["get_personalized_opportunities", "get_predict_recommendation", "get_portfolio_intelligence", "list_portfolio_lists", "get_portfolio_list"],
   },
   {
+    name: "Account actions",
+    summary: "OAuth tools that require explicit confirmation before changing a portfolio, list, or watchlist.",
+    tools: ["add_to_portfolio", "add_to_watchlist", "remove_from_watchlist", "create_portfolio_list", "rename_portfolio_list", "remove_portfolio_holdings"],
+  },
+  {
     name: "Comprehensive Rules",
     summary: "Search pinned official excerpts and build clearly non-authoritative explanations from citations.",
     tools: ["search_rules", "ask_rules"],
@@ -290,8 +295,8 @@ function McpInstall({ es }: { es: boolean }) {
       <div className={styles.toolCatalogue}>
         <div className={styles.toolCatalogueHeading}>
           <div>
-            <span>22 read-only tools</span>
-            <h3>Evidence for data, rules, and diligence.</h3>
+            <span>28 research and account tools</span>
+            <h3>Evidence plus confirmed account actions.</h3>
             <p>Explore the surface at a glance, then use the canonical reference for exact schemas, outputs, examples, caveats, and errors.</p>
           </div>
           <a href="https://github.com/assarasua/magic-brain/blob/main/docs/mcp-tools.md" target="_blank" rel="noreferrer">
@@ -656,7 +661,7 @@ export function DevelopersHub({
           <div className={styles.sectionHeading}>
             <span>Remote MCP</span>
             <h2>Connect your AI client.</h2>
-            <p>{es ? "Instala las herramientas de solo lectura de Magic Brain en tu cliente habitual. La investigación pública de cartas, precios, relaciones, reglas y producto es anónima. Inicia sesión opcionalmente con OAuth para consultar tu colección y preferencias; el acceso personal está limitado y no permite escritura por defecto." : "Install the live read-only Magic Brain tools in the client you already use. Public card, price, graph, rules, and product research stays anonymous. Optionally sign in with Magic Brain OAuth to read your own collection and preference-derived insights; personal access is scoped and never grants writes by default."}</p>
+            <p>{es ? "Instala las herramientas de Magic Brain en tu cliente habitual. La investigación pública es anónima; OAuth permite consultar tu cuenta y, con confirmación explícita, actualizar portfolio, listas y watchlist." : "Install the live Magic Brain tools in the client you already use. Public research stays anonymous; OAuth can read your account and, with explicit confirmation, update portfolios, lists, and watchlists."}</p>
           </div>
           <McpInstall es={es} />
         </section>

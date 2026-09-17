@@ -1,6 +1,6 @@
 # Magic Brain MCP tool reference
 
-This is the canonical reference for the 22 read-only tools currently registered
+This is the canonical reference for the 28 tools currently registered
 by the Magic Brain MCP server. For installation and client configuration, see
 the [MCP installation guide](mcp-installation.md). The live endpoint is:
 
@@ -9,9 +9,10 @@ https://magic-brain-mcp.assarasua.workers.dev/mcp
 ```
 
 Public research tools require no Magic Brain account. Optional OAuth 2.1
-authorization-code login with S256 PKCE enables three account-scoped read
-tools. The connector never exposes authentication records, payment data,
-secrets, owner identity, or write/trading tools.
+authorization-code login with S256 PKCE enables account-scoped read and write
+tools. Write tools require explicit confirmation and scoped authorization. The
+connector never exposes authentication records, payment data, secrets, or
+owner identity.
 
 ## How answers are composed
 
@@ -45,9 +46,23 @@ tools and composes the final answer.
   or write a user's portfolio, watchlist, preferences, or account. Personal
   tools read only the authorizing owner's data and require their named scopes.
 
-All tools are read-only, non-destructive, and idempotent. Public-data tools may
-change as the public catalogue changes. Rules and product tools query pinned
-local knowledge.
+Research tools are read-only and non-destructive. Account mutation tools are
+clearly annotated, require OAuth scopes and explicit confirmation, and use
+idempotency keys. Public-data tools may change as the catalogue changes. Rules
+and product tools query pinned local knowledge.
+
+Every tool accepts an optional `request_summary` of up to 500 characters. It
+must paraphrase intent and must not include the original prompt, personal data,
+credentials, or secrets. When supplied, it is stored in `app_mcp_calls`.
+
+## Account actions
+
+- `add_to_portfolio` adds a confirmed holding to the default or selected list.
+- `add_to_watchlist` adds or updates a confirmed price alert.
+- `remove_from_watchlist` removes a confirmed watchlist entry.
+- `create_portfolio_list` creates a confirmed named list.
+- `rename_portfolio_list` renames a confirmed owned list.
+- `remove_portfolio_holdings` deletes confirmed holdings from one owned list.
 
 ## Card & price data
 

@@ -8,6 +8,7 @@ import {
   verifyBearerToken,
   type AuthInfo,
 } from "@modelcontextprotocol/server";
+import { Client } from "pg";
 import rulesIndex from "../rules-data/rules-index.json" with { type: "json" };
 import type { MagicBrainMcpConfig } from "./config.js";
 import type { RulesIndex } from "./rules/types.js";
@@ -21,6 +22,11 @@ type WorkerEnv = {
   MAGIC_BRAIN_WEB?: {
     fetch(request: Request): Promise<Response>;
   };
+  HYPERDRIVE?: { connectionString: string };
+};
+
+type ExecutionContext = {
+  waitUntil(promise: Promise<unknown>): void;
 };
 
 const allowedOrigins = new Set([
@@ -31,7 +37,11 @@ const allowedOrigins = new Set([
 ]);
 
 const worker = {
-  async fetch(request: Request, env: WorkerEnv = {}): Promise<Response> {
+  async fetch(
+    request: Request,
+    env: WorkerEnv = {},
+    context?: ExecutionContext,
+  ): Promise<Response> {
     const config = workerConfig(env);
     const url = new URL(request.url);
     const oauthMetadata = {
@@ -101,6 +111,10 @@ const worker = {
       });
     }
 
+    const startedAt = Date.now();
+    const call = request.method === "POST"
+      ? await readToolCall(request.clone())
+      : null;
     // Normalize before inspection so the same request is passed to the SDK.
     const mcpRequest = normalizeAcceptHeader(request);
     const requiredScopes = await personalToolScopes(mcpRequest);
@@ -152,6 +166,17 @@ const worker = {
       mcpRequest,
       authInfo ? { authInfo } : undefined,
     );
+    if (call && env.HYPERDRIVE?.connectionString) {
+      const audit = recordRemoteMcpCall(env.HYPERDRIVE.connectionString, {
+        toolName: call.toolName,
+        success: response.ok,
+        durationMs: Date.now() - startedAt,
+        ...(call.requestId ? { requestId: call.requestId } : {}),
+        ...(call.requestSummary ? { requestSummary: call.requestSummary } : {}),
+      }).catch((error) => console.error("Unable to record MCP audit event", error));
+      if (context) context.waitUntil(audit);
+      else await audit;
+    }
     const headers = new Headers(response.headers);
     headers.set("Cache-Control", "no-store");
     headers.set("Referrer-Policy", "no-referrer");
@@ -168,6 +193,59 @@ const worker = {
 };
 
 export default worker;
+
+async function readToolCall(request: Request) {
+  try {
+    const body = (await request.json()) as {
+      id?: string | number;
+      method?: string;
+      params?: { name?: string; arguments?: { request_summary?: unknown } };
+    };
+    if (body.method !== "tools/call" || typeof body.params?.name !== "string") {
+      return null;
+    }
+    return {
+      toolName: body.params.name.slice(0, 100),
+      requestId: body.id === undefined ? undefined : String(body.id).slice(0, 200),
+      requestSummary:
+        typeof body.params.arguments?.request_summary === "string"
+          ? body.params.arguments.request_summary.trim().slice(0, 500) || undefined
+          : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function recordRemoteMcpCall(
+  connectionString: string,
+  event: {
+    toolName: string;
+    success: boolean;
+    durationMs: number;
+    requestId?: string;
+    requestSummary?: string;
+  },
+) {
+  const client = new Client({ connectionString });
+  try {
+    await client.connect();
+    await client.query(
+      `insert into app_mcp_calls
+         (source, tool_name, success, duration_ms, request_id, request_summary)
+       values ('remote_mcp', $1, $2, $3, $4, $5)`,
+      [
+        event.toolName,
+        event.success,
+        event.durationMs,
+        event.requestId ?? null,
+        event.requestSummary ?? null,
+      ],
+    );
+  } finally {
+    await client.end().catch(() => undefined);
+  }
+}
 
 function workerConfig(env: WorkerEnv): MagicBrainMcpConfig {
   const oauthIssuerUrl = new URL("https://magicbrain.es");
@@ -226,6 +304,12 @@ async function personalToolScopes(request: Request): Promise<string[]> {
       get_portfolio_intelligence: ["portfolio:read", "profile:read"],
       list_portfolio_lists: ["lists:read"],
       get_portfolio_list: ["lists:read", "portfolio:read", "profile:read"],
+      add_to_portfolio: ["portfolio:write"],
+      add_to_watchlist: ["alerts:manage"],
+      remove_from_watchlist: ["alerts:manage"],
+      create_portfolio_list: ["lists:write"],
+      rename_portfolio_list: ["lists:write"],
+      remove_portfolio_holdings: ["portfolio:write", "lists:write"],
     };
     return scopesByTool[body.params?.name ?? ""] ?? [];
   } catch {

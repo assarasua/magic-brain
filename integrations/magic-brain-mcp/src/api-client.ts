@@ -26,9 +26,10 @@ export class MagicBrainApiError extends Error {
 }
 
 type RequestOptions = {
-  method?: "GET" | "POST";
+  method?: "GET" | "POST" | "PATCH" | "DELETE";
   query?: Record<string, string | number | boolean | undefined>;
   body?: JsonValue;
+  idempotencyKey?: string;
 };
 
 export class MagicBrainApiClient {
@@ -53,6 +54,9 @@ export class MagicBrainApiClient {
       "User-Agent": "magic-brain-mcp/0.1.0",
     });
     if (options.body !== undefined) headers.set("Content-Type", "application/json");
+    if (options.idempotencyKey) {
+      headers.set("Idempotency-Key", options.idempotencyKey);
+    }
     if (this.config.apiKey) {
       headers.set("Authorization", `Bearer ${this.config.apiKey}`);
     }

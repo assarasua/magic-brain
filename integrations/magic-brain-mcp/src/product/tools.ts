@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
+import { requestSummaryInput } from "../request-summary.js";
 import {
   CANONICAL_PRODUCT_DOCUMENT,
   getProductContext,
@@ -45,6 +46,7 @@ export function registerProductKnowledgeTools(server: McpServer): void {
       description:
         "Search the canonical, deterministic Magic Brain product/business knowledge base. Returns bounded source-cited statements with explicit epistemic status for positioning, moat, users, metrics, monetization, trust, risk, incidents, growth, liquidity, signals, and adjacent TCG diligence.",
       inputSchema: z.object({
+        ...requestSummaryInput,
         query: z.string().trim().min(2).max(500),
         topics: z.array(topicSchema).max(PRODUCT_TOPICS.length).optional(),
         statuses: z.array(statusSchema).max(PRODUCT_STATUSES.length).optional(),
@@ -74,6 +76,7 @@ export function registerProductKnowledgeTools(server: McpServer): void {
       description:
         "Retrieve a bounded canonical evidence bundle for one or more Magic Brain diligence topics. Use it for broad product or business analysis where all returned claims must retain their shipped fact, operating principle, hypothesis, roadmap option, or unknown/not measured status.",
       inputSchema: z.object({
+        ...requestSummaryInput,
         topics: z.array(topicSchema).min(1).max(6),
         statuses: z.array(statusSchema).max(PRODUCT_STATUSES.length).optional(),
         limit: z.number().int().min(1).max(12).default(12),
@@ -101,6 +104,7 @@ export function registerProductKnowledgeTools(server: McpServer): void {
       description:
         "Retrieve source-cited canonical evidence for a Magic Brain product or business question without calling another LLM. The host should synthesize the answer, preserve every epistemic status, state unknowns directly, and avoid unsupported metrics or superiority claims.",
       inputSchema: z.object({
+        ...requestSummaryInput,
         question: z.string().trim().min(5).max(800),
         limit: z.number().int().min(1).max(12).default(10),
       }),

@@ -24,6 +24,9 @@ export async function POST(request: NextRequest) {
   const event = body as Record<string, unknown>;
   const destination = typeof event.destination === "string" ? event.destination : "";
   const durationMs = typeof event.durationMs === "number" ? event.durationMs : NaN;
+  const requestSummary = typeof event.requestSummary === "string"
+    ? event.requestSummary.trim().slice(0, 500)
+    : undefined;
   if (
     event.source !== "webmcp" ||
     event.toolName !== "navigate_magic_brain" ||
@@ -40,6 +43,7 @@ export async function POST(request: NextRequest) {
     toolName: "navigate_magic_brain",
     success: event.success === true,
     durationMs,
+    ...(requestSummary ? { requestSummary } : {}),
     metadata: { destination },
   });
 

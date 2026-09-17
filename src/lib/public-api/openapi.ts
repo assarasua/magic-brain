@@ -424,6 +424,29 @@ export const publicApiOpenApi = {
           ...commonErrors,
         },
       },
+      post: mutationOperation(
+        "addPortfolioHolding",
+        "Add a card holding to the authenticated owner's portfolio",
+        ["portfolio:write"],
+        {
+          type: "object",
+          additionalProperties: false,
+          required: ["cardId", "quantity", "purchasePrice", "confirm"],
+          properties: {
+            cardId: { type: "string", format: "uuid" },
+            quantity: { type: "integer", minimum: 1 },
+            purchasePrice: { type: "number", minimum: 0 },
+            condition: {
+              type: "string",
+              enum: ["near_mint", "excellent", "good", "light_played"],
+            },
+            language: { type: "string", minLength: 2, maxLength: 10 },
+            acquiredAt: { type: "string", format: "date" },
+            listId: { type: "string", format: "uuid" },
+            confirm: { type: "boolean", const: true },
+          },
+        },
+      ),
     },
     "/alerts": {
       get: {
