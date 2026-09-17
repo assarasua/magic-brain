@@ -3,9 +3,13 @@
 /* eslint-disable @next/next/no-img-element */
 
 import {
+  ArrowRight,
   BarChart3,
   Check,
+  Eye,
+  Layers3,
   LoaderCircle,
+  Newspaper,
   ShieldCheck,
   Sparkles,
   TrendingUp,
@@ -17,7 +21,7 @@ import { useEffect, useState } from "react";
 import { MagicBrainLogo, MagicBrainMark } from "@/components/brand-logo";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { LandingContact } from "@/components/landing-contact";
-import { movers } from "@/lib/data";
+import { movers, portfolioCards } from "@/lib/data";
 
 function GoogleMark() {
   return (
@@ -34,6 +38,7 @@ export default function LoginPage() {
   const { locale } = useLanguage();
   const [loading, setLoading] = useState(false);
   const es = locale === "es";
+  const storyCards = [...movers, portfolioCards[2]];
 
   useEffect(() => {
     const referral = new URLSearchParams(window.location.search).get("ref");
@@ -102,6 +107,21 @@ export default function LoginPage() {
           <small className="auth-terms">{es ? "Al continuar aceptas crear una cuenta de Magic Brain." : "By continuing, you agree to create a Magic Brain account."}</small>
         </div>
       </section>
+      <section className="landing-card-chronicle" aria-labelledby="card-chronicle-heading">
+        <div className="landing-chronicle-copy">
+          <span className="eyebrow">{es ? "CADA CARTA DEJA UNA HUELLA" : "EVERY CARD LEAVES A TRACE"}</span>
+          <h2 id="card-chronicle-heading">{es ? "La que abriste. La que cambiaste. La que llevas años buscando." : "The one you pulled. The one you traded. The one you have chased for years."}</h2>
+          <p>{es ? "Una colección no es una hoja de cálculo. Es una historia hecha de ilustraciones, ediciones, recuerdos y decisiones. Magic Brain conserva ese detalle y lo conecta con lo que está ocurriendo ahora." : "A collection is not a spreadsheet. It is a story made of art, printings, memories, and decisions. Magic Brain preserves that detail and connects it to what is happening now."}</p>
+        </div>
+        <div className="landing-card-river" aria-label={es ? "Selección de cartas de Magic: The Gathering" : "A selection of Magic: The Gathering cards"}>
+          {storyCards.map((card, index) => (
+            <figure key={`${card.id}-${index}`} style={{ "--river-index": index } as React.CSSProperties}>
+              <img src={card.image} alt={`${card.name} — ${card.set}`} loading="lazy" />
+              <figcaption><strong>{card.name}</strong><span>{card.set}</span></figcaption>
+            </figure>
+          ))}
+        </div>
+      </section>
       <section className="landing-product-story" aria-labelledby="product-story-heading">
         <div className="landing-product-heading">
           <span className="eyebrow">{es ? "TODO TU MAGIC, CON CONTEXTO" : "ALL YOUR MAGIC, IN CONTEXT"}</span>
@@ -109,9 +129,20 @@ export default function LoginPage() {
           <p>{es ? "Magic Brain une catálogo, organización e inteligencia de mercado para ayudarte a disfrutar cada carta y tomar decisiones informadas." : "Magic Brain brings catalogue data, organization, and market intelligence together so you can enjoy every card and make informed decisions."}</p>
         </div>
         <div className="landing-product-grid">
-          <article><WalletCards size={21} /><span>01</span><h3>{es ? "Organiza cada impresión" : "Organize every printing"}</h3><p>{es ? "Registra copias, estado, idioma, coste y listas sin perder el detalle de la edición." : "Track copies, condition, language, cost, and lists without losing printing-level detail."}</p></article>
-          <article><BarChart3 size={21} /><span>02</span><h3>{es ? "Entiende el movimiento" : "Understand every move"}</h3><p>{es ? "Consulta precios históricos, tendencias y señales respaldadas por datos observados." : "Explore price history, trends, and signals grounded in observed market data."}</p></article>
-          <article><Sparkles size={21} /><span>03</span><h3>{es ? "Descubre qué mirar" : "Discover what to watch"}</h3><p>{es ? "Recibe oportunidades personalizadas, briefs diarios y contexto para nuevas cartas." : "Get personalized opportunities, daily briefs, and context for cards worth discovering."}</p></article>
+          <article><div className="landing-story-card"><img src={storyCards[3].image} alt={storyCards[3].name} loading="lazy" /><span><Layers3 size={15} /> {es ? "Tu inventario" : "Your inventory"}</span></div><i>01</i><WalletCards size={21} /><h3>{es ? "Dale memoria a tu colección" : "Give your collection a memory"}</h3><p>{es ? "Registra la impresión exacta, copias, estado, idioma y coste. Lo que tienes deja de ser una pila y se convierte en un archivo vivo." : "Record the exact printing, copies, condition, language, and cost. What you own stops being a pile and becomes a living archive."}</p></article>
+          <article><div className="landing-story-card"><img src={storyCards[4].image} alt={storyCards[4].name} loading="lazy" /><span><Eye size={15} /> {es ? "Contexto real" : "Real context"}</span></div><i>02</i><BarChart3 size={21} /><h3>{es ? "Mira más allá del precio" : "See beyond the price"}</h3><p>{es ? "Sigue la historia de valor de cada carta y entiende tendencias, cambios y señales con datos observados, no con ruido." : "Follow each card’s value story and understand trends, changes, and signals through observed data—not noise."}</p></article>
+          <article><div className="landing-story-card"><img src={storyCards[5].image} alt={storyCards[5].name} loading="lazy" /><span><Newspaper size={15} /> {es ? "Tu próximo hallazgo" : "Your next discovery"}</span></div><i>03</i><Sparkles size={21} /><h3>{es ? "Deja que la colección te hable" : "Let the collection speak"}</h3><p>{es ? "Descubre cartas, recibe un brief diario y encuentra qué merece tu atención según la colección que tú has construido." : "Discover cards, receive a daily brief, and find what deserves attention based on the collection you built."}</p></article>
+        </div>
+      </section>
+      <section className="landing-final-chapter">
+        <div className="landing-final-cards" aria-hidden="true">
+          {storyCards.slice(0, 4).map((card, index) => <img key={card.id} src={card.image} alt="" loading="lazy" style={{ "--final-index": index } as React.CSSProperties} />)}
+        </div>
+        <div>
+          <span className="eyebrow">{es ? "EL SIGUIENTE CAPÍTULO ES TUYO" : "THE NEXT CHAPTER IS YOURS"}</span>
+          <h2>{es ? "Tu colección ya tiene una historia. Ahora puedes entenderla." : "Your collection already has a story. Now you can understand it."}</h2>
+          <p>{es ? "Crea tu cuenta, añade tu primera carta y deja que Magic Brain conecte todas las piezas." : "Create your account, add your first card, and let Magic Brain connect every piece."}</p>
+          <button onClick={continueWithGoogle} disabled={loading}>{es ? "Empezar mi colección" : "Start my collection"}<ArrowRight size={16} /></button>
         </div>
       </section>
       <LandingContact />
