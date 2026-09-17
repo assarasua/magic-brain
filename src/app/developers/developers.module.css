@@ -44,7 +44,7 @@
 }
 
 .header nav a,
-.headerActions > a:first-child {
+.headerActions > a:not(.githubButton) {
   color: #96a5b8;
   font-size: 12px;
   font-weight: 650;
@@ -52,7 +52,7 @@
 }
 
 .header nav a:hover,
-.headerActions > a:first-child:hover {
+.headerActions > a:not(.githubButton):hover {
   color: white;
 }
 
@@ -80,6 +80,10 @@
 
 .menuButton,
 .mobileNav {
+  display: none;
+}
+
+.mobileLanguage {
   display: none;
 }
 
@@ -1450,7 +1454,7 @@
     display: none;
   }
 
-  .headerActions > a:first-child {
+  .headerActions > a:not(.githubButton) {
     display: none;
   }
 
@@ -1483,6 +1487,13 @@
     justify-content: space-between;
     padding: 0 12px;
     border-radius: 8px;
+  }
+
+  .mobileLanguage {
+    display: flex;
+    justify-content: flex-end;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--dev-line);
   }
 
   .hero {

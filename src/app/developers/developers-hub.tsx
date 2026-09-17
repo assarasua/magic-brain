@@ -27,7 +27,7 @@ import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { MagicBrainLogo } from "@/components/brand-logo";
-import { useLanguage } from "@/components/language-provider";
+import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import styles from "./developers.module.css";
 
 export type DeveloperEndpoint = {
@@ -202,7 +202,7 @@ const mcpToolGroups = [
   },
 ] as const;
 
-function CodeSample() {
+function CodeSample({ es = false }: { es?: boolean }) {
   const [language, setLanguage] = useState<keyof typeof examples>("curl");
   const [copied, setCopied] = useState(false);
   const copy = async () => {
@@ -228,7 +228,7 @@ function CodeSample() {
         ))}
         <button type="button" className={styles.copyButton} onClick={copy}>
           {copied ? <Check size={14} /> : <Clipboard size={14} />}
-          {copied ? "Copied" : "Copy"}
+          {copied ? (es ? "Copiado" : "Copied") : (es ? "Copiar" : "Copy")}
         </button>
       </div>
       <pre tabIndex={0}><code>{examples[language]}</code></pre>
@@ -250,17 +250,15 @@ function McpInstall({ es }: { es: boolean }) {
       <div className={styles.mcpCallout}>
         <ShieldCheck size={20} />
         <div>
-          <strong>Live remote connector · anonymous by default, optional sign-in</strong>
+          <strong>{es ? "Conector remoto activo · anónimo por defecto, acceso opcional" : "Live remote connector · anonymous by default, optional sign-in"}</strong>
           <p>
-            Use the exact HTTPS URL below. It is a hosted Streamable HTTP endpoint,
-            separate from local self-hosting. Public research needs no account;
-            personal tools use OAuth consent in supported clients.
+            {es ? "Usa la URL HTTPS exacta. Es un endpoint Streamable HTTP alojado. La investigación pública no necesita cuenta; las herramientas personales usan consentimiento OAuth en clientes compatibles." : "Use the exact HTTPS URL below. It is a hosted Streamable HTTP endpoint, separate from local self-hosting. Public research needs no account; personal tools use OAuth consent in supported clients."}
           </p>
         </div>
         <code>{mcpEndpoint}</code>
         <button type="button" onClick={() => void copy("endpoint", mcpEndpoint)}>
           {copied === "endpoint" ? <Check size={14} /> : <Clipboard size={14} />}
-          {copied === "endpoint" ? "Copied" : "Copy URL"}
+          {copied === "endpoint" ? (es ? "Copiada" : "Copied") : (es ? "Copiar URL" : "Copy URL")}
         </button>
       </div>
 
@@ -273,7 +271,7 @@ function McpInstall({ es }: { es: boolean }) {
                 <span>{installer.requirement}</span>
               </div>
               <a href={installer.source} target="_blank" rel="noreferrer" aria-label={`${installer.name} official MCP documentation`}>
-                Official docs <ExternalLink size={12} />
+                {es ? "Documentación oficial" : "Official docs"} <ExternalLink size={12} />
               </a>
             </div>
             <p>{installer.description}</p>
@@ -285,7 +283,7 @@ function McpInstall({ es }: { es: boolean }) {
                 onClick={() => void copy(installer.id, installer.snippet)}
               >
                 {copied === installer.id ? <Check size={14} /> : <Clipboard size={14} />}
-                {copied === installer.id ? "Copied" : "Copy"}
+                {copied === installer.id ? (es ? "Copiado" : "Copied") : (es ? "Copiar" : "Copy")}
               </button>
             </div>
           </article>
@@ -295,12 +293,12 @@ function McpInstall({ es }: { es: boolean }) {
       <div className={styles.toolCatalogue}>
         <div className={styles.toolCatalogueHeading}>
           <div>
-            <span>28 research and account tools</span>
-            <h3>Evidence plus confirmed account actions.</h3>
-            <p>Explore the surface at a glance, then use the canonical reference for exact schemas, outputs, examples, caveats, and errors.</p>
+            <span>{es ? "28 herramientas de investigación y cuenta" : "28 research and account tools"}</span>
+            <h3>{es ? "Evidencia y acciones de cuenta confirmadas." : "Evidence plus confirmed account actions."}</h3>
+            <p>{es ? "Explora las herramientas y consulta la referencia canónica para ver esquemas, resultados, ejemplos, límites y errores." : "Explore the surface at a glance, then use the canonical reference for exact schemas, outputs, examples, caveats, and errors."}</p>
           </div>
           <a href="https://github.com/assarasua/magic-brain/blob/main/docs/mcp-tools.md" target="_blank" rel="noreferrer">
-            Open the tool reference <ArrowRight size={14} />
+            {es ? "Abrir referencia de herramientas" : "Open the tool reference"} <ArrowRight size={14} />
           </a>
         </div>
         <div className={styles.toolGroupGrid}>
@@ -321,18 +319,18 @@ function McpInstall({ es }: { es: boolean }) {
 
       <div className={styles.mcpGuideLink}>
         <div>
-          <strong>Need exact steps or troubleshooting?</strong>
-          <p>Plan requirements, admin restrictions, health checks, transports, and local setup are covered in the repository guide.</p>
+          <strong>{es ? "¿Necesitas pasos exactos o solucionar problemas?" : "Need exact steps or troubleshooting?"}</strong>
+          <p>{es ? "La guía del repositorio incluye requisitos, restricciones, comprobaciones, transportes y configuración local." : "Plan requirements, admin restrictions, health checks, transports, and local setup are covered in the repository guide."}</p>
         </div>
         <a href="https://github.com/assarasua/magic-brain/blob/main/docs/mcp-installation.md" target="_blank" rel="noreferrer">
-          Read the installation guide <ArrowRight size={14} />
+          {es ? "Leer guía de instalación" : "Read the installation guide"} <ArrowRight size={14} />
         </a>
       </div>
     </>
   );
 }
 
-function EndpointReference({ endpoints }: { endpoints: DeveloperEndpoint[] }) {
+function EndpointReference({ endpoints, es }: { endpoints: DeveloperEndpoint[]; es: boolean }) {
   return (
     <div className={styles.endpointList}>
       {endpoints.map((endpoint) => (
@@ -349,10 +347,10 @@ function EndpointReference({ endpoints }: { endpoints: DeveloperEndpoint[] }) {
             <div className={styles.endpointMeta}>
               <span>
                 {endpoint.auth === "session"
-                  ? "Magic Brain account session required"
+                  ? (es ? "Requiere sesión de Magic Brain" : "Magic Brain account session required")
                   : endpoint.auth === "scoped-key"
-                    ? "Scoped OAuth token or API key required"
-                    : "Anonymous access or Bearer API key"}
+                    ? (es ? "Requiere token OAuth con permisos o clave API" : "Scoped OAuth token or API key required")
+                    : (es ? "Acceso anónimo o clave API Bearer" : "Anonymous access or Bearer API key")}
               </span>
               <a href={`/api/v1/openapi.json#/${endpoint.operationId}`}>
                 OpenAPI <ExternalLink size={12} />
@@ -375,7 +373,7 @@ function EndpointReference({ endpoints }: { endpoints: DeveloperEndpoint[] }) {
                 ))}
               </div>
             ) : (
-              <p className={styles.noParameters}>No parameters.</p>
+              <p className={styles.noParameters}>{es ? "Sin parámetros." : "No parameters."}</p>
             )}
             {endpoint.method === "POST" && endpoint.path === "/prices/latest" && (
               <div className={styles.bodyHint}>
@@ -389,7 +387,8 @@ function EndpointReference({ endpoints }: { endpoints: DeveloperEndpoint[] }) {
   );
 }
 
-function KeyManager() {
+function KeyManager({ es }: { es: boolean }) {
+  const dateLocale = es ? "es-ES" : "en-US";
   const { status } = useSession();
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [name, setName] = useState("");
@@ -480,17 +479,17 @@ function KeyManager() {
   };
 
   if (status === "loading") {
-    return <div className={styles.keyState}><LoaderCircle className="spin" size={20} /> Checking your account…</div>;
+    return <div className={styles.keyState}><LoaderCircle className="spin" size={20} /> {es ? "Comprobando tu cuenta…" : "Checking your account…"}</div>;
   }
 
   if (status !== "authenticated") {
     return (
       <div className={styles.signInCard}>
         <div><KeyRound size={23} /><span>300 requests per minute</span></div>
-        <h3>Create a free API key</h3>
-        <p>Sign in to create, inspect, and revoke keys. Secrets are shown once and stored only as hashes.</p>
+        <h3>{es ? "Crea una clave API gratuita" : "Create a free API key"}</h3>
+        <p>{es ? "Inicia sesión para crear, consultar y revocar claves. Los secretos se muestran una sola vez y solo se guardan como hashes." : "Sign in to create, inspect, and revoke keys. Secrets are shown once and stored only as hashes."}</p>
         <button type="button" onClick={() => void signIn("google", { redirectTo: "/developers#keys" })}>
-          Sign in to manage keys <ArrowRight size={15} />
+          {es ? "Iniciar sesión para gestionar claves" : "Sign in to manage keys"} <ArrowRight size={15} />
         </button>
       </div>
     );
@@ -499,19 +498,19 @@ function KeyManager() {
   return (
     <div className={styles.keyManager}>
       <form onSubmit={createKey}>
-        <label htmlFor="key-name">Key name</label>
+        <label htmlFor="key-name">{es ? "Nombre de la clave" : "Key name"}</label>
         <div>
           <input
             id="key-name"
             value={name}
             maxLength={80}
             onChange={(event) => setName(event.target.value)}
-            placeholder="Production website"
+            placeholder={es ? "Web de producción" : "Production website"}
             disabled={loading}
           />
           <button type="submit" disabled={loading || !name.trim()}>
             {loading ? <LoaderCircle className="spin" size={16} /> : <KeyRound size={16} />}
-            Create key
+            {es ? "Crear clave" : "Create key"}
           </button>
         </div>
         <label>
@@ -521,17 +520,17 @@ function KeyManager() {
             onChange={(event) => setPersonalRead(event.target.checked)}
             disabled={loading}
           />
-          Allow owned portfolio, list, and profile reads
+          {es ? "Permitir lectura del portfolio, listas y perfil propios" : "Allow owned portfolio, list, and profile reads"}
         </label>
-        <small>Use a distinct key per environment. Up to 10 active keys. This option grants no writes.</small>
+        <small>{es ? "Usa una clave distinta por entorno. Hasta 10 claves activas. Esta opción no permite escritura." : "Use a distinct key per environment. Up to 10 active keys. This option grants no writes."}</small>
       </form>
 
       {secret && (
         <div className={styles.secretNotice} role="status">
           <ShieldCheck size={20} />
           <div>
-            <strong>Copy your new key now</strong>
-            <p>It cannot be displayed again.</p>
+            <strong>{es ? "Copia ahora tu nueva clave" : "Copy your new key now"}</strong>
+            <p>{es ? "No se podrá volver a mostrar." : "It cannot be displayed again."}</p>
             <code>{secret}</code>
           </div>
           <button
@@ -541,7 +540,7 @@ function KeyManager() {
               setMessage("API key copied");
             }}
           >
-            <Clipboard size={15} /> Copy
+            <Clipboard size={15} /> {es ? "Copiar" : "Copy"}
           </button>
         </div>
       )}
@@ -557,19 +556,19 @@ function KeyManager() {
             <div className={styles.keyDetails}>
               <span>{key.tier}</span>
               <span>{key.scopes.join(", ")}</span>
-              <span>Created {new Date(key.createdAt).toLocaleDateString()}</span>
-              <span>{key.lastUsedAt ? `Used ${new Date(key.lastUsedAt).toLocaleDateString()}` : "Never used"}</span>
+              <span>{es ? "Creada" : "Created"} {new Date(key.createdAt).toLocaleDateString(dateLocale)}</span>
+              <span>{key.lastUsedAt ? `${es ? "Usada" : "Used"} ${new Date(key.lastUsedAt).toLocaleDateString(dateLocale)}` : (es ? "Nunca usada" : "Never used")}</span>
             </div>
             {key.revokedAt ? (
-              <span className={styles.revokedLabel}>Revoked</span>
+              <span className={styles.revokedLabel}>{es ? "Revocada" : "Revoked"}</span>
             ) : (
               <button type="button" onClick={() => void revokeKey(key)} disabled={loading}>
-                <Trash2 size={14} /> Revoke
+                <Trash2 size={14} /> {es ? "Revocar" : "Revoke"}
               </button>
             )}
           </article>
         ))}
-        {!loading && keys.length === 0 && <p className={styles.emptyKeys}>No keys yet. Create one for your first integration.</p>}
+        {!loading && keys.length === 0 && <p className={styles.emptyKeys}>{es ? "Aún no tienes claves. Crea una para tu primera integración." : "No keys yet. Create one for your first integration."}</p>}
       </div>
     </div>
   );
@@ -585,15 +584,26 @@ export function DevelopersHub({
   const [menuOpen, setMenuOpen] = useState(false);
   const { locale } = useLanguage();
   const es = locale === "es";
+  const navLabels: Record<(typeof navItems)[number][0], string> = {
+    overview: es ? "Resumen" : "Overview",
+    "web-mcp": "WebMCP",
+    mcp: es ? "Configurar MCP" : "MCP setup",
+    reference: es ? "Referencia API" : "API reference",
+    examples: es ? "Ejemplos" : "Examples",
+    keys: es ? "Claves API" : "API keys",
+    support: es ? "Apoyar" : "Support",
+    policies: es ? "Políticas" : "Policies",
+  };
 
   return (
     <main className={styles.page}>
       <header className={styles.header}>
         <Link href="/" aria-label="Magic Brain home"><MagicBrainLogo /></Link>
-        <nav aria-label="Developer navigation">
-          {navItems.slice(0, 7).map(([id, label]) => <a href={`#${id}`} key={id}>{label}</a>)}
+        <nav aria-label={es ? "Navegación para desarrolladores" : "Developer navigation"}>
+          {navItems.slice(0, 7).map(([id]) => <a href={`#${id}`} key={id}>{navLabels[id]}</a>)}
         </nav>
         <div className={styles.headerActions}>
+          <LanguageToggle />
           <a href="/api/v1/openapi.json">OpenAPI</a>
           <a className={styles.githubButton} href="https://github.com/assarasua/magic-brain" target="_blank" rel="noreferrer">
             <Code2 size={16} /> GitHub
@@ -602,15 +612,16 @@ export function DevelopersHub({
         <button
           className={styles.menuButton}
           type="button"
-          aria-label="Toggle developer navigation"
+          aria-label={es ? "Mostrar navegación para desarrolladores" : "Toggle developer navigation"}
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((current) => !current)}
         >
           {menuOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
         {menuOpen && (
-          <nav className={styles.mobileNav} aria-label="Mobile developer navigation">
-            {navItems.map(([id, label]) => <a href={`#${id}`} onClick={() => setMenuOpen(false)} key={id}>{label}</a>)}
+          <nav className={styles.mobileNav} aria-label={es ? "Navegación móvil para desarrolladores" : "Mobile developer navigation"}>
+            <div className={styles.mobileLanguage}><LanguageToggle /></div>
+            {navItems.map(([id]) => <a href={`#${id}`} onClick={() => setMenuOpen(false)} key={id}>{navLabels[id]}</a>)}
             <a href="https://github.com/assarasua/magic-brain">GitHub <ExternalLink size={13} /></a>
           </nav>
         )}
@@ -623,44 +634,44 @@ export function DevelopersHub({
           <h1>{es ? <>Datos para conocer cada carta,<br /><em>creados para builders.</em></> : <>Data to know every card,<br /><em>built for builders.</em></>}</h1>
           <p>{es ? "Consulta impresiones, ediciones e historial de precios en EUR mediante una API estable y consciente de la procedencia. Empieza de forma anónima y crea una clave gratuita cuando necesites más capacidad." : "Query card printings, sets, and EUR price history through a stable, provenance-aware API. Start anonymously, then create a free key when you need more room."}</p>
           <div className={styles.heroActions}>
-            <a href="#reference">Explore endpoints</a>
+            <a href="#reference">{es ? "Explorar endpoints" : "Explore endpoints"}</a>
           </div>
           <div className={styles.heroFacts}>
-            <span><Check size={14} /> No key to start</span>
+            <span><Check size={14} /> {es ? "Empieza sin clave" : "No key to start"}</span>
             <span><Check size={14} /> OpenAPI 3.1</span>
             <span><Check size={14} /> CORS enabled</span>
           </div>
         </div>
-        <CodeSample />
+        <CodeSample es={es} />
       </section>
 
       <div className={styles.content}>
         <section className={`${styles.section} ${styles.webMcpSection}`} id="web-mcp">
           <div className={styles.sectionHeading}>
-            <span>Browser-native WebMCP</span>
-            <h2>Let an agent navigate Magic Brain.</h2>
-            <p>Magic Brain exposes a structured navigation tool directly in supported browsers. An agent can open a named product area without guessing URLs or operating menus, while every destination remains constrained to a reviewed allowlist.</p>
+            <span>WebMCP {es ? "nativo del navegador" : "browser-native"}</span>
+            <h2>{es ? "Deja que un agente navegue por Magic Brain." : "Let an agent navigate Magic Brain."}</h2>
+            <p>{es ? "Magic Brain expone una herramienta de navegación estructurada directamente en navegadores compatibles. Un agente puede abrir un área concreta sin adivinar URLs ni manejar menús; todos los destinos están limitados a una lista revisada." : "Magic Brain exposes a structured navigation tool directly in supported browsers. An agent can open a named product area without guessing URLs or operating menus, while every destination remains constrained to a reviewed allowlist."}</p>
           </div>
           <div className={styles.webMcpCard}>
             <div className={styles.webMcpIcon}><Signpost size={24} /></div>
             <div>
-              <span className={styles.previewBadge}>Early preview</span>
+              <span className={styles.previewBadge}>{es ? "Vista previa" : "Early preview"}</span>
               <h3><code>navigate_magic_brain</code></h3>
-              <p>Available automatically while you browse magicbrain.es in a WebMCP-capable browser. No endpoint, extension, API key, or configuration file is required.</p>
+              <p>{es ? "Disponible automáticamente al navegar por magicbrain.es con un navegador compatible con WebMCP. No necesita endpoint, extensión, clave API ni archivo de configuración." : "Available automatically while you browse magicbrain.es in a WebMCP-capable browser. No endpoint, extension, API key, or configuration file is required."}</p>
             </div>
             <div className={styles.webMcpDetails}>
-              <span><Check size={14} /> Fixed destinations only</span>
-              <span><Check size={14} /> Client-side navigation</span>
-              <span><Check size={14} /> No write actions</span>
+              <span><Check size={14} /> {es ? "Solo destinos fijos" : "Fixed destinations only"}</span>
+              <span><Check size={14} /> {es ? "Navegación en el cliente" : "Client-side navigation"}</span>
+              <span><Check size={14} /> {es ? "Sin acciones de escritura" : "No write actions"}</span>
             </div>
           </div>
-          <p className={styles.webMcpNote}>WebMCP is an experimental browser capability. For ChatGPT, Claude, Cursor, VS Code, and API integrations today, use the hosted remote MCP below.</p>
+          <p className={styles.webMcpNote}>{es ? "WebMCP es una capacidad experimental del navegador. Para ChatGPT, Claude, Cursor, VS Code e integraciones API, usa el MCP remoto alojado que aparece a continuación." : "WebMCP is an experimental browser capability. For ChatGPT, Claude, Cursor, VS Code, and API integrations today, use the hosted remote MCP below."}</p>
         </section>
 
         <section className={`${styles.section} ${styles.mcpSection}`} id="mcp">
           <div className={styles.sectionHeading}>
             <span>Remote MCP</span>
-            <h2>Connect your AI client.</h2>
+            <h2>{es ? "Conecta tu cliente de IA." : "Connect your AI client."}</h2>
             <p>{es ? "Instala las herramientas de Magic Brain en tu cliente habitual. La investigación pública es anónima; OAuth permite consultar tu cuenta y, con confirmación explícita, actualizar portfolio, listas y watchlist." : "Install the live Magic Brain tools in the client you already use. Public research stays anonymous; OAuth can read your account and, with explicit confirmation, update portfolios, lists, and watchlists."}</p>
           </div>
           <McpInstall es={es} />
@@ -668,45 +679,45 @@ export function DevelopersHub({
 
         <section className={styles.section} id="reference">
           <div className={styles.sectionHeading}>
-            <span>Reference</span>
-            <h2>One contract, always current.</h2>
-            <p>This reference is rendered directly from the same OpenAPI definition served by the API.</p>
+            <span>{es ? "Referencia" : "Reference"}</span>
+            <h2>{es ? "Un contrato siempre actualizado." : "One contract, always current."}</h2>
+            <p>{es ? "Esta referencia se genera directamente desde la misma definición OpenAPI que sirve la API." : "This reference is rendered directly from the same OpenAPI definition served by the API."}</p>
           </div>
-          <EndpointReference endpoints={endpoints} />
+          <EndpointReference endpoints={endpoints} es={es} />
         </section>
 
         <section className={styles.section} id="examples">
           <div className={styles.sectionHeading}>
-            <span>Quickstart</span>
-            <h2>From zero to data in seconds.</h2>
-            <p>Bearer keys are optional for read-only data endpoints. Never expose a key in browser code or a public repository.</p>
+            <span>{es ? "Inicio rápido" : "Quickstart"}</span>
+            <h2>{es ? "De cero a los datos en segundos." : "From zero to data in seconds."}</h2>
+            <p>{es ? "Las claves Bearer son opcionales para endpoints de solo lectura. Nunca expongas una clave en código del navegador ni en un repositorio público." : "Bearer keys are optional for read-only data endpoints. Never expose a key in browser code or a public repository."}</p>
           </div>
-          <CodeSample />
+          <CodeSample es={es} />
           <div className={styles.responseNote}>
             <Code2 size={20} />
-            <div><strong>Predictable envelopes</strong><p>Success responses use <code>data</code> and <code>meta</code>. Cursor pagination is under <code>meta.pagination.nextCursor</code>.</p></div>
+            <div><strong>{es ? "Respuestas predecibles" : "Predictable envelopes"}</strong><p>{es ? <>Las respuestas correctas usan <code>data</code> y <code>meta</code>. La paginación está en <code>meta.pagination.nextCursor</code>.</> : <>Success responses use <code>data</code> and <code>meta</code>. Cursor pagination is under <code>meta.pagination.nextCursor</code>.</>}</p></div>
           </div>
         </section>
 
         <section className={styles.section} id="keys">
           <div className={styles.sectionHeading}>
-            <span>Access</span>
-            <h2>Your API keys.</h2>
-            <p>Keys always carry <code>data:read</code>. Personal scopes are opt-in and writes are not enabled by default. Revocation is immediate.</p>
+            <span>{es ? "Acceso" : "Access"}</span>
+            <h2>{es ? "Tus claves API." : "Your API keys."}</h2>
+            <p>{es ? <>Las claves siempre incluyen <code>data:read</code>. Los permisos personales son opcionales y la escritura no está activa por defecto. La revocación es inmediata.</> : <>Keys always carry <code>data:read</code>. Personal scopes are opt-in and writes are not enabled by default. Revocation is immediate.</>}</p>
           </div>
-          <KeyManager />
+          <KeyManager es={es} />
         </section>
 
         <section className={styles.section} id="policies">
           <div className={styles.sectionHeading}>
-            <span>Production guide</span>
-            <h2>Limits, freshness, and failure modes.</h2>
+            <span>{es ? "Guía de producción" : "Production guide"}</span>
+            <h2>{es ? "Límites, actualización y errores." : "Limits, freshness, and failure modes."}</h2>
           </div>
           <div className={styles.policyGrid}>
-            <article><Gauge size={20} /><h3>Quotas</h3><p><strong>Anonymous:</strong> 30 requests/minute per IP.<br /><strong>API key:</strong> 300 requests/minute.</p><small>Inspect <code>RateLimit-Limit</code>, <code>RateLimit-Remaining</code>, and <code>Retry-After</code>. Back off on 429.</small></article>
-            <article><RefreshCw size={20} /><h3>Freshness</h3><p>Latest prices cache for 5 minutes. Metadata and history cache for 1 hour, with stale responses allowed while revalidating.</p><small>Every price includes source, observation date, EUR currency, and finish.</small></article>
-            <article><ShieldCheck size={20} /><h3>Errors</h3><p>Errors have a stable <code>error.code</code>, human-readable message, optional details, and <code>meta.requestId</code>.</p><small>Send the request ID when asking for support. Treat 5xx errors as retryable with backoff.</small></article>
-            <article><BookOpen size={20} /><h3>Version policy</h3><p><code>/api/v1</code> receives backward-compatible additions. Breaking changes ship under a new major path with migration notes.</p><small>Deprecated fields will be announced before removal. Follow repository releases for changes.</small></article>
+            <article><Gauge size={20} /><h3>{es ? "Cuotas" : "Quotas"}</h3><p><strong>{es ? "Anónimo:" : "Anonymous:"}</strong> 30 {es ? "peticiones/minuto por IP" : "requests/minute per IP"}.<br /><strong>{es ? "Clave API:" : "API key:"}</strong> 300 {es ? "peticiones/minuto" : "requests/minute"}.</p><small>{es ? <>Consulta <code>RateLimit-Limit</code>, <code>RateLimit-Remaining</code> y <code>Retry-After</code>. Reduce el ritmo ante un 429.</> : <>Inspect <code>RateLimit-Limit</code>, <code>RateLimit-Remaining</code>, and <code>Retry-After</code>. Back off on 429.</>}</small></article>
+            <article><RefreshCw size={20} /><h3>{es ? "Actualización" : "Freshness"}</h3><p>{es ? "Los últimos precios se almacenan 5 minutos. Los metadatos y el historial, 1 hora, permitiendo respuestas antiguas durante la revalidación." : "Latest prices cache for 5 minutes. Metadata and history cache for 1 hour, with stale responses allowed while revalidating."}</p><small>{es ? "Cada precio incluye fuente, fecha de observación, moneda EUR y acabado." : "Every price includes source, observation date, EUR currency, and finish."}</small></article>
+            <article><ShieldCheck size={20} /><h3>{es ? "Errores" : "Errors"}</h3><p>{es ? <>Los errores incluyen un <code>error.code</code> estable, un mensaje legible, detalles opcionales y <code>meta.requestId</code>.</> : <>Errors have a stable <code>error.code</code>, human-readable message, optional details, and <code>meta.requestId</code>.</>}</p><small>{es ? "Envía el ID de petición al solicitar ayuda. Reintenta los errores 5xx con espera progresiva." : "Send the request ID when asking for support. Treat 5xx errors as retryable with backoff."}</small></article>
+            <article><BookOpen size={20} /><h3>{es ? "Política de versiones" : "Version policy"}</h3><p>{es ? <><code>/api/v1</code> recibe cambios compatibles. Los cambios incompatibles se publican en una nueva ruta principal con notas de migración.</> : <><code>/api/v1</code> receives backward-compatible additions. Breaking changes ship under a new major path with migration notes.</>}</p><small>{es ? "Los campos obsoletos se anunciarán antes de eliminarlos. Sigue las versiones del repositorio." : "Deprecated fields will be announced before removal. Follow repository releases for changes."}</small></article>
           </div>
         </section>
 
@@ -714,24 +725,22 @@ export function DevelopersHub({
           <div className={styles.donationCard}>
             <div className={styles.donationIcon}><HeartHandshake size={25} /></div>
             <div>
-              <span>Support open infrastructure</span>
-              <h2>Help keep Magic data open.</h2>
+              <span>{es ? "Apoya la infraestructura abierta" : "Support open infrastructure"}</span>
+              <h2>{es ? "Ayuda a mantener abiertos los datos de Magic." : "Help keep Magic data open."}</h2>
               <p>
-                One-time contributions help fund price-history storage, public API
-                capacity, MCP hosting, and continued maintenance of the open-source
-                developer tooling.
+                {es ? "Las contribuciones puntuales ayudan a financiar el historial de precios, la capacidad de la API pública, el alojamiento MCP y el mantenimiento de las herramientas abiertas." : "One-time contributions help fund price-history storage, public API capacity, MCP hosting, and continued maintenance of the open-source developer tooling."}
               </p>
               <div className={styles.donationFacts}>
-                <span><Check size={13} /> One-time contribution</span>
+                <span><Check size={13} /> {es ? "Contribución puntual" : "One-time contribution"}</span>
                 <span><Check size={13} /> PayPal P2P</span>
-                <span><Check size={13} /> No subscription</span>
+                <span><Check size={13} /> {es ? "Sin suscripción" : "No subscription"}</span>
               </div>
             </div>
             <div className={styles.donationActions}>
               <Link href="/donate">
-                Support Magic Brain <ArrowRight size={15} />
+                {es ? "Apoyar Magic Brain" : "Support Magic Brain"} <ArrowRight size={15} />
               </Link>
-              <small>Contributions are not charitable donations or tax-deductible.</small>
+              <small>{es ? "Las contribuciones no son donaciones benéficas ni desgravan impuestos." : "Contributions are not charitable donations or tax-deductible."}</small>
             </div>
           </div>
         </section>
@@ -739,8 +748,8 @@ export function DevelopersHub({
         <section className={styles.community}>
           <div>
             <span>Open source · AGPL-3.0</span>
-            <h2>Build with us.</h2>
-            <p>Improve docs, report data issues, or propose a feature. Please report vulnerabilities privately.</p>
+            <h2>{es ? "Construye con nosotros." : "Build with us."}</h2>
+            <p>{es ? "Mejora la documentación, informa de problemas de datos o propón una función. Comunica las vulnerabilidades en privado." : "Improve docs, report data issues, or propose a feature. Please report vulnerabilities privately."}</p>
           </div>
           <div className={styles.communityLinks}>
             <a href="https://github.com/assarasua/magic-brain/blob/main/CONTRIBUTING.md"><Code2 size={18} /><span><strong>Contribute</strong><small>Setup and pull requests</small></span><ArrowRight size={15} /></a>
@@ -780,20 +789,20 @@ export function DevelopersHub({
         </section>
 
         <aside className={styles.useNotice}>
-          <strong>Attribution &amp; acceptable use</strong>
-          <p>Credit Magic Brain and retain each record’s source metadata. Respect Scryfall, MTGJSON, Cardmarket, Wizards of the Coast, and other upstream terms. Do not use the API to reconstruct or bulk redistribute restricted datasets, evade quotas, degrade service, identify users, or present data as financial advice.</p>
-          <a href="https://github.com/assarasua/magic-brain/blob/main/NOTICE.md">Read data notices <ExternalLink size={13} /></a>
+          <strong>{es ? "Atribución y uso aceptable" : "Attribution & acceptable use"}</strong>
+          <p>{es ? "Atribuye a Magic Brain y conserva los metadatos de fuente de cada registro. Respeta las condiciones de Scryfall, MTGJSON, Cardmarket, Wizards of the Coast y otros proveedores. No uses la API para reconstruir o redistribuir masivamente datos restringidos, eludir cuotas, degradar el servicio, identificar usuarios ni presentar datos como asesoramiento financiero." : "Credit Magic Brain and retain each record’s source metadata. Respect Scryfall, MTGJSON, Cardmarket, Wizards of the Coast, and other upstream terms. Do not use the API to reconstruct or bulk redistribute restricted datasets, evade quotas, degrade service, identify users, or present data as financial advice."}</p>
+          <a href="https://github.com/assarasua/magic-brain/blob/main/NOTICE.md">{es ? "Leer avisos de datos" : "Read data notices"} <ExternalLink size={13} /></a>
         </aside>
       </div>
 
       <footer className={styles.footer}>
         <Link href="/"><MagicBrainLogo /></Link>
         <p>
-          Created by{" "}
+          {es ? "Creado por" : "Created by"}{" "}
           <a href="https://bizkardolab.eu/" target="_blank" rel="noopener noreferrer">
             Asier Sarasua · BizkardoLab
           </a>
-          . Unofficial Magic: The Gathering market intelligence.
+          . {es ? "Inteligencia de mercado no oficial de Magic: The Gathering." : "Unofficial Magic: The Gathering market intelligence."}
         </p>
         <nav aria-label="Developer footer">
           <a href="/api/v1/openapi.json">OpenAPI</a>
