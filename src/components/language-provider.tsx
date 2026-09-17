@@ -33,6 +33,7 @@ const spanish: Record<string, string> = {
   "Alerts": "Alertas",
   "Settings": "Ajustes",
   "Support": "Apoyar",
+  "Referrals": "Referidos",
   "Workspace": "Espacio",
   "Magic Brain Pro": "Magic Brain Pro",
   "Market Intelligence": "Inteligencia de mercado",

@@ -42,6 +42,7 @@ async function resolveAppUser(profile: {
 
   const cookieStore = await cookies();
   const anonymousToken = cookieStore.get(PRODUCT_COOKIE)?.value;
+  const referralCode = cookieStore.get("magic_brain_referral")?.value;
   const anonymousHash = anonymousToken
     ? createHash("sha256").update(anonymousToken).digest("hex")
     : null;
@@ -148,6 +149,15 @@ async function resolveAppUser(profile: {
       );
       userId = inserted.rows[0].id;
       newlyCreated = true;
+      if (/^[a-f0-9]{12}$/.test(referralCode ?? "")) {
+        await client.query(
+          `insert into app_referrals (referrer_user_id, referred_user_id)
+           select id, $2 from app_users
+           where referral_code = $1 and id <> $2
+           on conflict (referred_user_id) do nothing`,
+          [referralCode, userId],
+        );
+      }
     } else {
       await client.query(
         `

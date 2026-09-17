@@ -11,6 +11,7 @@ import {
   Network,
   Newspaper,
   Radar,
+  Trophy,
   Settings,
   Target,
   TrendingUp,
@@ -54,6 +55,7 @@ export const navigationGroups = [
     links: [
       { href: "/developers", label: "Developers", icon: Code2 },
       { href: "/donate", label: "Support", icon: CircleDollarSign },
+      { href: "/referrals", label: "Referrals", icon: Trophy },
     ],
   },
   {

@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MagicBrainLogo, MagicBrainMark } from "@/components/brand-logo";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { LandingContact } from "@/components/landing-contact";
@@ -34,6 +34,13 @@ export default function LoginPage() {
   const { locale } = useLanguage();
   const [loading, setLoading] = useState(false);
   const es = locale === "es";
+
+  useEffect(() => {
+    const referral = new URLSearchParams(window.location.search).get("ref");
+    if (/^[a-f0-9]{12}$/.test(referral ?? "")) {
+      document.cookie = `magic_brain_referral=${referral}; Max-Age=2592000; Path=/; SameSite=Lax; Secure`;
+    }
+  }, []);
 
   const continueWithGoogle = () => {
     setLoading(true);
