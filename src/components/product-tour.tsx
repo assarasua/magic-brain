@@ -1,9 +1,10 @@
 "use client";
 
 import { driver, type DriveStep } from "driver.js";
-import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { useLanguage } from "@/components/language-provider";
+
+const TOUR_STORAGE_KEY = "magic-brain-product-tour-v3";
 
 function visibleTarget(selector: string, fallback?: string) {
   const candidates = Array.from(document.querySelectorAll<HTMLElement>(selector));
@@ -17,20 +18,31 @@ function visibleTarget(selector: string, fallback?: string) {
 }
 
 async function rememberCompletion() {
-  await fetch("/api/account", {
+  const response = await fetch("/api/account", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ productTourCompleted: true }),
-  }).catch(() => undefined);
+  }).catch(() => null);
+  return response?.ok === true;
 }
 
-export function ProductTour({ initialCompleted }: { initialCompleted?: boolean } = {}) {
-  const pathname = usePathname();
+export function ProductTour({
+  initialCompleted,
+  onComplete,
+}: {
+  initialCompleted?: boolean;
+  onComplete?: () => void;
+} = {}) {
   const { locale } = useLanguage();
   const launched = useRef(false);
+  const onCompleteRef = useRef(onComplete);
 
   useEffect(() => {
-    if (pathname === "/login" || launched.current || initialCompleted === true) return;
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  useEffect(() => {
+    if (launched.current || initialCompleted === true || localStorage.getItem(TOUR_STORAGE_KEY) === "complete") return;
     let cancelled = false;
     let persistOnDestroy = true;
     let completionSent = false;
@@ -41,12 +53,22 @@ export function ProductTour({ initialCompleted }: { initialCompleted?: boolean }
       if (cancelled || launched.current) return;
       launched.current = true;
       const es = locale === "es";
-      const steps: DriveStep[] = [
+      const mobile = window.matchMedia("(max-width: 760px)").matches;
+      const desktopSteps: DriveStep[] = [
         {
           element: () => visibleTarget('[data-tour="overview"]'),
           popover: {
-            title: es ? "Tu punto de partida" : "Your starting point",
-            description: es ? "Aquí ves el pulso del mercado y las cartas que merecen atención hoy." : "See the market pulse and the cards worth your attention today.",
+            title: es ? "Empieza por el panorama general" : "Start with the big picture",
+            description: es ? "El Overview resume el pulso del mercado, tus métricas y las cartas que merecen atención hoy. Úsalo como punto de partida diario." : "Overview brings together the market pulse, your metrics, and the cards worth attention today. Use it as your daily starting point.",
+            side: "right",
+            align: "start",
+          },
+        },
+        {
+          element: () => visibleTarget('[data-tour="inventory"]'),
+          popover: {
+            title: es ? "Explora todas las impresiones" : "Explore every printing",
+            description: es ? "Busca por nombre, colección, rareza o color. Abre cualquier carta para consultar su edición exacta y su historial." : "Search by name, set, rarity, or colour. Open any card to inspect its exact printing and history.",
             side: "right",
             align: "start",
           },
@@ -70,18 +92,82 @@ export function ProductTour({ initialCompleted }: { initialCompleted?: boolean }
           },
         },
         {
-          element: () => visibleTarget('[data-tour="discover"]', '[data-tour="more"]'),
+          element: () => visibleTarget('[data-tour="watchlist"]'),
           popover: {
-            title: es ? "Deja que Magic Brain descubra contigo" : "Let Magic Brain discover with you",
-            description: es ? "Explora recomendaciones personales, señales y el resto de herramientas desde aquí." : "Explore personal recommendations, signals, and the rest of the toolkit from here.",
+            title: es ? "Separa interés de propiedad" : "Separate interest from ownership",
+            description: es ? "Guarda cartas que estás siguiendo sin mezclarlas con tu colección. Así puedes observar antes de decidir." : "Save cards you are watching without mixing them into your collection, so you can observe before deciding.",
             side: "right",
             align: "start",
           },
         },
+        {
+          element: () => visibleTarget('[data-tour="discover"]', '[data-tour="more"]'),
+          popover: {
+            title: es ? "Deja que Magic Brain descubra contigo" : "Let Magic Brain discover with you",
+            description: es ? "Descubre cartas según tus preferencias. Cada sugerencia explica por qué puede encajar contigo; tú mantienes siempre el control." : "Discover cards shaped by your preferences. Every suggestion explains why it may fit; you always stay in control.",
+            side: "right",
+            align: "start",
+          },
+        },
+        {
+          element: () => visibleTarget('[data-tour="news"]'),
+          popover: {
+            title: es ? "Un brief nuevo cada día" : "A fresh brief every day",
+            description: es ? "Noticias convierte los movimientos de las cartas en una lectura corta con enlaces directos para seguir investigando." : "News turns card movements into a concise daily read with direct links for deeper research.",
+            side: "right",
+            align: "start",
+          },
+        },
+        {
+          element: () => visibleTarget('[data-tour="developers"]'),
+          popover: {
+            title: es ? "Construye con Magic Brain" : "Build with Magic Brain",
+            description: es ? "Conecta tus propias herramientas mediante REST API, OAuth, MCP o WebMCP. La documentación y los ejemplos viven aquí." : "Connect your own tools through REST API, OAuth, MCP, or WebMCP. Documentation and examples live here.",
+            side: "right",
+            align: "start",
+          },
+        },
+        {
+          element: () => visibleTarget('[data-tour="referrals"]'),
+          popover: {
+            title: es ? "Haz crecer la comunidad" : "Grow the community",
+            description: es ? "Comparte tu enlace personal, suma nuevos coleccionistas y consulta tu posición en el ranking." : "Share your personal link, bring in new collectors, and follow your leaderboard position.",
+            side: "right",
+            align: "start",
+          },
+        },
+        {
+          popover: {
+            title: es ? "Ya tienes el mapa. Hazlo tuyo." : "You have the map. Make it yours.",
+            description: es ? "Empieza añadiendo una carta a tu colección o explora el mercado. Puedes cambiar idioma, preferencias y alertas cuando quieras en Ajustes." : "Start by adding a card to your collection or exploring the market. You can change language, preferences, and alerts any time in Settings.",
+          },
+        },
+      ];
+
+      const mobileSteps: DriveStep[] = [
+        desktopSteps[0],
+        desktopSteps[2],
+        desktopSteps[3],
+        {
+          element: () => visibleTarget('[data-tour="more"]'),
+          popover: {
+            title: es ? "Todo lo demás está en Más" : "Everything else lives in More",
+            description: es ? "Abre Más para acceder a inventario, watchlist, Discover, noticias, developers, referidos y ajustes sin saturar la navegación." : "Open More for inventory, watchlist, Discover, news, developers, referrals, and settings without crowding navigation.",
+            side: "top",
+            align: "end",
+          },
+        },
+        {
+          popover: {
+            title: es ? "Pensado para usar con una mano" : "Designed for one-handed use",
+            description: es ? "Las acciones principales están abajo, las tarjetas se desplazan horizontalmente y los formularios evitan el zoom accidental." : "Primary actions stay at the bottom, cards swipe horizontally, and forms avoid accidental zooming.",
+          },
+        },
+        desktopSteps.at(-1)!,
       ];
 
       tour = driver({
-        steps,
+        steps: mobile ? mobileSteps : desktopSteps,
         animate: true,
         smoothScroll: true,
         allowClose: true,
@@ -100,6 +186,8 @@ export function ProductTour({ initialCompleted }: { initialCompleted?: boolean }
         onDestroyed: () => {
           if (persistOnDestroy && !completionSent) {
             completionSent = true;
+            localStorage.setItem(TOUR_STORAGE_KEY, "complete");
+            onCompleteRef.current?.();
             void rememberCompletion();
           }
         },
@@ -125,7 +213,7 @@ export function ProductTour({ initialCompleted }: { initialCompleted?: boolean }
       tour?.destroy();
       launched.current = false;
     };
-  }, [initialCompleted, locale, pathname]);
+  }, [initialCompleted, locale]);
 
   return null;
 }

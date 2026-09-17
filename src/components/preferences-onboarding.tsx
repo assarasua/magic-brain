@@ -644,5 +644,10 @@ export function PreferencesOnboarding() {
   if (!account.preferencesOnboardingCompleted) {
     return <RequiredDialog account={account} onComplete={setAccount} />;
   }
-  return <ProductTour initialCompleted={account.productTourCompleted} />;
+  return (
+    <ProductTour
+      initialCompleted={account.productTourCompleted}
+      onComplete={() => setAccount((current) => current ? { ...current, productTourCompleted: true } : current)}
+    />
+  );
 }
