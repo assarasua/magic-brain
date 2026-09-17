@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Manrope } from "next/font/google";
+import "driver.js/dist/driver.css";
 import { AppShell } from "@/components/app-shell";
 import { CardDetailProvider } from "@/components/card-detail-provider";
 import { LanguageProvider } from "@/components/language-provider";

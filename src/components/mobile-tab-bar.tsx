@@ -53,7 +53,7 @@ export function MobileTabBar() {
       {tabs.map(({ href, label, icon: Icon }) => {
         const active = pathname === href;
         return (
-          <Link href={href} className={active ? "active" : undefined} aria-current={active ? "page" : undefined} key={href}>
+          <Link href={href} data-tour={href === "/" ? "overview" : href.slice(1)} className={active ? "active" : undefined} aria-current={active ? "page" : undefined} key={href}>
             <Icon size={20} strokeWidth={active ? 2.3 : 1.8} />
             <span>{t(label)}</span>
           </Link>
@@ -62,6 +62,7 @@ export function MobileTabBar() {
       <button
         ref={moreButtonRef}
         type="button"
+        data-tour="more"
         className={moreOpen || moreRoutes.some((route) => routeIsActive(pathname, route)) ? "active" : ""}
         aria-haspopup="dialog"
         aria-expanded={moreOpen}

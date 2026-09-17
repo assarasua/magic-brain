@@ -58,8 +58,9 @@ try {
       "027_portfolio_batch_requests.sql",
       "028_rebuild_scryfall_market_briefs.sql",
       "029_mcp_call_audit.sql",
-      "030_referrals.sql",
-  ];
+  "030_referrals.sql",
+  "031_driver_product_tour.sql",
+];
   let applied = 0;
   for (const filename of filenames) {
     const migration = await readFile(

@@ -79,6 +79,7 @@ function DesktopSidebar() {
                 return (
                   <Link
                     href={href}
+                    data-tour={href === "/discover" ? "discover" : undefined}
                     className={`premium-feature-link${active ? " active" : ""}`}
                     aria-current={active ? "page" : undefined}
                     key={href}
@@ -100,6 +101,7 @@ function DesktopSidebar() {
               return (
                 <Link
                   href={href}
+                  data-tour={href === "/" ? "overview" : href.slice(1)}
                   className={`nav-item${active ? " active" : ""}`}
                   aria-current={active ? "page" : undefined}
                   key={href}

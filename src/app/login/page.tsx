@@ -22,7 +22,7 @@ import { signIn } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { MagicBrainLogo, MagicBrainMark } from "@/components/brand-logo";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
-import { LandingContact } from "@/components/landing-contact";
+import { LandingContact, NewsletterSignup } from "@/components/landing-contact";
 import { movers, portfolioCards } from "@/lib/data";
 
 function GoogleMark() {
@@ -100,6 +100,7 @@ export default function LoginPage() {
             {loading ? <LoaderCircle className="spin" size={19} /> : <GoogleMark />}
             {loading ? (es ? "Conectando…" : "Connecting…") : es ? "Continuar con Google" : "Continue with Google"}
           </button>
+          <NewsletterSignup compact />
           <ul>
             <li><Check size={13} /> {es ? "Registro e inicio de sesión en un paso" : "Sign up or sign in in one step"}</li>
             <li><Check size={13} /> {es ? "Tus datos sincronizados de forma segura" : "Your data securely synchronised"}</li>

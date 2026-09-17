@@ -15,11 +15,46 @@ async function submit(path: string, body: Record<string, string>) {
   if (!response.ok) throw new Error("Request failed");
 }
 
+export function NewsletterSignup({ compact = false }: { compact?: boolean }) {
+  const { locale } = useLanguage();
+  const es = locale === "es";
+  const [state, setState] = useState<FormState>("idle");
+  const id = compact ? "hero-newsletter-email" : "newsletter-email";
+
+  const subscribe = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    setState("sending");
+    try {
+      await submit("/api/newsletter", Object.fromEntries(new FormData(form)) as Record<string, string>);
+      form.reset();
+      setState("success");
+    } catch {
+      setState("error");
+    }
+  };
+
+  return (
+    <form className={compact ? "hero-newsletter-form" : undefined} onSubmit={subscribe}>
+      <label htmlFor={id}>{compact ? (es ? "O recibe el brief diario" : "Or get the daily brief") : (es ? "Tu email" : "Your email")}</label>
+      <div>
+        <input id={id} name="email" type="email" autoComplete="email" required maxLength={254} placeholder="you@example.com" />
+        <button type="submit" disabled={state === "sending" || state === "success"}>
+          {state === "success" ? <Check size={16} /> : <ArrowRight size={16} />}
+          {state === "sending" ? (es ? "Enviando…" : "Sending…") : state === "success" ? (es ? "Suscrito" : "Subscribed") : (es ? "Suscribirme" : "Subscribe")}
+        </button>
+      </div>
+      <input className="form-honeypot" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" />
+      <small>{es ? "Noticias y movimientos de cartas cada mañana." : "Card news and market moves every morning."}</small>
+      {state === "error" && <p className="form-error" role="alert">{es ? "No hemos podido completar la suscripción." : "We could not complete the subscription."}</p>}
+    </form>
+  );
+}
+
 export function LandingContact() {
   const { locale } = useLanguage();
   const es = locale === "es";
   const [contactState, setContactState] = useState<FormState>("idle");
-  const [newsletterState, setNewsletterState] = useState<FormState>("idle");
 
   const sendContact = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -34,38 +69,13 @@ export function LandingContact() {
     }
   };
 
-  const subscribe = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    setNewsletterState("sending");
-    try {
-      await submit("/api/newsletter", Object.fromEntries(new FormData(form)) as Record<string, string>);
-      form.reset();
-      setNewsletterState("success");
-    } catch {
-      setNewsletterState("error");
-    }
-  };
-
   return (
     <section className="landing-connect" aria-labelledby="contact-heading">
       <div className="landing-newsletter">
         <span className="panel-kicker"><Mail size={14} /> {es ? "NEWSLETTER" : "NEWSLETTER"}</span>
         <h2>{es ? "La señal útil, sin ruido." : "The useful signal, without the noise."}</h2>
         <p>{es ? "Recibe novedades de Magic Brain, análisis del mercado de cartas de Magic: The Gathering y nuevas herramientas." : "Get Magic Brain updates, Magic: The Gathering card-market analysis, and newly released tools."}</p>
-        <form onSubmit={subscribe}>
-          <label htmlFor="newsletter-email">{es ? "Tu email" : "Your email"}</label>
-          <div>
-            <input id="newsletter-email" name="email" type="email" autoComplete="email" required maxLength={254} placeholder="you@example.com" />
-            <button type="submit" disabled={newsletterState === "sending" || newsletterState === "success"}>
-              {newsletterState === "success" ? <Check size={16} /> : <ArrowRight size={16} />}
-              {newsletterState === "sending" ? (es ? "Enviando…" : "Sending…") : newsletterState === "success" ? (es ? "Suscrito" : "Subscribed") : (es ? "Suscribirme" : "Subscribe")}
-            </button>
-          </div>
-          <input className="form-honeypot" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" />
-          <small>{es ? "Puedes darte de baja en cualquier momento. Sin spam." : "Unsubscribe at any time. No spam."}</small>
-          {newsletterState === "error" && <p className="form-error" role="alert">{es ? "No hemos podido completar la suscripción. Inténtalo de nuevo." : "We could not complete the subscription. Please try again."}</p>}
-        </form>
+        <NewsletterSignup />
       </div>
 
       <div className="landing-contact-card">
