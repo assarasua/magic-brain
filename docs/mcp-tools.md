@@ -1,6 +1,6 @@
 # Magic Brain MCP tool reference
 
-This is the canonical reference for the 28 tools currently registered
+This is the canonical reference for the 29 tools currently registered
 by the Magic Brain MCP server. For installation and client configuration, see
 the [MCP installation guide](mcp-installation.md). The live endpoint is:
 
@@ -157,6 +157,26 @@ these five printing IDs.”
 the named source, not a live executable quote. A known card can have an empty
 `prices` array; that differs from an ID in `missingCardIds`. Invalid UUIDs,
 duplicates, empty arrays, and more than 100 IDs fail validation.
+
+### `get_market_movers`
+
+**Purpose.** Retrieve the public ranking of Magic card printings with the
+largest observed price gains or declines.
+
+**Inputs.** `direction` is `gainers` or `losers`; `days` is `1`, `7`, `30`, or
+`90`; `set_code` optionally limits results to one set; and `limit` accepts
+`1`–`50` cards (default `20`). `request_summary` remains optional and
+privacy-minimised.
+
+**Meaningful output.** Cards include exact printing identity, set, current EUR
+price, comparison percentage, source date, and image when available. The
+response is ranked in the requested direction.
+
+**Example user question.** “Show me the 50 Magic cards with the largest price
+drops over the last seven days.”
+
+**Caveats.** These are observed price movements, not executable offers,
+liquidity evidence, recommendations, or financial advice.
 
 ### `get_price_history`
 

@@ -127,6 +127,7 @@ describe("MCP contract", () => {
         "get_latest_prices",
         "get_latest_set_opportunities",
         "get_market_brief_by_date",
+        "get_market_movers",
         "get_personalized_opportunities",
         "get_portfolio_intelligence",
         "get_portfolio_list",
@@ -411,6 +412,25 @@ describe("MCP contract", () => {
       attribution: { service: "Magic Brain Public API" },
     });
 
+    await client.close();
+    await server.close();
+  });
+
+  it("routes market movers with bounded ranking inputs", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async (input) => {
+      const url = new URL(String(input));
+      expect(url.pathname).toBe("/api/v1/market/movers");
+      expect(url.searchParams.get("direction")).toBe("losers");
+      expect(url.searchParams.get("days")).toBe("7");
+      expect(url.searchParams.get("limit")).toBe("50");
+      return new Response(JSON.stringify({ data: { cards: [] } }));
+    });
+    const server = createMagicBrainMcpServer(config, fetchMock);
+    const client = new Client({ name: "test-client", version: "1.0.0" });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+    const result = await client.callTool({ name: "get_market_movers", arguments: { direction: "losers", days: 7, limit: 50 } });
+    expect(result.isError).not.toBe(true);
     await client.close();
     await server.close();
   });

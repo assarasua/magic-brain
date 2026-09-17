@@ -168,7 +168,7 @@ const mcpToolGroups = [
   {
     name: "Card & price data",
     summary: "Resolve exact printings, inspect catalogue metadata, and compare sourced EUR observations.",
-    tools: ["search_cards", "get_card", "get_latest_prices", "get_price_history"],
+    tools: ["search_cards", "get_card", "get_latest_prices", "get_price_history", "get_market_movers"],
   },
   {
     name: "Sets & opportunities",
@@ -293,7 +293,7 @@ function McpInstall({ es }: { es: boolean }) {
       <div className={styles.toolCatalogue}>
         <div className={styles.toolCatalogueHeading}>
           <div>
-            <span>{es ? "28 herramientas de investigación y cuenta" : "28 research and account tools"}</span>
+            <span>{es ? "29 herramientas de investigación y cuenta" : "29 research and account tools"}</span>
             <h3>{es ? "Evidencia y acciones de cuenta confirmadas." : "Evidence plus confirmed account actions."}</h3>
             <p>{es ? "Explora las herramientas y consulta la referencia canónica para ver esquemas, resultados, ejemplos, límites y errores." : "Explore the surface at a glance, then use the canonical reference for exact schemas, outputs, examples, caveats, and errors."}</p>
           </div>

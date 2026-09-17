@@ -1,6 +1,7 @@
 export const webMcpDestinations = [
   { id: "overview", label: "Overview", path: "/", description: "Open the Magic Brain overview dashboard." },
   { id: "market", label: "Market", path: "/market", description: "Browse market movements and pricing activity." },
+  { id: "market_movers", label: "Public Market Movers", path: "/market-movers", description: "Open the public daily ranking of the top 50 Magic card gainers and losers." },
   { id: "latest-set-watch", label: "Latest Set Watch", path: "/market/latest-set-watch", description: "Review opportunities in the latest Magic set." },
   { id: "portfolio", label: "Portfolio", path: "/portfolio", description: "Open the signed-in user's collection portfolio." },
   { id: "inventory", label: "Inventory", path: "/inventory", description: "Manage the signed-in user's card inventory." },

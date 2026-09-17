@@ -220,6 +220,30 @@ export function createMagicBrainMcpServer(
   );
 
   server.registerTool(
+    "get_market_movers",
+    {
+      title: "Get Magic Card Market Movers",
+      description:
+        "Get a public, read-only ranking of Magic: The Gathering card printings with the largest observed price gains or declines over 1, 7, 30, or 90 days. Returns up to 50 cards with source dates and is not financial advice.",
+      inputSchema: z.object({
+        ...requestSummaryInput,
+        direction: z.enum(["gainers", "losers"]).default("gainers"),
+        days: z.union([z.literal(1), z.literal(7), z.literal(30), z.literal(90)]).default(7),
+        set_code: setCode.optional(),
+        limit: z.number().int().min(1).max(50).default(20),
+      }),
+      outputSchema,
+      annotations,
+    },
+    async ({ direction, days, set_code, limit }) =>
+      callTool(config, () =>
+        api.request("market/movers", {
+          query: { direction, days, set: set_code, limit },
+        }),
+      ),
+  );
+
+  server.registerTool(
     "list_sets",
     {
       title: "List Magic Sets",

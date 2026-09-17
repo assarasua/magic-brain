@@ -94,7 +94,7 @@ export const publicApiOpenApi = {
   openapi: "3.1.0",
   info: {
     title: "Magic Brain Data API",
-    version: "1.3.0",
+    version: "1.4.0",
     description:
       "Versioned Magic card, market, prediction, graph, and account-scoped portfolio intelligence. ML output identifies verified model serving versus deterministic fallback; no request performs training.",
   },
@@ -183,6 +183,19 @@ export const publicApiOpenApi = {
           },
         },
         responses: { "200": { description: "Latest prices" }, ...commonErrors },
+      },
+    },
+    "/market/movers": {
+      get: {
+        operationId: "getMarketMovers",
+        summary: "Get top Magic card price gainers or losers",
+        parameters: [
+          { name: "direction", in: "query", schema: { type: "string", enum: ["gainers", "losers"], default: "gainers" } },
+          { name: "days", in: "query", schema: { type: "integer", enum: [1, 7, 30, 90], default: 7 } },
+          { name: "set", in: "query", schema: { type: "string", maxLength: 8 } },
+          { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 50, default: 20 } },
+        ],
+        responses: { "200": { description: "Ranked market movers with observed EUR prices" }, ...commonErrors },
       },
     },
     "/sets": {
