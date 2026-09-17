@@ -50,7 +50,8 @@
     "ml:report": "node --env-file-if-exists=.env.local scripts/report-ml-evaluation.mjs",
     "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs",
     "db:sync-reserved": "node --env-file=.env.local scripts/sync-reserved-list.mjs",
-    "db:sync-sets": "node --env-file=.env.local scripts/sync-sets.mjs"
+    "db:sync-sets": "node --env-file=.env.local scripts/sync-sets.mjs",
+    "db:sync-resend": "node --env-file=.env.local scripts/sync-resend-audience.mjs"
   },
   "keywords": [
     "magic-the-gathering",

@@ -3,6 +3,7 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { cookies } from "next/headers";
 import { db, query } from "@/lib/db";
+import { subscribeToNewsletter } from "@/lib/resend";
 
 const PRODUCT_COOKIE = "magic_brain_session";
 const authSecret = process.env.AUTH_SECRET;
@@ -45,6 +46,7 @@ async function resolveAppUser(profile: {
     ? createHash("sha256").update(anonymousToken).digest("hex")
     : null;
   const client = await db.connect();
+  let newlyCreated = false;
 
   try {
     await client.query("begin");
@@ -145,6 +147,7 @@ async function resolveAppUser(profile: {
         ],
       );
       userId = inserted.rows[0].id;
+      newlyCreated = true;
     } else {
       await client.query(
         `
@@ -168,6 +171,11 @@ async function resolveAppUser(profile: {
     }
 
     await client.query("commit");
+    if (newlyCreated) {
+      await subscribeToNewsletter({ email: profile.email, website: "" }).catch((error) => {
+        console.error("Unable to add new user to the Resend audience", error);
+      });
+    }
     return userId;
   } catch (error) {
     await client.query("rollback");

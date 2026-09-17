@@ -54,7 +54,12 @@ function resendConfig() {
   return { apiKey, from: process.env.RESEND_FROM_EMAIL ?? "Magic Brain <hello@magicbrain.es>" };
 }
 
-async function resend(path: string, payload: object, idempotencyKey?: string) {
+async function resend(
+  path: string,
+  payload: object,
+  idempotencyKey?: string,
+  acceptedStatuses: number[] = [],
+) {
   const { apiKey } = resendConfig();
   const response = await fetch(`https://api.resend.com${path}`, {
     method: "POST",
@@ -66,7 +71,7 @@ async function resend(path: string, payload: object, idempotencyKey?: string) {
     body: JSON.stringify(payload),
   });
   const responseText = await response.text();
-  if (!response.ok) {
+  if (!response.ok && !acceptedStatuses.includes(response.status)) {
     console.error("Resend request failed", response.status, responseText.slice(0, 300));
     throw new Error("Resend request failed");
   }
@@ -99,10 +104,12 @@ export async function sendContactMessage(input: ContactInput, requestId: string)
 export async function subscribeToNewsletter(input: NewsletterInput) {
   const audienceId = process.env.RESEND_AUDIENCE_ID;
   if (!audienceId) throw new Error("RESEND_AUDIENCE_ID is not configured");
-  await resend(`/audiences/${encodeURIComponent(audienceId)}/contacts`, {
-    email: input.email,
-    unsubscribed: false,
-  });
+  await resend(
+    `/audiences/${encodeURIComponent(audienceId)}/contacts`,
+    { email: input.email, unsubscribed: false },
+    undefined,
+    [409],
+  );
 }
 
 type DailyBrief = {
