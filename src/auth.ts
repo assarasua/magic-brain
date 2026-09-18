@@ -6,8 +6,9 @@ import { db, query } from "@/lib/db";
 
 const PRODUCT_COOKIE = "magic_brain_session";
 const authSecret = process.env.AUTH_SECRET;
+const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
-if (process.env.NODE_ENV === "production" && !authSecret) {
+if (process.env.NODE_ENV === "production" && !isProductionBuild && !authSecret) {
   throw new Error(
     "AUTH_SECRET is required in production; refusing to start with insecure auth configuration",
   );
