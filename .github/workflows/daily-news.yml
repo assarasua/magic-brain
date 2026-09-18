@@ -2,9 +2,11 @@ name: Publish daily market news
 
 on:
   schedule:
-    # GitHub cron is UTC. Run in both possible Madrid UTC slots, then gate on
-    # the local hour so daylight-saving changes never shift the delivery time.
-    - cron: "0 6,7 * * *"
+    # GitHub cron is UTC. Madrid 08:00 is 06:00 UTC in summer and 07:00 UTC
+    # in winter. Keep separate expressions so github.event.schedule identifies
+    # the intended slot even when GitHub starts a scheduled job late.
+    - cron: "0 6 * * *"
+    - cron: "0 7 * * *"
   workflow_dispatch:
 
 permissions:
@@ -21,7 +23,21 @@ jobs:
     steps:
       - name: Check the Madrid delivery hour
         id: delivery-time
-        run: echo "send=$([ "$(TZ=Europe/Madrid date +%H)" = "08" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "send=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          case "$SCHEDULE" in
+            "0 6 * * *") utc_hour=06 ;;
+            "0 7 * * *") utc_hour=07 ;;
+            *) echo "send=false" >> "$GITHUB_OUTPUT"; exit 0 ;;
+          esac
+          madrid_hour="$(TZ=Europe/Madrid date --date="$(date -u +%F) ${utc_hour}:00 UTC" +%H)"
+          echo "send=$([ "$madrid_hour" = "08" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
       - name: Publish all pending market briefs
         if: github.event_name == 'workflow_dispatch' || steps.delivery-time.outputs.send == 'true'
