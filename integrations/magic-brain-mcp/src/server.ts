@@ -341,9 +341,9 @@ export function createMagicBrainMcpServer(
   server.registerTool(
     "build_portfolio_scenario",
     {
-      title: "Build Unsaved Portfolio Scenario",
+      title: "Build Professional Set Portfolio",
       description:
-        "Build a bounded, read-only model allocation from public opportunities in one set. The scenario is never saved and never reads or changes a user portfolio or watchlist; it omits liquidity, inventory, fees, taxes, shipping, condition, language, and execution-price guarantees and is not financial advice.",
+        "Build a professional, bounded portfolio for one Magic edition using Magic Brain's machine-learning opportunity signals. Returns card allocations, quantities, model scores, confidence, rationale, and unallocated budget. The scenario is read-only and never saved; it omits liquidity, inventory, fees, taxes, shipping, condition, language, and execution-price guarantees and is not financial advice.",
       inputSchema: z
         .object({
           ...requestSummaryInput,

@@ -49,6 +49,19 @@ async function getJson(path: string) {
   return body;
 }
 
+async function postJson(path: string, input: Record<string, unknown>) {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const body = (await response.json()) as Record<string, unknown>;
+  if (!response.ok) {
+    throw new Error(typeof body.error === "string" ? body.error : "Magic Brain could not complete the request.");
+  }
+  return body;
+}
+
 export function WebMcpNavigation() {
   const router = useRouter();
 
@@ -174,6 +187,118 @@ export function WebMcpNavigation() {
             return success(body, `Returned ${count} available sets.`);
           } catch (error) {
             return failure(error instanceof Error ? error.message : "Set lookup failed.");
+          }
+        },
+      },
+      {
+        name: "build_portfolio_scenario",
+        description:
+          "Build a professional, read-only Magic card portfolio for one edition using Magic Brain's machine-learning opportunity signals. Returns allocations, quantities, model scores, confidence, rationale, and unallocated budget. The scenario is not saved and is not financial advice.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            set_code: {
+              type: "string",
+              pattern: "^[a-zA-Z0-9]{2,8}$",
+              description: "Magic edition or set code, such as MH3, FIN, or EOE.",
+            },
+            budget_eur: {
+              type: "number",
+              minimum: 25,
+              maximum: 1000000,
+              description: "Total portfolio budget in euros.",
+            },
+            risk: {
+              type: "string",
+              enum: ["preservation", "conservative", "balanced", "growth", "aggressive"],
+              description: "Risk profile used to rank and allocate eligible cards.",
+            },
+            max_positions: {
+              type: "integer",
+              minimum: 1,
+              maximum: 20,
+              default: 8,
+              description: "Maximum number of distinct cards in the portfolio.",
+            },
+          },
+          required: ["set_code", "budget_eur", "risk"],
+          additionalProperties: false,
+        },
+        outputSchema: {
+          type: "object",
+          properties: {
+            data: {
+              type: "object",
+              properties: {
+                set: { type: "object", additionalProperties: true },
+                asOf: { type: ["string", "null"] },
+                scenario: {
+                  type: "object",
+                  properties: {
+                    budget: { type: "number" },
+                    invested: { type: "number" },
+                    unallocated: { type: "number" },
+                    risk: { type: "string" },
+                    positions: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          card: cardSchema,
+                          quantity: { type: "integer" },
+                          unitPrice: { type: "number" },
+                          allocation: { type: "number" },
+                          portfolioWeight: { type: "number" },
+                          modelScore: { type: "number" },
+                          signal: { type: "object", additionalProperties: true },
+                          rationale: { type: "array", items: { type: "string" } },
+                        },
+                        required: ["card", "quantity", "unitPrice", "allocation", "portfolioWeight", "modelScore", "signal", "rationale"],
+                        additionalProperties: false,
+                      },
+                    },
+                    methodology: { type: "object", additionalProperties: true },
+                  },
+                  required: ["budget", "invested", "unallocated", "risk", "positions", "methodology"],
+                  additionalProperties: false,
+                },
+                signalMethodology: { type: "object", additionalProperties: true },
+              },
+              required: ["set", "asOf", "scenario", "signalMethodology"],
+              additionalProperties: false,
+            },
+            attribution: { type: "object", additionalProperties: true },
+            request_id: { type: "string" },
+          },
+          required: ["data", "attribution"],
+          additionalProperties: false,
+        },
+        execute: async ({ set_code, budget_eur, risk, max_positions }) => {
+          if (typeof set_code !== "string" || !/^[a-z0-9]{2,8}$/i.test(set_code)) {
+            return failure("Set code must contain 2 to 8 letters or digits.");
+          }
+          if (typeof budget_eur !== "number" || budget_eur < 25 || budget_eur > 1_000_000) {
+            return failure("Budget must be between €25 and €1,000,000.");
+          }
+          const risks = ["preservation", "conservative", "balanced", "growth", "aggressive"];
+          if (typeof risk !== "string" || !risks.includes(risk)) return failure("Choose a supported risk profile.");
+          const positions = max_positions === undefined ? 8 : Number(max_positions);
+          if (!Number.isInteger(positions) || positions < 1 || positions > 20) {
+            return failure("Maximum positions must be an integer from 1 to 20.");
+          }
+          try {
+            const body = await postJson("/api/v1/predict/portfolio", {
+              setCode: set_code.toLowerCase(),
+              budget: budget_eur,
+              risk,
+              maxPositions: positions,
+            });
+            const data = body.data as Record<string, unknown> | undefined;
+            const scenario = data?.scenario as Record<string, unknown> | undefined;
+            const count = Array.isArray(scenario?.positions) ? scenario.positions.length : 0;
+            return success(body, `Built an unsaved ${risk} portfolio with ${count} position${count === 1 ? "" : "s"}.`);
+          } catch (error) {
+            return failure(error instanceof Error ? error.message : "Portfolio construction failed.");
           }
         },
       },

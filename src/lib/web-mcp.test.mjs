@@ -31,6 +31,7 @@ test("WebMCP component exposes focused tools with structured output schemas", ()
     "search_magic_cards",
     "get_magic_market_movers",
     "list_magic_sets",
+    "build_portfolio_scenario",
   ];
 
   for (const name of names) assert.match(component, new RegExp(`name: [\"']${name}[\"']`));
