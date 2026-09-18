@@ -34,6 +34,7 @@ test(
       });
       const page = await browser.newPage();
       await page.addInitScript(() => {
+        window.localStorage.setItem("magic-brain-cookie-consent-v1", "necessary");
         window.__magicBrainTestRecognizeCard = async (source, language) => {
           window.__scannerUploadType = source.type;
           const bitmap = await createImageBitmap(source);
