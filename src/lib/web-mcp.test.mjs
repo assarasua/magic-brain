@@ -21,20 +21,15 @@ test("WebMCP destinations have unique IDs and internal paths", () => {
   assert.ok(webMcpDestinations.every(({ path }) => path.startsWith("/") && !path.startsWith("//")));
 });
 
-test("WebMCP component exposes focused tools with structured output schemas", () => {
+test("WebMCP registers the remote MCP catalogue through document.modelContext", () => {
   const component = fs.readFileSync(
     new URL("../components/web-mcp-navigation.tsx", import.meta.url),
     "utf8",
   );
-  const names = [
-    "navigate_magic_brain",
-    "search_magic_cards",
-    "get_magic_market_movers",
-    "list_magic_sets",
-    "build_portfolio_scenario",
-  ];
-
-  for (const name of names) assert.match(component, new RegExp(`name: [\"']${name}[\"']`));
-  assert.equal((component.match(/outputSchema:/g) ?? []).length, names.length + 1);
-  assert.match(component, /structuredContent/);
+  assert.match(component, /document as Document & \{ modelContext\?: ModelContext \}/);
+  assert.match(component, /method: "tools\/list" \| "tools\/call"/);
+  assert.match(component, /listPublicRemoteTools/);
+  assert.match(component, /callRemoteTool\(tool\.name, input\)/);
+  assert.match(component, /name: "navigate_magic_brain"/);
+  assert.match(component, /authenticatedToolNames/);
 });
