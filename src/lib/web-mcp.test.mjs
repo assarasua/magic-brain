@@ -20,3 +20,20 @@ test("WebMCP destinations have unique IDs and internal paths", () => {
   assert.equal(new Set(webMcpDestinations.map(({ id }) => id)).size, webMcpDestinations.length);
   assert.ok(webMcpDestinations.every(({ path }) => path.startsWith("/") && !path.startsWith("//")));
 });
+
+test("WebMCP component exposes focused tools with structured output schemas", () => {
+  const component = fs.readFileSync(
+    new URL("../components/web-mcp-navigation.tsx", import.meta.url),
+    "utf8",
+  );
+  const names = [
+    "navigate_magic_brain",
+    "search_magic_cards",
+    "get_magic_market_movers",
+    "list_magic_sets",
+  ];
+
+  for (const name of names) assert.match(component, new RegExp(`name: [\"']${name}[\"']`));
+  assert.equal((component.match(/outputSchema:/g) ?? []).length, names.length + 1);
+  assert.match(component, /structuredContent/);
+});
