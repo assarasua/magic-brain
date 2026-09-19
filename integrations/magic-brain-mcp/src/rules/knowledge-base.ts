@@ -1,6 +1,6 @@
 import { readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
-import { searchRules, validateRulesIndex } from "./index.js";
+import { searchRuleQueries, searchRules, splitRulesQuery, validateRulesIndex } from "./index.js";
 import { OFFICIAL_RULES_SOURCE, RULES_ATTRIBUTION } from "./source.js";
 import type { RulesIndex, RulesSearchHit } from "./types.js";
 
@@ -55,6 +55,14 @@ export class RulesKnowledgeBase {
     );
   }
 
+  searchMany(
+    input: Omit<SearchRulesInput, "query"> & { queries: string[] },
+  ): Promise<ReturnType<typeof resultEnvelope>> {
+    return this.#withIndex((index) => resultEnvelope(
+      index, searchRuleQueries(index, input.queries, searchOptions(input)),
+    ));
+  }
+
   ask(input: AskRulesInput): Promise<{
     question: string;
     officialRules: RulesSearchHit[];
@@ -65,9 +73,9 @@ export class RulesKnowledgeBase {
     source: ReturnType<typeof sourceEnvelope>;
   }> {
     return this.#withIndex((index) => {
-      const officialRules = searchRules(
+      const officialRules = searchRuleQueries(
         index,
-        input.question,
+        splitRulesQuery(input.question),
         searchOptions(input),
       );
       const authorities = officialRules
@@ -168,7 +176,7 @@ function sourceEnvelope(index: RulesIndex) {
       index.source.sha256 === OFFICIAL_RULES_SOURCE.sha256 &&
       index.source.version === OFFICIAL_RULES_SOURCE.version,
     freshnessNotice:
-      "Pinned source metadata is verified during fetch. Check the official rules page before relying on this index after a new Magic release.",
+      `This is a rules snapshot effective ${index.source.effectiveDate}, fetched ${index.source.fetchedAt}. It has not been checked against the current live rules during this request. The configured pinned source is ${OFFICIAL_RULES_SOURCE.version}; check the official rules page for subsequent changes.`,
     attribution: RULES_ATTRIBUTION,
   };
 }

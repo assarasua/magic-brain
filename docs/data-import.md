@@ -1,8 +1,12 @@
 # Card and price data import
 
-Magic Brain deliberately does not bundle or automatically download a card or
-price dataset. Obtain data under terms that permit your intended use, and read
+Magic Brain does not bundle a card or price dataset. Explicit import commands
+can download supported sources. Obtain data under terms that permit your intended use, and read
 [../NOTICE.md](../NOTICE.md) before importing it.
+
+For Oracle text, card effects, and card-specific rulings, use the
+[card rules import](card-rules.md). It imports versioned gameplay evidence
+separately from the printing and price tables described below.
 
 ## Base schema
 

@@ -97,6 +97,13 @@ describe("deterministic lexical rules search", () => {
 });
 
 describe("rules-question result", () => {
+  it("preserves a 500-character question and retrieves a rule mentioned at its end", async () => {
+    const question = `${"z".repeat(480)} What is 100.1?`;
+    const result = await new RulesKnowledgeBase({ index }).ask({ question, limit: 2 });
+    expect(result.question).toBe(question);
+    expect(result.officialRules.some(({ citation }) => citation.ruleNumber === "100.1")).toBe(true);
+  });
+
   it("separates official excerpts from non-authoritative synthesis", async () => {
     const directory = await mkdtemp(join(tmpdir(), "magic-rules-test-"));
     temporaryDirectories.push(directory);
@@ -180,6 +187,18 @@ describe("rules MCP tool contract", () => {
           },
         },
       ],
+    });
+
+    const fullQuestion = `${"z".repeat(480)} What is 100.1?`;
+    const longResult = await client.callTool({
+      name: "ask_rules", arguments: { question: fullQuestion, limit: 2 },
+    });
+    expect(longResult.isError).not.toBe(true);
+    expect(longResult.structuredContent).toMatchObject({
+      question: fullQuestion,
+      officialRules: expect.arrayContaining([
+        expect.objectContaining({ citation: expect.objectContaining({ ruleNumber: "100.1" }) }),
+      ]),
     });
 
     await client.close();

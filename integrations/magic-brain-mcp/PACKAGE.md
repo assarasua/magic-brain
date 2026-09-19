@@ -28,11 +28,14 @@ below run your own server and do not install the live connector.
 ## Tools
 
 The list below is a summary. The
-[canonical MCP tool reference](../../docs/mcp-tools.md) documents all 28 tools
+[canonical MCP tool reference](../../docs/mcp-tools.md) documents all 32 tools
 without duplicating their schemas here.
 
 - `search_cards` — bounded catalogue search with set/card filters
 - `get_card` — one public card record
+- `get_card_rules` — full Oracle text, faces, effects, and dated card rulings
+- `search_card_effects` — search verbatim ability paragraphs with source metadata
+- `explain_card_interaction` — combine exact cards and official rules for a game question
 - `get_latest_prices` — latest public prices for at most 100 card IDs
 - `get_price_history` — at most 366 days for one card
 - `list_sets` — bounded, cursor-paginated set metadata
@@ -74,6 +77,9 @@ superiority claims. See the canonical
 | --- | --- |
 | `search_cards` | `GET cards` |
 | `get_card` | `GET cards/{card_id}` |
+| `get_card_rules` | `GET card-rules?card=...` |
+| `search_card_effects` | `GET card-effects?q=...` |
+| `explain_card_interaction` | `GET card-rules?card=...` for each card, plus local rules retrieval |
 | `get_latest_prices` | `POST prices/latest` (read-only bulk query) |
 | `get_price_history` | `GET cards/{card_id}/prices` |
 | `list_sets` | `GET sets` |
@@ -90,6 +96,11 @@ The rules tools make no query-time network calls. Build their ignored local
 index reproducibly with `npm run rules:build`; deployment builds should use
 `npm run build:deployment`. See `docs/comprehensive-rules.md` for source
 pinning, rights, validation, and update procedures.
+
+Card-specific tools query the gameplay database through the public API. Follow
+the [card rules guide](../../docs/card-rules.md) to import Oracle text and rulings.
+The host assistant interprets retrieved evidence and supplied game state;
+the connector does not simulate a game or issue an official judge ruling.
 
 ## Run locally
 

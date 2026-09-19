@@ -196,6 +196,11 @@ const mcpToolGroups = [
     tools: ["search_rules", "ask_rules"],
   },
   {
+    name: "Card effects & interactions",
+    summary: "Combine exact Oracle text, dated card rulings, and official rules to explain a game situation.",
+    tools: ["search_card_effects", "get_card_rules", "explain_card_interaction"],
+  },
+  {
     name: "Product & strategy",
     summary: "Retrieve source-cited diligence evidence while preserving fact, hypothesis, roadmap, and unknown status.",
     tools: ["search_product_knowledge", "get_product_context", "ask_product_question"],
@@ -293,7 +298,7 @@ function McpInstall({ es }: { es: boolean }) {
       <div className={styles.toolCatalogue}>
         <div className={styles.toolCatalogueHeading}>
           <div>
-            <span>{es ? "29 herramientas de investigación y cuenta" : "29 research and account tools"}</span>
+            <span>{mcpToolGroups.reduce((total, group) => total + group.tools.length, 0)} {es ? "herramientas de investigación y cuenta" : "research and account tools"}</span>
             <h3>{es ? "Evidencia y acciones de cuenta confirmadas." : "Evidence plus confirmed account actions."}</h3>
             <p>{es ? "Explora las herramientas y consulta la referencia canónica para ver esquemas, resultados, ejemplos, límites y errores." : "Explore the surface at a glance, then use the canonical reference for exact schemas, outputs, examples, caveats, and errors."}</p>
           </div>
@@ -307,8 +312,8 @@ function McpInstall({ es }: { es: boolean }) {
               <div className={styles.toolGroupNumber} aria-hidden="true">
                 {String(index + 1).padStart(2, "0")}
               </div>
-              <h4>{group.name === "Personal intelligence" && es ? "Inteligencia personal" : group.name}</h4>
-              <p>{group.name === "Personal intelligence" && es ? "Herramientas OAuth opcionales para consultar una colección propia e información derivada de preferencias." : group.summary}</p>
+              <h4>{group.name === "Card effects & interactions" && es ? "Efectos e interacciones de cartas" : group.name === "Personal intelligence" && es ? "Inteligencia personal" : group.name}</h4>
+              <p>{group.name === "Card effects & interactions" && es ? "Combina el texto Oracle exacto, resoluciones fechadas y reglas oficiales para explicar una situación de juego." : group.name === "Personal intelligence" && es ? "Herramientas OAuth opcionales para consultar una colección propia e información derivada de preferencias." : group.summary}</p>
               <ul aria-label={`${group.name} tools`}>
                 {group.tools.map((tool) => <li key={tool}><code>{tool}</code></li>)}
               </ul>

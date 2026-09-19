@@ -51,7 +51,8 @@
     "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs",
     "db:sync-reserved": "node --env-file=.env.local scripts/sync-reserved-list.mjs",
     "db:sync-sets": "node --env-file=.env.local scripts/sync-sets.mjs",
-    "db:sync-resend": "node --env-file=.env.local scripts/sync-resend-audience.mjs"
+    "db:sync-resend": "node --env-file=.env.local scripts/sync-resend-audience.mjs",
+    "db:sync-card-rules": "node --env-file-if-exists=.env.local scripts/sync-card-rules.mjs"
   },
   "keywords": [
     "magic-the-gathering",

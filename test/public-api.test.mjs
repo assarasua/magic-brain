@@ -150,6 +150,8 @@ test("OpenAPI advertises every v1 data and key route", () => {
     "/api-keys",
     "/api-keys/{id}",
     "/alerts",
+    "/card-effects",
+    "/card-rules",
     "/cards",
     "/cards/{id}",
     "/cards/{id}/prices",

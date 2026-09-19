@@ -8,6 +8,14 @@ export type JsonValue =
   | JsonValue[]
   | { [key: string]: JsonValue };
 
+type UpstreamErrorContext = {
+  upstreamCode?: string;
+  details?: {
+    candidates: Array<{ oracleId: string; name: string }>;
+    candidatesTruncated: boolean;
+  };
+};
+
 export class MagicBrainApiError extends Error {
   constructor(
     message: string,
@@ -19,6 +27,7 @@ export class MagicBrainApiError extends Error {
     readonly status?: number,
     readonly requestId?: string,
     readonly retryAfter?: string,
+    readonly context?: UpstreamErrorContext,
   ) {
     super(message);
     this.name = "MagicBrainApiError";
@@ -133,6 +142,7 @@ export class MagicBrainApiClient {
         response.status,
         requestId,
         retryAfter,
+        extractUpstreamContext(parsed),
       );
     }
 
@@ -204,4 +214,28 @@ function extractUpstreamMessage(data: JsonValue, status: number): string {
     }
   }
   return `Magic Brain API returned HTTP ${status}.`;
+}
+
+function extractUpstreamContext(data: JsonValue): UpstreamErrorContext | undefined {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return undefined;
+  const error = data.error;
+  if (!error || typeof error !== "object" || Array.isArray(error)) return undefined;
+  const context: UpstreamErrorContext = {};
+  if (typeof error.code === "string" && /^[a-zA-Z0-9_-]{1,80}$/.test(error.code)) {
+    context.upstreamCode = error.code;
+  }
+  const details = error.details;
+  if (context.upstreamCode === "ambiguous_card" && details && typeof details === "object" && !Array.isArray(details) && Array.isArray(details.candidates)) {
+    const candidates = details.candidates.slice(0, 10).flatMap((candidate) => {
+      if (!candidate || typeof candidate !== "object" || Array.isArray(candidate) ||
+        typeof candidate.oracleId !== "string" || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(candidate.oracleId) ||
+        typeof candidate.name !== "string" || !candidate.name.length || candidate.name.length > 200) return [];
+      return [{ oracleId: candidate.oracleId, name: candidate.name }];
+    });
+    context.details = {
+      candidates,
+      candidatesTruncated: details.candidatesTruncated === true || details.candidates.length > candidates.length,
+    };
+  }
+  return Object.keys(context).length ? context : undefined;
 }
