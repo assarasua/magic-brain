@@ -10,8 +10,9 @@ const root = new URL("../../", import.meta.url);
 test(
   "scanner uses mocked camera and sends only OCR text for multilingual upload",
   { timeout: 120_000 },
-  async () => {
+  async (context) => {
     const port = await availablePort();
+    const origin = `http://localhost:${port}`;
     const server = spawn(
       process.execPath,
       ["node_modules/next/dist/bin/next", "dev", "-p", String(port)],
@@ -20,19 +21,74 @@ test(
         env: {
           ...process.env,
           AUTH_SECRET: "synthetic-browser-test-secret-32-characters",
+          AUTH_URL: origin,
+          NEXT_PUBLIC_APP_URL: origin,
+          // Keep a local .env.local from connecting this mocked test to a real database.
+          DATABASE_URL: "",
           NEXT_TELEMETRY_DISABLED: "1",
         },
       },
     );
+    let serverOutput = "";
+    const captureServerOutput = (chunk) => {
+      serverOutput = `${serverOutput}${chunk}`.slice(-8_000);
+    };
+    server.stdout.on("data", captureServerOutput);
+    server.stderr.on("data", captureServerOutput);
+    const browserMessages = [];
+    const unexpectedApiRequests = [];
     let browser;
+    let page;
     try {
-      await waitForServer(`http://localhost:${port}`);
+      await waitForServer(origin);
       browser = await chromium.launch({
         executablePath: await chromiumExecutable(),
         headless: true,
         args: ["--no-sandbox", "--use-fake-ui-for-media-stream"],
       });
-      const page = await browser.newPage();
+      page = await browser.newPage();
+      const captureBrowserMessage = (message) => {
+        browserMessages.push(message.slice(0, 1_000));
+        if (browserMessages.length > 12) browserMessages.shift();
+      };
+      page.on("pageerror", (error) => captureBrowserMessage(`pageerror: ${error.message}`));
+      page.on("console", (message) => {
+        if (["error", "warning"].includes(message.type())) {
+          captureBrowserMessage(`${message.type()}: ${message.text()}`);
+        }
+      });
+      // Later, specific fixtures take precedence. Never let a missing fixture call a real API.
+      await page.route(`${origin}/api/**`, async (route) => {
+        unexpectedApiRequests.push(`${route.request().method()} ${new URL(route.request().url()).pathname}`);
+        await route.abort("blockedbyclient");
+      });
+      // The app shell discovers remote tools even when this test only uses the scanner.
+      await page.route("https://magic-brain-mcp.assarasua.workers.dev/mcp", async (route) => {
+        const request = route.request();
+        const headers = { "Access-Control-Allow-Origin": origin };
+        if (request.method() === "OPTIONS") {
+          await route.fulfill({ status: 204, headers: {
+            ...headers,
+            "Access-Control-Allow-Methods": "POST",
+            "Access-Control-Allow-Headers": "Content-Type, MCP-Protocol-Version",
+          } });
+          return;
+        }
+        let body;
+        try { body = request.postDataJSON(); } catch {}
+        if (request.method() !== "POST" || body?.jsonrpc !== "2.0" || body.method !== "tools/list" ||
+            !["string", "number"].includes(typeof body.id)) {
+          unexpectedApiRequests.push(`MCP ${request.method()} ${typeof body?.method === "string" ? body.method.slice(0, 100) : "invalid request"}`);
+          await route.abort("blockedbyclient");
+          return;
+        }
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          headers,
+          body: JSON.stringify({ jsonrpc: "2.0", id: body.id, result: { tools: [] } }),
+        });
+      });
       await page.addInitScript(() => {
         window.localStorage.setItem("magic-brain-cookie-consent-v1", "necessary");
         window.__magicBrainTestRecognizeCard = async (source, language) => {
@@ -122,6 +178,14 @@ test(
             productTourCompleted: true,
             preferences: {},
           }),
+        });
+      });
+      await page.route("**/api/watchlist", async (route) => {
+        assert.equal(route.request().method(), "GET");
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ cards: [] }),
         });
       });
       await page.route("**/api/portfolio*", async (route) => {
@@ -488,6 +552,20 @@ test(
       }).catch(async () => {
         throw new Error(`Borderless guidance missing: ${JSON.stringify(await page.evaluate(() => window.__bulkScanDebug))}`);
       });
+      assert.deepEqual(unexpectedApiRequests, [], "All application API requests must use explicit fixtures");
+    } catch (error) {
+      const overlay = await page?.locator("nextjs-portal").evaluateAll((portals) =>
+        portals.slice(0, 2).map((portal) => Array.from(portal.shadowRoot?.children ?? [])
+          .filter((element) => !["STYLE", "SCRIPT", "LINK"].includes(element.tagName))
+          .map((element) => element instanceof HTMLElement ? element.innerText : element.textContent ?? "").join("\n").slice(-3_000)),
+      ).catch(() => []);
+      context.diagnostic(JSON.stringify({
+        browserMessages,
+        unexpectedApiRequests: unexpectedApiRequests.slice(-12),
+        overlay,
+        serverOutput,
+      }));
+      throw error;
     } finally {
       await browser?.close();
       server.kill("SIGTERM");
