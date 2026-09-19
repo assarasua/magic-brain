@@ -9,7 +9,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 export async function GET(request: Request) {
   const response = await publicApiHandler(request, "none", async () => {
     const query = new URL(request.url).searchParams.get("q") ?? "";
-    if (!query.trim() || query.length > 200)
+    if (query.trim().length < 2 || query.length > 200)
       throw new ApiError(
         400,
         "invalid_query",

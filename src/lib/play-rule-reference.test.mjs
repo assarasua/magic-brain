@@ -77,7 +77,7 @@ test("rule lookup supports JSON text results and rejects invalid, oversized, rat
     ),
     rules,
   );
-  for (const query of [" ", "a".repeat(201)])
+  for (const query of [" ", "a", "a".repeat(201)])
     await assert.rejects(
       fetchRuleReference(query, async () => assert.fail("No request expected")),
       /query/,
