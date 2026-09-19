@@ -4,6 +4,16 @@ The [public WebMCP guide](https://magicbrain.es/webmcp) explains browser setup,
 all navigation destinations, public research tools, permissions and troubleshooting.
 For external clients, use the [remote MCP guide](https://magicbrain.es/mcp).
 
+The public guide starts with Instinct as the recommended browser-agent option
+and includes Asier's explicitly public invitation. The invitation opens Instinct;
+it does not enable or certify WebMCP automatically. Readers must verify both
+registration API availability and discovery in the agent's tool list.
+
+The [browser compatibility list](https://magicbrain.es/webmcp#compatibility)
+distinguishes the recommendation, Chrome's documented preview, and Edge,
+Brave/Arc and Firefox/Safari environments that Magic Brain has not verified.
+It does not infer support from a browser's engine or from remote MCP support.
+
 ## Page registration
 
 Magic Brain checks `document.modelContext`, then `navigator.modelContext`, and
