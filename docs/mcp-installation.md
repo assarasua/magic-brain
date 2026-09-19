@@ -119,25 +119,71 @@ For a personal configuration instead of a checked-in workspace file, run
 
 ## ChatGPT
 
-Custom MCP apps require developer mode on ChatGPT web. Current OpenAI guidance
-allows Pro users to connect read/fetch MCPs in developer mode. Full MCP support
-is available to Business and Enterprise/Edu; Business creation is restricted
-to admins, while Enterprise/Edu access and publishing are controlled by admins,
-owners, and RBAC.
+Custom MCP apps use developer mode on ChatGPT web. OpenAI's documentation checked
+on 19 September 2026 lists Plus, Pro, Business, Enterprise and Education accounts.
+Workspace policies may restrict access; consult the linked official guide for
+current availability and menu labels.
 
-1. Enable **Developer mode** under **Settings > Apps > Advanced Settings**. A
-   workspace administrator may first need to grant access.
-2. Admins and owners can use **Workspace settings > Apps > Create**. Authorized
-   users can use **Settings > Apps > Create**.
-3. Enter the required app metadata and
+1. Enable **Developer mode** under **Settings > Security and login**.
+2. Open **ChatGPT Plugins**, select **+** and create a developer-mode app.
+3. Name it **Magic Brain** and enter
    `https://magic-brain-mcp.assarasua.workers.dev/mcp` as the endpoint.
-4. Keep authentication optional for public research. Complete Magic Brain
-   OAuth when prompted to use personal tools.
-5. Select **Scan Tools**, wait for discovery to finish, then select **Create**.
+4. Use **No Authentication** for public research or supported OAuth/mixed
+   authentication for personal tools. Review the discovered tools.
+5. In the conversation's **+** menu, choose **Developer mode** and select
+   **Magic Brain**. Ask for Beorn the Fierce's Oracle text and rulings.
 
 If **Create**, **Developer mode**, or the authentication option is absent, the
 account's plan, role, region, or workspace policy may not support custom MCP
 apps. Ask the workspace administrator rather than substituting a local URL.
+
+## Grok
+
+Open [Grok Connectors](https://grok.com/connectors), choose **New Connector >
+Custom**, enter the hosted Magic Brain MCP URL and complete any requested
+authentication. Let Grok discover the tools, then ask for Beorn the Fierce's
+Oracle text and rulings. Use the public hosted URL; no tunnel is needed.
+Availability in a particular account may vary. xAI also documents remote MCP
+through its API.
+
+## Gemini CLI
+
+This route is for Gemini CLI, not a verified custom-connector setup for the
+Gemini web or mobile chat. With a supported Gemini CLI account:
+
+```bash
+gemini mcp add --transport http magic-brain https://magic-brain-mcp.assarasua.workers.dev/mcp
+```
+
+Start the CLI, inspect the connection with `/mcp`, and ask a public card question.
+Authorize the CLI's MCP OAuth flow separately when personal tools are needed.
+
+Google's June 2026 transition moves unpaid and Google One CLI users to Antigravity
+CLI. Gemini CLI remains available through supported enterprise licenses and paid
+API keys. Follow Google's migration guidance for the relevant account; this
+command is not a universal setup for every Gemini-branded product.
+
+## Codex
+
+Add this table to `~/.codex/config.toml`, preserving existing configuration.
+A trusted project can use `.codex/config.toml` instead:
+
+```toml
+[mcp_servers.magic_brain]
+url = "https://magic-brain-mcp.assarasua.workers.dev/mcp"
+```
+
+Refresh or restart the client's MCP connection. Public research works without
+credentials. For personal tools, run `codex mcp login magic_brain` and review the
+requested scopes. Use `/mcp` in a supported client to inspect connected servers.
+
+## Instinct and WebMCP
+
+For page tools in a browser agent, Magic Brain recommends Instinct. The public
+[WebMCP guide](https://magicbrain.es/webmcp#start) has Asier's invitation and the
+steps to open Magic Brain, discover page tools and make a first request. The
+invitation does not automatically enable WebMCP; verify the runtime capability
+and discovered tool list. Use the remote MCP endpoint if page tools are unavailable.
 
 ## OpenAI Responses API
 
@@ -213,12 +259,17 @@ localhost-only by default and is not the public research connector.
 
 ## Official documentation consulted
 
-Checked on 13 September 2026:
+Connection paths updated on 19 September 2026; client sources below:
 
 - [Anthropic: Third party connectors with remote MCP](https://claude.com/docs/connectors/custom/remote-mcp)
 - [Anthropic: Get started with custom connectors using remote MCP](https://support.anthropic.com/en/articles/11175166-getting-started-with-custom-connectors-using-remote-mcp)
 - [Cursor: Model Context Protocol (MCP)](https://cursor.com/docs/mcp)
 - [Visual Studio Code: Add and manage MCP servers](https://code.visualstudio.com/docs/copilot/customization/mcp-servers)
 - [GitHub: Extending Copilot Chat with MCP servers](https://docs.github.com/en/copilot/customizing-copilot/extending-copilot-chat-with-mcp)
-- [OpenAI: Developer mode and MCP apps in ChatGPT](https://help.openai.com/en/articles/12584461)
+- [OpenAI: ChatGPT Developer mode](https://developers.openai.com/api/docs/guides/developer-mode)
+- [OpenAI: Codex MCP configuration](https://learn.chatgpt.com/docs/extend/mcp)
+- [xAI: Grok connectors](https://docs.x.ai/grok/connectors)
+- [xAI: Remote MCP API tools](https://docs.x.ai/developers/tools/remote-mcp)
+- [Google: Gemini CLI MCP servers](https://geminicli.com/docs/tools/mcp-server/)
+- [Google: Gemini CLI transition](https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli)
 - [OpenAI API: MCP and Connectors](https://developers.openai.com/api/docs/guides/tools-connectors-mcp)

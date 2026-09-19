@@ -19,9 +19,16 @@ const manrope = Manrope({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://magicbrain.es"),
-  title: "Magic Brain — Know and enjoy your Magic collection",
+  title: "Magic Brain — Your Magic. Your call.",
   description:
-    "Organize your Magic: The Gathering collection, explore cards and editions, and understand value with clear market context.",
+    "Explore Magic cards and prices yourself, or connect your AI agent through MCP and WebMCP for card data, Oracle text and rulings. Choose your side.",
+  openGraph: {
+    title: "Magic Brain — Human or agentic. Choose your side.",
+    description:
+      "Your Magic. Your call. Explore the website yourself, connect an assistant through MCP, or use WebMCP in a compatible browser.",
+    siteName: "Magic Brain",
+    type: "website",
+  },
   authors: [{ name: "Asier Sarasua", url: "https://bizkardolab.eu" }],
   creator: "Asier Sarasua",
   publisher: "BizkardoLab",

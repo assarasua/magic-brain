@@ -6,16 +6,19 @@ import {
   ArrowRight,
   BarChart3,
   Braces,
+  BookOpen,
+  Bot,
   Check,
   Code2,
   Eye,
   Layers3,
   LoaderCircle,
-  Newspaper,
+  MessageCircle,
   ShieldCheck,
   Sparkles,
   TrendingDown,
   TrendingUp,
+  UserRound,
   WalletCards,
 } from "lucide-react";
 import Link from "next/link";
@@ -25,6 +28,8 @@ import { MagicBrainLogo, MagicBrainMark } from "@/components/brand-logo";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
 import { LandingContact, NewsletterSignup } from "@/components/landing-contact";
 import { movers, portfolioCards } from "@/lib/data";
+import { instinctInviteUrl } from "@/lib/public-integration-links";
+import styles from "./narrative.module.css";
 
 function GoogleMark() {
   return (
@@ -80,11 +85,44 @@ export default function LoginPage() {
           <LanguageToggle />
         </div>
       </header>
+      <section className={styles.hero}>
+          <span className="pro-badge"><Sparkles size={13} /> Magic Brain</span>
+          <h1>{es ? "Tu Magic. Tú eliges." : "Your Magic. Your call."}</h1>
+          <p className={styles.promise}>{es ? "Precios, cartas y rulings. Sin abrir quince pestañas." : "Prices, cards and rulings. Without fifteen tabs."}</p>
+          <p>{es ? "Usa Magic Brain a tu manera: explora la web tú mismo o deja que tu agente consulte cartas, precios y reglas por ti. El cerebro extra de tu grupo, estés al mando tú o tu asistente." : "Use Magic Brain your way: explore the website yourself, or let your agent look up cards, prices and rules for you. An extra brain for your Magic group, with you or your assistant at the controls."}</p>
+      </section>
+      <section className={styles.channels} id="choose-your-channel" aria-labelledby="channels-heading">
+        <h2 id="channels-heading">{es ? "Elige tu lado." : "Choose your side."}</h2>
+        <nav className={styles.sideChooser} aria-label={es ? "Cómo quieres usar Magic Brain" : "How you want to use Magic Brain"}><a href="#human-side"><UserRound size={16} />{es ? "Humano" : "Human"}</a><a href="#agent-side"><Bot size={16} />{es ? "Agéntico" : "Agentic"}</a></nav>
+        <div className={styles.sideGrid}>
+          <article className={styles.humanSide} id="human-side" tabIndex={-1}>
+            <span className={styles.channelLabel}><UserRound size={18} /> {es ? "LADO HUMANO" : "HUMAN SIDE"}</span>
+            <h3>{es ? "Yo llevo el mando." : "I’ll take the controls."}</h3>
+            <p>{es ? "Explora cartas, compara precios y organiza tu colección desde la web. A tu ritmo, carta a carta." : "Explore cards, compare prices and organize your collection on the website. At your pace, card by card."}</p>
+            <ol><li>{es ? "Abre los movimientos del mercado, sin registrarte." : "Open market movers, with no sign-up."}</li><li>{es ? "Consulta las cartas que te interesan." : "Explore the cards that catch your eye."}</li><li>{es ? "Crea una cuenta para guardar colección y seguimiento." : "Create an account to save your collection and watchlist."}</li></ol>
+            <Link className={styles.primaryAction} href="/market-movers">{es ? "Explorar yo mismo" : "Explore it myself"}<ArrowRight size={16} /></Link><a className={styles.sideSecondary} href="#start-collection">{es ? "Empezar mi colección" : "Start my collection"}</a>
+          </article>
+          <article className={styles.agentSide} id="agent-side" tabIndex={-1}>
+            <span className={styles.channelLabel}><Bot size={18} /> {es ? "LADO AGÉNTICO" : "AGENTIC SIDE"}</span>
+            <h3>{es ? "Que mi agente se encargue." : "Let my agent handle it."}</h3>
+            <p>{es ? "Pregunta en lenguaje normal. Tu agente elige las herramientas de Magic Brain, consulta los datos y te explica la respuesta." : "Ask in plain language. Your agent picks Magic Brain’s tools, checks the data and explains the answer."}</p>
+            <ol><li>{es ? "Conecta tu asistente por MCP o abre un navegador con WebMCP." : "Connect your assistant through MCP or open a browser with WebMCP."}</li><li>{es ? "Pregunta por cartas, precios, efectos o rulings." : "Ask about cards, prices, effects or rulings."}</li><li>{es ? "Autoriza tu colección cuando la necesites; confirma los cambios." : "Authorize your collection when needed; confirm changes."}</li></ol>
+            <a className={styles.primaryAction} href="#connect-your-agent">{es ? "Conectar mi agente" : "Connect my agent"}<ArrowRight size={16} /></a><Link className={styles.sideSecondary} href="/mcp#compatibility">{es ? "Ver asistentes compatibles" : "See compatible assistants"}</Link>
+          </article>
+        </div>
+      </section>
+      <section className={styles.channels} id="connect-your-agent" aria-labelledby="agent-channels-heading">
+        <h2 id="agent-channels-heading">{es ? "Dos formas de darle herramientas a tu agente." : "Two ways to equip your agent."}</h2>
+        <p>{es ? "MCP conecta tu asistente al servidor. WebMCP conecta un agente a la página abierta, cuando el navegador lo permite. Las consultas públicas no necesitan cuenta de Magic Brain." : "MCP connects your assistant to the server. WebMCP connects an agent to the open page when the browser supports it. Public research needs no Magic Brain account."}</p>
+        <div className={styles.channelGrid}>
+          <article><span className={styles.channelLabel}>MCP</span><h3>{es ? "Desde tu asistente" : "From your assistant"}</h3><ol><li>{es ? "Elige Claude, ChatGPT, Grok, Gemini CLI u otro cliente compatible." : "Choose Claude, ChatGPT, Grok, Gemini CLI or another compatible client."}</li><li>{es ? "Sigue la configuración de ese cliente y añade la URL MCP." : "Follow that client’s setup and add the MCP URL."}</li><li>{es ? "Activa las herramientas y pregunta por una carta." : "Enable the tools and ask about a card."}</li></ol><Link href="/mcp#connect">{es ? "Configurar mi asistente" : "Set up my assistant"}<ArrowRight size={15} /></Link><Link href="/mcp#compatibility">{es ? "Compatibilidad, planes y vías de acceso" : "Compatibility, plans and connection routes"}</Link></article>
+          <article className={styles.recommended}><span className={styles.channelLabel}>{es ? "WEBMCP · RECOMENDAMOS INSTINCT" : "WEBMCP · WE RECOMMEND INSTINCT"}</span><h3>{es ? "Lleva tu agente a la página" : "Bring your agent to the page"}</h3><ol><li>{es ? "Entra en Instinct con la invitación de Asier." : "Join Instinct with Asier’s invitation."}</li><li>{es ? "Abre Magic Brain en su navegador." : "Open Magic Brain in its browser."}</li><li>{es ? "Pide al agente que descubra y use las herramientas de la página." : "Ask the agent to discover and use the page’s tools."}</li></ol><a href={instinctInviteUrl}>{es ? "Entrar con la invitación de Asier" : "Join with Asier’s invitation"}<ArrowRight size={15} /></a><Link href="/webmcp#start">{es ? "Guía WebMCP y compatibilidad" : "WebMCP setup and compatibility"}</Link></article>
+        </div>
+        <p className={styles.developerRoute}>{es ? "¿Construyes tu propio agente? " : "Building your own agent? "}<Link href="/mcp#setup-api-cli">{es ? "Empieza con la API o la CLI" : "Start with the API or CLI"}</Link>{" · "}<Link href="/developers">{es ? "Desarrolladores" : "Developers"}</Link></p>
+      </section>
       <section className="auth-onboarding">
         <div className="auth-onboarding-copy">
-          <span className="pro-badge"><Sparkles size={13} /> Magic Brain</span>
-          <h1>{es ? "Tu colección de Magic, más tuya que nunca." : "Know every card in your Magic collection."}</h1>
-          <p>{es ? "Organiza tus cartas y ediciones, descubre nuevas favoritas y entiende su valor con el contexto que necesitas." : "Organize your cards and printings, discover new favourites, and understand their value with useful market context."}</p>
+          <h2 className={styles.collectionHeading}>{es ? "Tus cartas. Sus reglas. Su historia." : "Your cards. Their rules. Their story."}</h2>
           <div className="auth-card-showcase" aria-label={es ? "Ejemplos de cartas analizadas" : "Examples of analysed cards"}>
             <div className="auth-card-stack">
               {movers.slice(0, 3).map((card, index) => (
@@ -92,23 +130,23 @@ export default function LoginPage() {
               ))}
             </div>
             <div className="auth-market-proof">
-              <span><TrendingUp size={14} /> {es ? "Contexto actualizado" : "Fresh market context"}</span>
-              <strong>90,000+</strong>
-              <small>{es ? "impresiones y precios para explorar" : "printings and prices to explore"}</small>
+              <span><TrendingUp size={14} /> {es ? "Cada edición cuenta" : "Every printing matters"}</span>
+              <strong>EUR</strong>
+              <small>{es ? "Precios e histórico por impresión, con fuente y fecha." : "Prices and history by printing, with source and date."}</small>
             </div>
           </div>
           <div className="auth-benefits">
-            <div><span><WalletCards size={18} /></span><div><strong>{es ? "Tu colección, bien organizada" : "Your collection, organized"}</strong><small>{es ? "Copias, ediciones, coste y valor actual en un solo lugar." : "Copies, printings, cost, and current value in one place."}</small></div></div>
-            <div><span><Sparkles size={18} /></span><div><strong>{es ? "Descubrimientos personales" : "Personal discoveries"}</strong><small>{es ? "Encuentra cartas que encajan con lo que disfrutas coleccionando." : "Find cards that fit what you love to collect."}</small></div></div>
-            <div><span><BarChart3 size={18} /></span><div><strong>{es ? "Contexto de mercado claro" : "Clear market context"}</strong><small>{es ? "Historial de precios y movimientos para cuidar mejor tu colección." : "Price history and movement to help you steward your collection."}</small></div></div>
+            <div><span><BarChart3 size={18} /></span><div><strong>{es ? "Entiende el precio antes del cambio" : "Understand the price before the trade"}</strong><small>{es ? "Compara ediciones, acabado foil e historial en EUR." : "Compare printings, foil finishes and EUR price history."}</small></div></div>
+            <div><span><BookOpen size={18} /></span><div><strong>{es ? "Resuelve la duda en plena partida" : "Work through the question mid-game"}</strong><small>{es ? "Texto Oracle, rulings y reglas citadas para tu asistente." : "Oracle text, card rulings and cited rules for your assistant."}</small></div></div>
+            <div><span><WalletCards size={18} /></span><div><strong>{es ? "Recuerda lo que ya tienes" : "Remember what you already own"}</strong><small>{es ? "Copias, coste de compra, valor y seguimiento en un solo sitio." : "Copies, purchase cost, value and watchlists in one place."}</small></div></div>
           </div>
         </div>
 
-        <div className="login-card signup-card">
+        <div className={`login-card signup-card ${styles.signup}`} id="start-collection" tabIndex={-1} aria-labelledby="start-collection-heading">
           <div className="login-mark"><MagicBrainMark size={42} /></div>
           <span className="eyebrow">{es ? "CREA TU CUENTA GRATIS" : "CREATE YOUR FREE ACCOUNT"}</span>
-          <h2>{es ? "Empieza a conocer mejor tu colección." : "Start knowing your collection better."}</h2>
-          <p>{es ? "Un único acceso para tu colección, seguimiento y preferencias." : "One secure account for your collection, watchlist, and preferences."}</p>
+          <h2 id="start-collection-heading">{es ? "Dale memoria a tu colección." : "Give your collection a memory."}</h2>
+          <p>{es ? "Guarda tus cartas, lo que pagaste y las que no quieres perder de vista. Tu colección te espera cuando vuelvas." : "Save your cards, what you paid and the ones you want to watch. Your collection will be here when you return."}</p>
           <label className="auth-legal-consent">
             <input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} />
             <span>{es ? <>Acepto los <Link href="/terms">Términos</Link> y confirmo que he leído la <Link href="/privacy">Política de privacidad</Link>.</> : <>I accept the <Link href="/terms">Terms</Link> and confirm I have read the <Link href="/privacy">Privacy Policy</Link>.</>}</span>
@@ -129,9 +167,9 @@ export default function LoginPage() {
       </section>
       <section className="landing-card-chronicle" aria-labelledby="card-chronicle-heading">
         <div className="landing-chronicle-copy">
-          <span className="eyebrow">{es ? "CADA CARTA DEJA UNA HUELLA" : "EVERY CARD LEAVES A TRACE"}</span>
-          <h2 id="card-chronicle-heading">{es ? "La que abriste. La que cambiaste. La que llevas años buscando." : "The one you pulled. The one you traded. The one you have chased for years."}</h2>
-          <p>{es ? "Una colección no es una hoja de cálculo. Es una historia hecha de ilustraciones, ediciones, recuerdos y decisiones. Magic Brain conserva ese detalle y lo conecta con lo que está ocurriendo ahora." : "A collection is not a spreadsheet. It is a story made of art, printings, memories, and decisions. Magic Brain preserves that detail and connects it to what is happening now."}</p>
+          <span className="eyebrow">{es ? "PARA LAS CONVERSACIONES DE TU MESA" : "FOR THE CONVERSATIONS AT YOUR TABLE"}</span>
+          <h2 id="card-chronicle-heading">{es ? "«¿Cuánto vale?» «¿Cómo funciona?» «¿No tenía ya una?»" : "“What’s it worth?” “How does it work?” “Don’t I own one?”"}</h2>
+          <p>{es ? "Las preguntas de siempre, con los datos a mano. Magic Brain conecta cartas, precios y reglas para que pases menos tiempo buscando y más tiempo disfrutando de Magic con tu grupo." : "The familiar questions, with the evidence close at hand. Magic Brain brings cards, prices and rules together so you spend less time searching and more time enjoying Magic with your group."}</p>
         </div>
         <div className="landing-card-river" aria-label={es ? "Selección de cartas de Magic: The Gathering" : "A selection of Magic: The Gathering cards"}>
           {storyCards.map((card, index) => (
@@ -144,40 +182,42 @@ export default function LoginPage() {
       </section>
       <section className="landing-product-story" aria-labelledby="product-story-heading">
         <div className="landing-product-heading">
-          <span className="eyebrow">{es ? "TODO TU MAGIC, CON CONTEXTO" : "ALL YOUR MAGIC, IN CONTEXT"}</span>
-          <h2 id="product-story-heading">{es ? "De una carpeta de cartas a una colección que conoces de verdad." : "From a binder of cards to a collection you truly understand."}</h2>
-          <p>{es ? "Magic Brain une catálogo, organización e inteligencia de mercado para ayudarte a disfrutar cada carta y tomar decisiones informadas." : "Magic Brain brings catalogue data, organization, and market intelligence together so you can enjoy every card and make informed decisions."}</p>
+          <span className="eyebrow">{es ? "TÚ PREGUNTAS. TU ASISTENTE BUSCA." : "YOU ASK. YOUR ASSISTANT LOOKS IT UP."}</span>
+          <h2 id="product-story-heading">{es ? "Empieza con una pregunta de verdad." : "Start with a real question."}</h2>
+          <p>{es ? "Conecta Magic Brain a un asistente compatible con MCP. Tu asistente elige la herramienta, consulta las fuentes y te explica el resultado en lenguaje normal." : "Connect Magic Brain to an assistant that supports MCP. Your assistant picks the tool, checks the sources and explains the result in plain language."}</p>
         </div>
         <div className="landing-product-grid">
-          <article><div className="landing-story-card"><img src={storyCards[3].image} alt={storyCards[3].name} loading="lazy" /><span><Layers3 size={15} /> {es ? "Tu inventario" : "Your inventory"}</span></div><i>01</i><WalletCards size={21} /><h3>{es ? "Dale memoria a tu colección" : "Give your collection a memory"}</h3><p>{es ? "Registra la impresión exacta, copias, estado, idioma y coste. Lo que tienes deja de ser una pila y se convierte en un archivo vivo." : "Record the exact printing, copies, condition, language, and cost. What you own stops being a pile and becomes a living archive."}</p></article>
-          <article><div className="landing-story-card"><img src={storyCards[4].image} alt={storyCards[4].name} loading="lazy" /><span><Eye size={15} /> {es ? "Contexto real" : "Real context"}</span></div><i>02</i><BarChart3 size={21} /><h3>{es ? "Mira más allá del precio" : "See beyond the price"}</h3><p>{es ? "Sigue la historia de valor de cada carta y entiende tendencias, cambios y señales con datos observados, no con ruido." : "Follow each card’s value story and understand trends, changes, and signals through observed data—not noise."}</p></article>
-          <article><div className="landing-story-card"><img src={storyCards[5].image} alt={storyCards[5].name} loading="lazy" /><span><Newspaper size={15} /> {es ? "Tu próximo hallazgo" : "Your next discovery"}</span></div><i>03</i><Sparkles size={21} /><h3>{es ? "Deja que la colección te hable" : "Let the collection speak"}</h3><p>{es ? "Descubre cartas, recibe un brief diario y encuentra qué merece tu atención según la colección que tú has construido." : "Discover cards, receive a daily brief, and find what deserves attention based on the collection you built."}</p></article>
+          <article><div className="landing-story-card"><img src={storyCards[3].image} alt={storyCards[3].name} loading="lazy" /><span><Eye size={15} /> {es ? "Precios con contexto" : "Prices in context"}</span></div><i>01</i><BarChart3 size={21} /><h3>{es ? "Sigue la edición que te importa" : "Follow the printing you care about"}</h3><p>{es ? "Compara el precio actual con su historial, distingue normal de foil y comprueba cuándo se observó cada dato." : "Compare the latest price with its history, distinguish nonfoil from foil and see when each price was observed."}</p><blockquote className={styles.example}>{es ? "«¿Cuánto vale Beorn the Fierce de HOB y cómo se ha movido este mes?»" : "“What’s Beorn the Fierce from HOB worth, and how has its price moved this month?”"}</blockquote></article>
+          <article><div className="landing-story-card"><img src={storyCards[4].image} alt={storyCards[4].name} loading="lazy" /><span><BookOpen size={15} /> {es ? "Cartas y rulings" : "Cards and rulings"}</span></div><i>02</i><MessageCircle size={21} /><h3>{es ? "Lleva las reglas a la conversación" : "Bring the rules into the conversation"}</h3><p>{es ? "Consulta el texto Oracle completo, los rulings de la carta y las reglas que ayudan a explicar una interacción." : "Look up complete Oracle text, card-specific rulings and the rules that help explain an interaction."}</p><blockquote className={styles.example}>{es ? "«Con Rest in Peace en mesa, ¿se dispara Blood Artist cuando una criatura fuera a morir? Cita las reglas.»" : "“With Rest in Peace on the battlefield, does Blood Artist trigger when a creature would die? Cite the rules.”"}</blockquote></article>
+          <article><div className="landing-story-card"><img src={storyCards[5].image} alt={storyCards[5].name} loading="lazy" /><span><Layers3 size={15} /> {es ? "Tu colección" : "Your collection"}</span></div><i>03</i><WalletCards size={21} /><h3>{es ? "Ve lo que tienes, de un vistazo" : "See what you own at a glance"}</h3><p>{es ? "Reúne copias, coste de compra y valor estimado. Autoriza a tu asistente para consultar tus listas y entender dónde se concentra su valor." : "Bring copies, purchase cost and estimated value together. Authorize your assistant to read your lists and see where their value is concentrated."}</p><blockquote className={styles.example}>{es ? "«Valora mi colección y dime qué cartas concentran más valor.»" : "“Value my collection and show which cards account for most of it.”"}</blockquote></article>
         </div>
+        <div className={styles.guideNext}><Link href="/mcp#connect">{es ? "Conectar mi asistente, paso a paso" : "Connect my assistant, step by step"}<ArrowRight size={16} /></Link><p>{es ? "Cartas, precios y reglas: acceso público. Tu colección: con autorización. Los cambios requieren confirmación." : "Cards, prices and rules are public. Your collection requires authorization. Changes require confirmation."}</p></div>
       </section>
       <section className="landing-final-chapter">
         <div className="landing-final-cards" aria-hidden="true">
           {storyCards.slice(0, 4).map((card, index) => <img key={card.id} src={card.image} alt="" loading="lazy" style={{ "--final-index": index } as React.CSSProperties} />)}
         </div>
         <div>
-          <span className="eyebrow">{es ? "EL SIGUIENTE CAPÍTULO ES TUYO" : "THE NEXT CHAPTER IS YOURS"}</span>
-          <h2>{es ? "Tu colección ya tiene una historia. Ahora puedes entenderla." : "Your collection already has a story. Now you can understand it."}</h2>
-          <p>{es ? "Crea tu cuenta, añade tu primera carta y deja que Magic Brain conecte todas las piezas." : "Create your account, add your first card, and let Magic Brain connect every piece."}</p>
-          <button onClick={continueWithGoogle} disabled={loading}>{es ? "Empezar mi colección" : "Start my collection"}<ArrowRight size={16} /></button>
+          <span className="eyebrow">{es ? "MENOS PESTAÑAS. MÁS MAGIC." : "FEWER TABS. MORE MAGIC."}</span>
+          <h2>{es ? "Elijas el lado que elijas, juega con más contexto." : "Whichever side you choose, bring more context to the table."}</h2>
+          <p>{es ? "Explora por tu cuenta o trae a tu agente. Magic Brain pone cartas, precios y reglas al servicio de tu próxima decisión." : "Explore on your own or bring your agent. Magic Brain puts cards, prices and rules behind your next decision."}</p>
+          <div className={styles.actions}><Link href="/market-movers" className={styles.primaryAction}>{es ? "Explorar yo mismo" : "Explore it myself"}<ArrowRight size={16} /></Link><a href="#connect-your-agent" className={styles.secondaryAction}>{es ? "Conectar mi agente" : "Connect my agent"}</a></div>
         </div>
       </section>
       <section className="landing-developers" aria-labelledby="landing-developers-heading">
         <div className="landing-developers-mark" aria-hidden="true"><Code2 size={34} /></div>
         <div className="landing-developers-copy">
-          <span className="eyebrow">MAGIC BRAIN FOR DEVELOPERS</span>
-          <h2 id="landing-developers-heading">{es ? "Construye nuevas experiencias sobre el universo de Magic." : "Build new experiences on top of the Magic universe."}</h2>
-          <p>{es ? "Conecta datos de cartas, precios, colecciones y señales de mercado a tus propias herramientas. Usa la API, integra nuestro MCP o permite que agentes naveguen Magic Brain con WebMCP." : "Connect card data, prices, collections, and market signals to your own tools. Use the API, integrate our MCP, or let agents navigate Magic Brain through WebMCP."}</p>
-          <div className="landing-developer-tags"><span>REST API</span><Link href="/mcp">{es ? "Guía MCP" : "MCP guide"} ↗</Link><Link href="/webmcp">{es ? "Guía WebMCP" : "WebMCP guide"} ↗</Link><span>OAuth 2.1</span></div>
+          <span className="eyebrow">{es ? "ABIERTO A TUS IDEAS" : "OPEN TO YOUR IDEAS"}</span>
+          <h2 id="landing-developers-heading">{es ? "Código abierto. Más formas de disfrutar Magic." : "Open source. More ways to enjoy Magic."}</h2>
+          <p>{es ? "Consulta el código, comprueba las fuentes y construye sobre Magic Brain. Usa la API en tu proyecto, conecta un asistente con MCP o descubre las herramientas del navegador con WebMCP." : "Read the code, check the sources and build on Magic Brain. Use the API in your project, connect an assistant through MCP or explore the browser tools with WebMCP."}</p>
+          <div className="landing-developer-tags"><Link href="https://github.com/assarasua/magic-brain">{es ? "Código en GitHub" : "Code on GitHub"} ↗</Link><span>REST API</span><Link href="/mcp">{es ? "Guía MCP" : "MCP guide"} ↗</Link><Link href="/webmcp">{es ? "Guía WebMCP" : "WebMCP guide"} ↗</Link></div>
         </div>
-        <Link href="/developers" className="landing-developers-cta">{es ? "Explorar para developers" : "Explore for developers"}<ArrowRight size={16} /></Link>
+        <Link href="/developers" className="landing-developers-cta">{es ? "Para desarrolladores" : "For developers"}<ArrowRight size={16} /></Link>
         <Braces className="landing-developers-braces" size={160} aria-hidden="true" />
       </section>
       <LandingContact />
       <footer className="creator-credit">
+        <p className={styles.sourceNote}>{es ? "Hecho para gente de Magic. Los precios reflejan observaciones de sus fuentes; comprueba el precio final antes de comprar o vender." : "Made for Magic people. Prices reflect source observations; check the final price before buying or selling."}</p>
         <nav className="landing-footer-guides" aria-label={es ? "Recursos" : "Resources"}>
           <Link href="/developers">{es ? "Desarrolladores" : "Developers"}</Link>
           <Link href="/mcp">{es ? "Guía MCP" : "MCP guide"}</Link>

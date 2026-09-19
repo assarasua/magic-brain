@@ -14,8 +14,8 @@ test("primary product copy uses the collection mental model in both languages", 
   assert.match(language, /"My portfolio": "Mi colección"/);
   assert.match(home, /Know your cards, understand their value/);
   assert.match(home, /Conoce tus cartas, su valor/);
-  assert.match(login, /Know every card in your Magic collection/);
-  assert.match(login, /Tu colección de Magic, más tuya que nunca/);
+  assert.match(login, /Give your collection a memory/);
+  assert.match(login, /Dale memoria a tu colección/);
 });
 
 test("collector labels preserve portfolio compatibility routes and APIs", () => {

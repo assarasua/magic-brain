@@ -104,7 +104,7 @@ const mcpInstallers = [
     name: "Claude",
     requirement: "Free, Pro, Max, Team, or Enterprise",
     description:
-      "Add a custom connector in Customize > Connectors. Connect anonymously or approve OAuth for personal read tools.",
+      "Add a custom connector in Customize > Connectors. Connect anonymously or approve OAuth for personal tools; writes require confirmation.",
     snippet: mcpEndpoint,
     source: "https://claude.com/docs/connectors/custom/remote-mcp",
   },
@@ -142,11 +142,38 @@ const mcpInstallers = [
   {
     id: "chatgpt",
     name: "ChatGPT",
-    requirement: "Pro read/fetch, or Business/Enterprise/Edu",
+    requirement: "Plus, Pro, Business, Enterprise, or Education on the web; workspace policies apply",
     description:
-      "Enable Developer mode, choose Apps > Create, enter the endpoint, then use optional OAuth sign-in for personal reads.",
+      "Enable Developer mode in Settings > Security and login. In ChatGPT Plugins, select + to create an app with this endpoint. Select it from the conversation’s Developer mode menu. Public reads are anonymous; authorize OAuth for personal tools.",
     snippet: mcpEndpoint,
-    source: "https://help.openai.com/en/articles/12584461",
+    source: "https://developers.openai.com/api/docs/guides/developer-mode",
+  },
+  {
+    id: "grok",
+    name: "Grok",
+    requirement: "Custom MCP connectors where available in your account",
+    description:
+      "Open grok.com/connectors, choose New Connector > Custom, and enter this hosted URL. Complete authentication when required, then ask Grok to use the discovered Magic Brain tools.",
+    snippet: mcpEndpoint,
+    source: "https://docs.x.ai/grok/connectors",
+  },
+  {
+    id: "gemini",
+    name: "Gemini CLI",
+    requirement: "Supported enterprise access or paid API keys; free/Google One CLI users have an Antigravity migration path",
+    description:
+      "Add the HTTP server with this command, then inspect it using /mcp. This is a CLI route, not a verified setup for the Gemini web/mobile chat.",
+    snippet: `gemini mcp add --transport http magic-brain ${mcpEndpoint}`,
+    source: "https://geminicli.com/docs/tools/mcp-server/",
+  },
+  {
+    id: "codex",
+    name: "Codex",
+    requirement: "A Codex client with remote MCP support",
+    description:
+      "Add this table to ~/.codex/config.toml without replacing other settings. Refresh the MCP connection. Run codex mcp login magic_brain only when you want to authorize personal tools.",
+    snippet: `[mcp_servers.magic_brain]\nurl = "${mcpEndpoint}"`,
+    source: "https://learn.chatgpt.com/docs/extend/mcp",
   },
   {
     id: "openai",
