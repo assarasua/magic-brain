@@ -8,7 +8,6 @@ import {
   Braces,
   BookOpen,
   Bot,
-  Check,
   Code2,
   Eye,
   Layers3,
@@ -16,7 +15,6 @@ import {
   MessageCircle,
   ShieldCheck,
   Sparkles,
-  TrendingDown,
   TrendingUp,
   UserRound,
   WalletCards,
@@ -24,9 +22,9 @@ import {
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { MagicBrainLogo, MagicBrainMark } from "@/components/brand-logo";
+import { MagicBrainLogo } from "@/components/brand-logo";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
-import { LandingContact, NewsletterSignup } from "@/components/landing-contact";
+import { LandingContact } from "@/components/landing-contact";
 import { movers, portfolioCards } from "@/lib/data";
 import { instinctInviteUrl } from "@/lib/public-integration-links";
 import styles from "./narrative.module.css";
@@ -79,17 +77,34 @@ export default function LoginPage() {
         <nav className="landing-guide-nav" aria-label={es ? "Guías de integración" : "Integration guides"}>
           <Link href="/mcp">{es ? "Guía MCP" : "MCP guide"}</Link>
           <Link href="/webmcp">{es ? "Guía WebMCP" : "WebMCP guide"}</Link>
+          <Link href="/market-movers">{es ? "Top cartas hoy" : "Today’s top cards"}</Link>
         </nav>
         <div className="landing-header-actions">
-          <Link href="/market-movers" className="landing-movers-link"><TrendingDown size={15} />{es ? "Top cartas hoy" : "Today’s top cards"}</Link>
+          <a href="#start-collection" className={styles.headerLogin}>{es ? "Entrar" : "Sign in"}</a>
           <LanguageToggle />
         </div>
       </header>
       <section className={styles.hero}>
+        <div className={styles.heroCopy}>
           <span className="pro-badge"><Sparkles size={13} /> Magic Brain</span>
           <h1>{es ? "Tu Magic. Tú eliges." : "Your Magic. Your call."}</h1>
           <p className={styles.promise}>{es ? "Precios, cartas y rulings. Sin abrir quince pestañas." : "Prices, cards and rulings. Without fifteen tabs."}</p>
           <p>{es ? "Usa Magic Brain a tu manera: explora la web tú mismo o deja que tu agente consulte cartas, precios y reglas por ti. El cerebro extra de tu grupo, estés al mando tú o tu asistente." : "Use Magic Brain your way: explore the website yourself, or let your agent look up cards, prices and rules for you. An extra brain for your Magic group, with you or your assistant at the controls."}</p>
+        </div>
+        <div className={`login-card signup-card ${styles.signup}`} id="start-collection" tabIndex={-1} aria-labelledby="start-collection-heading">
+          <span className="eyebrow">{es ? "ENTRA O CREA TU CUENTA GRATIS" : "SIGN IN OR CREATE YOUR FREE ACCOUNT"}</span>
+          <h2 id="start-collection-heading">{es ? "Dale memoria a tu colección." : "Give your collection a memory."}</h2>
+          <p>{es ? "Accede a tu colección y seguimiento. Si eres nuevo, este mismo paso crea tu cuenta." : "Open your collection and watchlist. New here? The same step creates your account."}</p>
+          <label className="auth-legal-consent">
+            <input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} />
+            <span>{es ? <>Acepto los <Link href="/terms">Términos</Link> y confirmo que he leído la <Link href="/privacy">Política de privacidad</Link>.</> : <>I accept the <Link href="/terms">Terms</Link> and confirm I have read the <Link href="/privacy">Privacy Policy</Link>.</>}</span>
+          </label>
+          <button className="google-auth-cta" onClick={continueWithGoogle} disabled={loading || !acceptedTerms}>
+            {loading ? <LoaderCircle className="spin" size={19} /> : <GoogleMark />}
+            {loading ? (es ? "Conectando…" : "Connecting…") : es ? "Continuar con Google" : "Continue with Google"}
+          </button>
+          <div className="login-security"><ShieldCheck size={15} /> {es ? "Magic Brain nunca recibe tu contraseña de Google." : "Magic Brain never receives your Google password."}</div>
+        </div>
       </section>
       <section className={styles.channels} id="choose-your-channel" aria-labelledby="channels-heading">
         <h2 id="channels-heading">{es ? "Elige tu lado." : "Choose your side."}</h2>
@@ -120,8 +135,8 @@ export default function LoginPage() {
         </div>
         <p className={styles.developerRoute}>{es ? "¿Construyes tu propio agente? " : "Building your own agent? "}<Link href="/mcp#setup-api-cli">{es ? "Empieza con la API o la CLI" : "Start with the API or CLI"}</Link>{" · "}<Link href="/developers">{es ? "Desarrolladores" : "Developers"}</Link></p>
       </section>
-      <section className="auth-onboarding">
-        <div className="auth-onboarding-copy">
+      <section className={styles.collectionOverview}>
+        <div className={styles.collectionOverviewContent}>
           <h2 className={styles.collectionHeading}>{es ? "Tus cartas. Sus reglas. Su historia." : "Your cards. Their rules. Their story."}</h2>
           <div className="auth-card-showcase" aria-label={es ? "Ejemplos de cartas analizadas" : "Examples of analysed cards"}>
             <div className="auth-card-stack">
@@ -140,29 +155,6 @@ export default function LoginPage() {
             <div><span><BookOpen size={18} /></span><div><strong>{es ? "Resuelve la duda en plena partida" : "Work through the question mid-game"}</strong><small>{es ? "Texto Oracle, rulings y reglas citadas para tu asistente." : "Oracle text, card rulings and cited rules for your assistant."}</small></div></div>
             <div><span><WalletCards size={18} /></span><div><strong>{es ? "Recuerda lo que ya tienes" : "Remember what you already own"}</strong><small>{es ? "Copias, coste de compra, valor y seguimiento en un solo sitio." : "Copies, purchase cost, value and watchlists in one place."}</small></div></div>
           </div>
-        </div>
-
-        <div className={`login-card signup-card ${styles.signup}`} id="start-collection" tabIndex={-1} aria-labelledby="start-collection-heading">
-          <div className="login-mark"><MagicBrainMark size={42} /></div>
-          <span className="eyebrow">{es ? "CREA TU CUENTA GRATIS" : "CREATE YOUR FREE ACCOUNT"}</span>
-          <h2 id="start-collection-heading">{es ? "Dale memoria a tu colección." : "Give your collection a memory."}</h2>
-          <p>{es ? "Guarda tus cartas, lo que pagaste y las que no quieres perder de vista. Tu colección te espera cuando vuelvas." : "Save your cards, what you paid and the ones you want to watch. Your collection will be here when you return."}</p>
-          <label className="auth-legal-consent">
-            <input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} />
-            <span>{es ? <>Acepto los <Link href="/terms">Términos</Link> y confirmo que he leído la <Link href="/privacy">Política de privacidad</Link>.</> : <>I accept the <Link href="/terms">Terms</Link> and confirm I have read the <Link href="/privacy">Privacy Policy</Link>.</>}</span>
-          </label>
-          <button className="google-auth-cta" onClick={continueWithGoogle} disabled={loading || !acceptedTerms}>
-            {loading ? <LoaderCircle className="spin" size={19} /> : <GoogleMark />}
-            {loading ? (es ? "Conectando…" : "Connecting…") : es ? "Continuar con Google" : "Continue with Google"}
-          </button>
-          <NewsletterSignup compact />
-          <ul>
-            <li><Check size={13} /> {es ? "Registro e inicio de sesión en un paso" : "Sign up or sign in in one step"}</li>
-            <li><Check size={13} /> {es ? "Tus datos sincronizados de forma segura" : "Your data securely synchronised"}</li>
-            <li><Check size={13} /> {es ? "Sin contraseña adicional" : "No additional password"}</li>
-          </ul>
-          <div className="login-security"><ShieldCheck size={15} /> {es ? "Magic Brain nunca recibe tu contraseña de Google." : "Magic Brain never receives your Google password."}</div>
-          <small className="auth-terms">{es ? "El boletín es opcional y requiere una suscripción separada." : "The newsletter is optional and requires a separate subscription."}</small>
         </div>
       </section>
       <section className="landing-card-chronicle" aria-labelledby="card-chronicle-heading">
