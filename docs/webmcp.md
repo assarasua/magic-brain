@@ -1,55 +1,43 @@
-# Navigate Magic Brain with WebMCP
+# Magic Brain WebMCP
 
-Magic Brain exposes a browser-native WebMCP tool on every page:
+The [public WebMCP guide](https://magicbrain.es/webmcp) explains browser setup,
+all navigation destinations, public research tools, permissions and troubleshooting.
+For external clients, use the [remote MCP guide](https://magicbrain.es/mcp).
 
-```text
-navigate_magic_brain
-```
+## Page registration
 
-The tool lets an AI agent navigate to a named Magic Brain area without guessing
-URLs or clicking through menus. It is registered automatically when the website
-loads in a WebMCP-capable browser. There is nothing to install and no API key or
-remote endpoint to configure.
+Magic Brain checks `document.modelContext`, then `navigator.modelContext`, and
+registers tools when the selected context provides `registerTool`. It unregisters
+them on cleanup when `unregisterTool` is available. A compatible browser agent is
+required; a normal browser is not assumed to support this evolving capability.
 
-## Input
+The page registers `navigate_magic_brain` locally. It then fetches the hosted
+MCP `tools/list`, excludes the 11 account-only tools, and registers the 21 public
+research tools with their published schemas. Research calls forward `tools/call`
+to the hosted server and preserve its content/structured result. The website
+session is not forwarded as OAuth authorization.
 
-The tool accepts one required `destination` string. Supported destinations are:
+## Navigation
 
-`overview`, `market`, `latest-set-watch`, `portfolio`, `inventory`, `discover`,
-`watchlist`, `reserved-list`, `brain`, `signals`, `analyst`, `predict`, `settings`,
-and `developers`.
+Pass a required `destination` from `src/lib/web-mcp.ts`. The tool returns the
+accepted `destination` and `path` and navigates with the application router.
+Arbitrary URLs and external origins are rejected. Opening a private area still
+requires the normal website session; navigation does not submit forms or authorize
+account actions. The public guide renders the destination table from this map.
 
-## Safety model
+## Permissions and operational behavior
 
-- Destinations are resolved through a fixed application-owned allowlist.
-- Arbitrary URLs, query strings, and external origins are not accepted.
-- The tool only navigates. It does not submit forms, mutate account data, or
-  perform purchases.
-- Existing authentication rules still apply. Signed-out visitors who request a
-  private area are sent through the normal sign-in flow.
+The browser bridge excludes personal opportunities, predictions, portfolio
+intelligence, list reads and all account writes. Use remote MCP with OAuth for
+these tools. Public research retains the same source, date, evidence, pagination
+and error rules documented in [mcp-tools.md](mcp-tools.md).
 
-## Audit records
+Local navigation can register before remote discovery succeeds. Missing research
+tools may indicate connectivity, origin or client limitations. The guide’s browser
+check only detects the registration API; it does not certify agent connectivity.
+Mock remote discovery in isolated UI tests; the hosted service may reject random
+localhost origins. Do not disable browser-origin protections.
 
-Successful WebMCP navigation calls are recorded in `app_mcp_calls`. The audit
-record contains the source, tool name, success status, duration, destination,
-and timestamp. It does not contain prompts, page contents, credentials, or
-personal data.
-
-Hosted remote MCP calls are stored in the same table with `source =
-'remote_mcp'`. Remote tool arguments and responses are deliberately excluded.
-
-Recent activity can be inspected with:
-
-```sql
-select created_at, source, tool_name, success, duration_ms, request_summary, metadata
-from app_mcp_calls
-order by created_at desc
-limit 100;
-```
-
-## Browser support
-
-WebMCP is currently an early-preview browser capability. Unsupported browsers
-ignore the registration and Magic Brain continues to work normally. Use the
-hosted remote MCP documented in [MCP installation](mcp-installation.md) for
-ChatGPT, Claude, Cursor, VS Code, and OpenAI API integrations.
+Remote requests use the service’s MCP audit and privacy behavior. Optional request
+summary/context must contain only non-personal intent, never copied conversations,
+credentials or private notes. See the public MCP guide and privacy policy.

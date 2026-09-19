@@ -130,6 +130,8 @@ function SessionGate({ children }: { children: React.ReactNode }) {
   const { status } = useSession();
   const isLogin = pathname === "/login";
   const isPublic =
+    pathname === "/mcp" ||
+    pathname === "/webmcp" ||
     pathname === "/developers" ||
     pathname.startsWith("/developers/") ||
     pathname === "/privacy" ||

@@ -605,7 +605,7 @@ export function DevelopersHub({
       <header className={styles.header}>
         <Link href="/" aria-label="Magic Brain home"><MagicBrainLogo /></Link>
         <nav aria-label={es ? "Navegación para desarrolladores" : "Developer navigation"}>
-          {navItems.slice(0, 7).map(([id]) => <a href={`#${id}`} key={id}>{navLabels[id]}</a>)}
+          {navItems.slice(0, 7).map(([id]) => <Link href={id === "mcp" ? "/mcp" : id === "web-mcp" ? "/webmcp" : `#${id}`} key={id}>{navLabels[id]}</Link>)}
         </nav>
         <div className={styles.headerActions}>
           <LanguageToggle />
@@ -626,7 +626,7 @@ export function DevelopersHub({
         {menuOpen && (
           <nav className={styles.mobileNav} aria-label={es ? "Navegación móvil para desarrolladores" : "Mobile developer navigation"}>
             <div className={styles.mobileLanguage}><LanguageToggle /></div>
-            {navItems.map(([id]) => <a href={`#${id}`} onClick={() => setMenuOpen(false)} key={id}>{navLabels[id]}</a>)}
+            {navItems.map(([id]) => <Link href={id === "mcp" ? "/mcp" : id === "web-mcp" ? "/webmcp" : `#${id}`} onClick={() => setMenuOpen(false)} key={id}>{navLabels[id]}</Link>)}
             <a href="https://github.com/assarasua/magic-brain">GitHub <ExternalLink size={13} /></a>
           </nav>
         )}
@@ -640,6 +640,8 @@ export function DevelopersHub({
           <p>{es ? "Consulta impresiones, ediciones e historial de precios en EUR mediante una API estable y consciente de la procedencia. Empieza de forma anónima y crea una clave gratuita cuando necesites más capacidad." : "Query card printings, sets, and EUR price history through a stable, provenance-aware API. Start anonymously, then create a free key when you need more room."}</p>
           <div className={styles.heroActions}>
             <a href="#reference">{es ? "Explorar endpoints" : "Explore endpoints"}</a>
+            <Link href="/mcp">{es ? "Guía MCP" : "MCP guide"}</Link>
+            <Link href="/webmcp">{es ? "Guía WebMCP" : "WebMCP guide"}</Link>
           </div>
           <div className={styles.heroFacts}>
             <span><Check size={14} /> {es ? "Empieza sin clave" : "No key to start"}</span>
@@ -654,22 +656,23 @@ export function DevelopersHub({
         <section className={`${styles.section} ${styles.webMcpSection}`} id="web-mcp">
           <div className={styles.sectionHeading}>
             <span>WebMCP {es ? "nativo del navegador" : "browser-native"}</span>
-            <h2>{es ? "Deja que un agente navegue por Magic Brain." : "Let an agent navigate Magic Brain."}</h2>
-            <p>{es ? "Magic Brain expone una herramienta de navegación estructurada directamente en navegadores compatibles. Un agente puede abrir un área concreta sin adivinar URLs ni manejar menús; todos los destinos están limitados a una lista revisada." : "Magic Brain exposes a structured navigation tool directly in supported browsers. An agent can open a named product area without guessing URLs or operating menus, while every destination remains constrained to a reviewed allowlist."}</p>
+            <h2>{es ? "Navega e investiga con un agente del navegador." : "Navigate and research with a browser agent."}</h2>
+            <p>{es ? "Magic Brain registra navegación local y las herramientas públicas de investigación del MCP en navegadores compatibles. Consulta cartas, precios y reglas, o abre destinos concretos. Las herramientas personales se excluyen de esta integración." : "Magic Brain registers local navigation and the MCP’s public research tools in compatible browsers. Retrieve cards, prices and rules, or open fixed destinations. Account tools are excluded from this browser bridge."}</p>
           </div>
           <div className={styles.webMcpCard}>
             <div className={styles.webMcpIcon}><Signpost size={24} /></div>
             <div>
               <span className={styles.previewBadge}>{es ? "Vista previa" : "Early preview"}</span>
               <h3><code>navigate_magic_brain</code></h3>
-              <p>{es ? "Disponible automáticamente al navegar por magicbrain.es con un navegador compatible con WebMCP. No necesita endpoint, extensión, clave API ni archivo de configuración." : "Available automatically while you browse magicbrain.es in a WebMCP-capable browser. No endpoint, extension, API key, or configuration file is required."}</p>
+              <p>{es ? "Magic Brain registra sus herramientas al detectar una API compatible. El navegador o agente puede requerir configuración; las consultas públicas necesitan conexión con el MCP alojado." : "Magic Brain registers tools when it detects a compatible API. Your browser or agent may require setup; public research needs a connection to the hosted MCP."}</p>
             </div>
             <div className={styles.webMcpDetails}>
               <span><Check size={14} /> {es ? "Solo destinos fijos" : "Fixed destinations only"}</span>
-              <span><Check size={14} /> {es ? "Navegación en el cliente" : "Client-side navigation"}</span>
+              <span><Check size={14} /> {es ? "Navegación e investigación pública" : "Navigation & public research"}</span>
               <span><Check size={14} /> {es ? "Sin acciones de escritura" : "No write actions"}</span>
             </div>
           </div>
+          <p><Link className={styles.guideLink} href="/webmcp">{es ? "Leer la guía completa de WebMCP" : "Read the complete WebMCP guide"} <ArrowRight size={15} /></Link></p>
           <p className={styles.webMcpNote}>{es ? "WebMCP es una capacidad experimental del navegador. Para ChatGPT, Claude, Cursor, VS Code e integraciones API, usa el MCP remoto alojado que aparece a continuación." : "WebMCP is an experimental browser capability. For ChatGPT, Claude, Cursor, VS Code, and API integrations today, use the hosted remote MCP below."}</p>
         </section>
 
@@ -679,6 +682,7 @@ export function DevelopersHub({
             <h2>{es ? "Conecta tu cliente de IA." : "Connect your AI client."}</h2>
             <p>{es ? "Instala las herramientas de Magic Brain en tu cliente habitual. La investigación pública es anónima; OAuth permite consultar tu cuenta y, con confirmación explícita, actualizar portfolio, listas y watchlist." : "Install the live Magic Brain tools in the client you already use. Public research stays anonymous; OAuth can read your account and, with explicit confirmation, update portfolios, lists, and watchlists."}</p>
           </div>
+          <p><Link className={styles.guideLink} href="/mcp">{es ? "Guía MCP: conexión, herramientas, reglas y ejemplos" : "MCP guide: setup, tools, rules and examples"} <ArrowRight size={15} /></Link></p>
           <McpInstall es={es} />
         </section>
 

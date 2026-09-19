@@ -2546,13 +2546,15 @@ footer {
   margin-top: 16px;
 }
 
-.landing-developer-tags span {
+.landing-developer-tags span,
+.landing-developer-tags a {
   padding: 5px 8px;
   border: 1px solid rgba(108, 194, 247, 0.16);
   border-radius: 999px;
   color: #8fcdf3;
   background: rgba(62, 159, 224, 0.06);
   font: 750 8px var(--font-mono);
+  text-decoration: none;
 }
 
 .landing-developers-cta {
@@ -13607,4 +13609,27 @@ button:active,
   .market-list > .market-card-link > svg {
     grid-area: arrow;
   }
+}
+
+/* Public integration guides stay reachable from the landing page at every width. */
+.login-page > .landing-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 24px;
+}
+.landing-header .landing-header-actions { justify-self: end; }
+.landing-guide-nav, .landing-footer-guides { display: flex; align-items: center; flex-wrap: wrap; gap: 20px; }
+.landing-guide-nav a { display: inline-flex; align-items: center; min-height: 40px; color: #b9cde0; font-size: 12px; font-weight: 650; text-decoration: none; }
+.landing-guide-nav a:hover, .landing-developer-tags a:hover { color: #ffffff; text-decoration: underline; text-underline-offset: 4px; }
+.landing-guide-nav a:focus-visible, .landing-developer-tags a:focus-visible, .landing-footer-guides a:focus-visible { outline: 2px solid #82ded1; outline-offset: 4px; }
+.landing-footer-guides { justify-content: center; gap: 22px; margin-bottom: 18px; font-size: 12px; }
+@media (max-width: 760px) {
+  .login-page > .landing-header { grid-template-columns: minmax(0, 1fr) auto; height: auto; gap: 6px 10px; padding-block: 12px; }
+  .landing-guide-nav { grid-row: 2; grid-column: 1 / -1; border-top: 1px solid var(--line); padding-top: 6px; }
+  .landing-guide-nav a { min-height: 32px; }
+  .landing-header .landing-movers-link { padding-inline: 8px; font-size: 10px; }
+}
+.landing-header > .inventory-brand { display: inline-flex; }
+@media (max-width: 760px) {
+  .login-page { grid-template-rows: auto 1fr auto; }
 }
