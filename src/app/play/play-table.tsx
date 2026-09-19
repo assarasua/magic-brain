@@ -209,7 +209,9 @@ export default function PlayTable() {
     setSelectedId("");
     setViewPlayer(0);
     setRevealed(false);
-    setMode("off");
+    setMode(
+      !manual && decks.some((deck) => deck.computer) ? "opponents" : "off",
+    );
     setError("");
     setResetting(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
