@@ -113,6 +113,7 @@ export default function DeckSetup({
   initialInput,
   roomLabel,
   roomBusy = false,
+  playStyle = "ai",
 }: {
   es: boolean;
   onStart: (decks: Deck[], manual: boolean) => void;
@@ -121,6 +122,7 @@ export default function DeckSetup({
   initialInput?: DeckInput;
   roomLabel?: string;
   roomBusy?: boolean;
+  playStyle?: "ai" | "shared";
 }) {
   const [inputs, setInputs] = useState<DeckInput[]>(() => {
     const all = initial();
@@ -136,6 +138,20 @@ export default function DeckSetup({
     { id: string; name: string }[]
   >([]);
   const abort = useRef<AbortController | null>(null);
+  useEffect(() => {
+    if (online) return;
+    const timer = setTimeout(
+      () =>
+        setInputs((all) =>
+          all.map((input, i) => ({
+            ...input,
+            computer: playStyle === "ai" && i > 0,
+          })),
+        ),
+      0,
+    );
+    return () => clearTimeout(timer);
+  }, [playStyle, online]);
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
@@ -456,13 +472,14 @@ function DeckEditor({
         <label>
           {es ? "Control" : "Control"}
           <select
+            aria-label={`${es ? "Control del jugador" : "Player control"} ${seat + 1}`}
             value={input.computer ? "computer" : "human"}
             onChange={(e) =>
               onChange({ computer: e.target.value === "computer" })
             }
           >
             <option value="human">{es ? "Humano" : "Human"}</option>
-            <option value="computer">{es ? "Ordenador" : "Computer"}</option>
+            <option value="computer">{es ? "IA" : "AI"}</option>
           </select>
         </label>
       </div>

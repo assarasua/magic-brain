@@ -20,6 +20,7 @@ import {
   type Zone,
 } from "@/lib/play/engine";
 import styles from "./play.module.css";
+import CardTile from "./card-tile";
 export const STEP_LABELS = {
   untap: ["Untap", "Enderezar"],
   upkeep: ["Upkeep", "Mantenimiento"],
@@ -149,10 +150,12 @@ export function Decisions({
   game: g,
   es,
   dispatch,
+  onInspect,
 }: {
   game: Game;
   es: boolean;
   dispatch: (action: Action) => void;
+  onInspect?: (id: string) => void;
 }) {
   const player = actingPlayer(g);
   const p = g.players[player];
@@ -166,28 +169,34 @@ export function Decisions({
       <p>
         {bottom
           ? es
-            ? `Elige ${bottomCount(g, player)} cartas para poner en el fondo, en orden de selección.`
-            : `Choose ${bottomCount(g, player)} cards for the bottom, in selection order.`
+            ? bottomCount(g, player)
+              ? `Elige ${bottomCount(g, player)} cartas para poner en el fondo, en orden de selección.`
+              : "Estas son tus siete cartas. Quédate la mano o vuelve a robar."
+            : bottomCount(g, player)
+              ? `Choose ${bottomCount(g, player)} cards for the bottom, in selection order.`
+              : "These are your seven cards. Keep this hand or draw a new one."
           : es
             ? `Descarta ${Math.max(0, hand.length - 7)} cartas para quedarte con siete.`
             : `Discard ${Math.max(0, hand.length - 7)} cards to keep seven.`}
       </p>
-      <div className={styles.picks}>
+      <div className={styles.handCards}>
         {hand.map((c) => (
-          <label key={c.id}>
-            <input
-              type="checkbox"
-              checked={marked.includes(c.id)}
-              onChange={(e) =>
-                setMarked((previous) =>
-                  e.target.checked
-                    ? [...previous, c.id]
-                    : previous.filter((id) => id !== c.id),
-                )
-              }
-            />
-            {definition(g, c).name}
-          </label>
+          <CardTile
+            key={c.id}
+            g={g}
+            c={c}
+            es={es}
+            selected={marked.includes(c.id)}
+            onClick={() => {
+              onInspect?.(c.id);
+              if (bottom && !bottomCount(g, player)) return;
+              setMarked((previous) =>
+                previous.includes(c.id)
+                  ? previous.filter((id) => id !== c.id)
+                  : [...previous, c.id],
+              );
+            }}
+          />
         ))}
       </div>
     </>

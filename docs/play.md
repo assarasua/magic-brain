@@ -7,10 +7,17 @@ to it. WebMCP can navigate to it; game actions are not MCP tools.
 
 ## Playing
 
-Choose **Local table / vs computer** to play without an account. Choose human or
-computer for each seat. **Computer players only** automatically takes computer
-turns and passes priority back to humans. One automatic action, automatic turn,
-full demonstration, pause, manual actions and a 50-action undo history are available.
+**Play now · vs 3 AI** opens a complete four-player practice game in one click.
+Choose **Play vs AI** to control one player while the other seats play automatically.
+Your hand appears along the bottom; opponents, face-down hands, commanders, libraries,
+and battlefields sit above it. Full card faces show tapped state, live power/toughness,
+counters and combat state. Select a card to inspect its Oracle text and rulings.
+**Pause AI** pauses the opponents. Under **Table controls**, **Control all seats**
+lets you take over their decisions. One automatic action, automatic turn,
+full demonstration, manual actions and a 50-action undo history remain available.
+Choose **Pass & play** to make every seat human on the same device. The perspective
+follows the human making the decision; private zones require revealing after a handoff.
+Each seat's Human/AI selection can also be changed during setup.
 The current local game is saved in this browser and can be resumed after a reload.
 
 Choose **Online multiplayer** to create a room with your Magic Brain account.
@@ -60,6 +67,10 @@ deterministic strategy based on its own hand and public information, not an LLM.
 
 **This is not an implementation of every Magic card or every interaction.** Oracle
 text and Comprehensive Rules excerpts are evidence, not executable effects.
+The rulebook panel uses a same-origin, rate-limited read-only endpoint at
+`/api/play/rules`. It forwards only a bounded `search_rules` query to the public MCP
+service, without browser cookies or credentials, so browser cross-origin restrictions
+do not prevent rule lookups. It preserves the edition, citations and freshness notice.
 Replacement effects, arbitrary triggered abilities, layers, characteristic-defining
 abilities, legend checks, protection, planeswalker/battle attacks, complex costs,
 and many format exceptions need manual resolution. Unimplemented creature stats
@@ -108,4 +119,6 @@ concurrent revisions, reconnects, manual boundaries and complete mixed games.
 The browser regression runs two isolated human contexts against the real room
 reducer with fixture auth/storage; it exercises deck import, room creation, computer
 seats, joining, synchronized moves, reloading, and English/Spanish mobile layout.
+It also checks portrait card proportions, local AI control boundaries, manual takeover,
+the pass-and-play perspective, and rule lookup rendering.
 No browser test contacts real accounts or provider APIs.

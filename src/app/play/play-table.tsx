@@ -19,27 +19,23 @@ import {
 } from "lucide-react";
 import { MagicBrainLogo } from "@/components/brand-logo";
 import { LanguageToggle, useLanguage } from "@/components/language-provider";
-import { STARTER_CARDS } from "@/lib/play/decks";
+import { PRESETS, STARTER_CARDS, buildDeck } from "@/lib/play/decks";
 import {
   STEPS,
   actingPlayer,
   applyAction,
   automaticAction,
-  creature,
   createGame,
   definition,
-  inZone,
   needsManual,
   restoreGame,
-  stats,
-  summoningSick,
   type Action,
-  type Card,
   type Deck,
   type Game,
   type Zone,
 } from "@/lib/play/engine";
 import DeckSetup from "./deck-setup";
+import Battlefield from "./battlefield";
 import OnlineLobby, { roomErrorText } from "./online-lobby";
 import { useOnlineRoom } from "./use-online-room";
 import ReferencePanel from "./reference-panel";
@@ -48,7 +44,6 @@ import {
   Decisions,
   ManualTools,
   STEP_LABELS,
-  ZONE_LABELS,
   gameError,
 } from "./game-controls";
 import styles from "./play.module.css";
@@ -63,6 +58,8 @@ export default function PlayTable() {
   const [table, setTable] = useState<Table | null>(null);
   const [saved, setSaved] = useState<Table | null>(null);
   const [selectedId, setSelectedId] = useState("");
+  const [playStyle, setPlayStyle] = useState<"ai" | "shared">("ai");
+  const [controlAll, setControlAll] = useState(false);
   const [mode, setMode] = useState<Mode>("off");
   const [stopTurn, setStopTurn] = useState(0);
   const [historyCount, setHistoryCount] = useState(0);
@@ -76,8 +73,8 @@ export default function PlayTable() {
   const actions = useRef(0);
   const game = online.id ? (online.room?.game ?? undefined) : table?.game;
   const canControl = (seat: number) =>
-    !online.id ||
-    online.room?.seat === seat ||
+    (!online.id && (controlAll || !game?.players[seat]?.computer)) ||
+    (!!online.id && online.room?.seat === seat) ||
     !!(
       online.room?.host &&
       online.room.manual &&
@@ -129,6 +126,8 @@ export default function PlayTable() {
         const next = applyAction(table.game, action);
         history.current = [...history.current.slice(-49), table];
         setHistoryCount(history.current.length);
+        if (action.type === "manual" || action.type === "resolveManual")
+          setControlAll(true);
         setTable({
           ...table,
           game: next,
@@ -202,13 +201,24 @@ export default function PlayTable() {
   function start(decks: Deck[], manual: boolean) {
     history.current = [];
     setHistoryCount(0);
+    const created = createGame(
+      decks,
+      crypto.getRandomValues(new Uint32Array(1))[0],
+    );
+    const home = Math.max(
+      0,
+      created.players.findIndex((p) => !p.computer),
+    );
     setTable({
-      game: createGame(decks, crypto.getRandomValues(new Uint32Array(1))[0]),
+      game: created,
       manual,
     });
-    setSelectedId("");
-    setViewPlayer(0);
-    setRevealed(false);
+    setSelectedId(
+      created.cards.find((c) => c.owner === home && c.commander)?.id ?? "",
+    );
+    setViewPlayer(home);
+    setRevealed(decks.filter((d) => !d.computer).length === 1);
+    setControlAll(manual);
     setMode(
       !manual && decks.some((deck) => deck.computer) ? "opponents" : "off",
     );
@@ -228,11 +238,41 @@ export default function PlayTable() {
   const selected = game?.cards.find((c) => c.id === selectedId);
   const selectedDef = game && selected ? definition(game, selected) : undefined;
   const act = game ? actingPlayer(game) : 0;
+  const sharedSeat =
+    !online.id &&
+    game &&
+    game.players.filter((p) => !p.computer).length > 1 &&
+    !game.players[act].computer
+      ? act
+      : -1;
+  useEffect(() => {
+    if (sharedSeat < 0) return;
+    const timer = setTimeout(() => {
+      setViewPlayer(sharedSeat);
+      setZone("hand");
+      setRevealed(false);
+      setSelectedId("");
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [sharedSeat]);
+  const homeSeat =
+    online.id && onlineSeat !== undefined && onlineSeat >= 0
+      ? onlineSeat
+      : sharedSeat >= 0
+        ? sharedSeat
+        : game
+          ? Math.max(
+              0,
+              game.players.findIndex((p) => !p.computer),
+            )
+          : 0;
+  const actingComputer =
+    !!game?.players[act].computer && !controlAll && !online.id;
   const commanderArt = STARTER_CARDS.filter((c) =>
     ["Isamaru, Hound of Konda", "Jasmine Boreal", "Lady Orca"].includes(c.name),
   );
   return (
-    <main className={styles.page}>
+    <main className={`${styles.page} ${game ? styles.gamePage : ""}`}>
       <header className={styles.header}>
         <Link href="/" aria-label="Magic Brain">
           <MagicBrainLogo />
@@ -294,8 +334,35 @@ export default function PlayTable() {
                 </span>
               </div>
               <div className={styles.heroActions}>
-                <a className={styles.primary} href="#setup">
-                  {es ? "Preparar mesa" : "Set up a table"}
+                <button
+                  className={styles.primary}
+                  onClick={() =>
+                    start(
+                      PRESETS.map(
+                        (preset, i) =>
+                          buildDeck({
+                            name:
+                              i === 0
+                                ? es
+                                  ? "Tú"
+                                  : "You"
+                                : `${es ? "IA" : "AI"} ${i}`,
+                            computer: i > 0,
+                            commander: preset.commander,
+                            list: preset.list,
+                          }).deck,
+                      ),
+                      false,
+                    )
+                  }
+                >
+                  <Play size={17} />
+                  {es ? "Jugar ahora · contra 3 IA" : "Play now · vs 3 AI"}
+                </button>
+                <a href="#setup">
+                  {es
+                    ? "Tu mazo / otras formas de jugar"
+                    : "Your deck / other ways to play"}
                   <ArrowRight size={17} />
                 </a>
                 {saved && (
@@ -303,7 +370,12 @@ export default function PlayTable() {
                     onClick={() => {
                       setTable(saved);
                       setSaved(null);
-                      setMode("off");
+                      setControlAll(saved.manual);
+                      setRevealed(
+                        saved.game.players.filter((p) => !p.computer).length ===
+                          1,
+                      );
+                      setMode(saved.manual ? "off" : "opponents");
                     }}
                   >
                     <RotateCcw size={16} />
@@ -335,14 +407,30 @@ export default function PlayTable() {
           <div id="setup">
             <div className={styles.modeChoice}>
               <button
-                aria-pressed={!online.online}
-                className={!online.online ? styles.primary : ""}
-                onClick={() => online.setOnline(false)}
+                aria-pressed={!online.online && playStyle === "ai"}
+                className={
+                  !online.online && playStyle === "ai" ? styles.primary : ""
+                }
+                onClick={() => {
+                  online.setOnline(false);
+                  setPlayStyle("ai");
+                }}
               >
                 <Bot size={18} />
-                {es
-                  ? "Mesa local / contra el ordenador"
-                  : "Local table / vs computer"}
+                {es ? "Jugar contra IA" : "Play vs AI"}
+              </button>
+              <button
+                aria-pressed={!online.online && playStyle === "shared"}
+                className={
+                  !online.online && playStyle === "shared" ? styles.primary : ""
+                }
+                onClick={() => {
+                  online.setOnline(false);
+                  setPlayStyle("shared");
+                }}
+              >
+                <Users size={18} />
+                {es ? "Compartir dispositivo" : "Pass & play"}
               </button>
               <button
                 aria-pressed={online.online}
@@ -373,6 +461,7 @@ export default function PlayTable() {
             )}
             <DeckSetup
               {...{ es, onStart: start }}
+              playStyle={playStyle}
               online={online.online}
               onRoomCreate={online.create}
               roomBusy={online.busy}
@@ -465,58 +554,107 @@ export default function PlayTable() {
           ) : (
             <div className={styles.playback}>
               <div className={styles.toolbar}>
-                <button
-                  className={mode !== "off" ? styles.primary : ""}
-                  onClick={() => setMode("off")}
-                >
-                  <Pause size={15} />
-                  {es ? "Manual / Pausar" : "Manual / Pause"}
-                </button>
-                <button
-                  disabled={!supported || game.winner !== null}
-                  onClick={single}
-                >
-                  <SkipForward size={15} />
-                  {es ? "Una acción automática" : "One automatic action"}
-                </button>
-                <button
-                  disabled={!supported || game.winner !== null}
-                  onClick={() => run("turn")}
-                >
-                  <Play size={15} />
-                  {es ? "Automatizar este turno" : "Auto-play this turn"}
-                </button>
-                <select
-                  aria-label={
-                    es ? "Reproducción automática" : "Automatic playback"
-                  }
-                  value={mode}
-                  disabled={!supported || game.winner !== null}
-                  onChange={(e) => run(e.target.value as Mode)}
-                >
-                  <option value="off">
-                    {es ? "Reproducción pausada" : "Playback paused"}
-                  </option>
-                  <option value="opponents">
-                    {es ? "Solo jugadores ordenador" : "Computer players only"}
-                  </option>
-                  <option value="turn">
-                    {es ? "Hasta terminar este turno" : "Until this turn ends"}
-                  </option>
-                  <option value="all">
-                    {es ? "Toda la mesa · demo" : "Whole table · demo"}
-                  </option>
-                </select>
+                <span className={styles.controlSummary}>
+                  <Users size={14} />
+                  {controlAll
+                    ? es
+                      ? "Controlas toda la mesa"
+                      : "You control the whole table"
+                    : `${es ? "Tu asiento" : "Your seat"}: ${game.players[homeSeat].name}`}
+                </span>
+                {game.players.some((p) => p.computer) && !controlAll && (
+                  <button
+                    className={mode === "opponents" ? styles.primary : ""}
+                    disabled={!supported || game.winner !== null}
+                    onClick={() =>
+                      mode === "opponents" ? setMode("off") : run("opponents")
+                    }
+                  >
+                    {mode === "opponents" ? (
+                      <Pause size={14} />
+                    ) : (
+                      <Play size={14} />
+                    )}
+                    {mode === "opponents"
+                      ? es
+                        ? "Pausar IA"
+                        : "Pause AI"
+                      : es
+                        ? "Reanudar IA"
+                        : "Resume AI"}
+                  </button>
+                )}
+                <details className={styles.automationOptions}>
+                  <summary>
+                    {es ? "Control de la mesa" : "Table controls"}
+                  </summary>
+                  <div className={styles.toolbar}>
+                    <button
+                      onClick={() => {
+                        setMode("off");
+                        setControlAll(!controlAll);
+                      }}
+                    >
+                      {controlAll
+                        ? es
+                          ? "Volver a mi asiento"
+                          : "Return to my seat"
+                        : es
+                          ? "Controlar todos los asientos"
+                          : "Control all seats"}
+                    </button>
+                    <button
+                      disabled={!supported || game.winner !== null}
+                      onClick={single}
+                    >
+                      <SkipForward size={14} />
+                      {es ? "Una acción automática" : "One automatic action"}
+                    </button>
+                    <button
+                      disabled={!supported || game.winner !== null}
+                      onClick={() => run("turn")}
+                    >
+                      <Play size={14} />
+                      {es ? "Automatizar este turno" : "Auto-play this turn"}
+                    </button>
+                    <select
+                      aria-label={
+                        es ? "Reproducción automática" : "Automatic playback"
+                      }
+                      value={mode}
+                      disabled={!supported || game.winner !== null}
+                      onChange={(e) => {
+                        setControlAll(false);
+                        run(e.target.value as Mode);
+                      }}
+                    >
+                      <option value="off">
+                        {es ? "Reproducción pausada" : "Playback paused"}
+                      </option>
+                      <option value="opponents">
+                        {es
+                          ? "Solo jugadores ordenador"
+                          : "Computer players only"}
+                      </option>
+                      <option value="turn">
+                        {es
+                          ? "Hasta terminar este turno"
+                          : "Until this turn ends"}
+                      </option>
+                      <option value="all">
+                        {es ? "Toda la mesa · demo" : "Whole table · demo"}
+                      </option>
+                    </select>
+                  </div>
+                </details>
+                {!supported && (
+                  <small>
+                    {es
+                      ? "Efectos manuales · IA desactivada"
+                      : "Manual effects · AI disabled"}
+                  </small>
+                )}
               </div>
-              <small>
-                {supported
-                  ? es
-                    ? "Puedes pausar entre acciones y tomar el control."
-                    : "Pause between actions and take control."
-                  : es
-                    ? "Efectos o reglas del mazo sin verificar: juego automático desactivado."
-                    : "Unverified deck rules or effects: automatic play is disabled."}
-              </small>
             </div>
           )}
           {online.error && (
@@ -552,15 +690,34 @@ export default function PlayTable() {
           )}
           <div className={styles.gameLayout}>
             <div className={styles.gameMain}>
-              <section className={styles.decision} aria-live="polite">
-                {(!online.id || canControl(act) || game.winner !== null) &&
-                !online.busy ? (
+              <Battlefield
+                game={game}
+                es={es}
+                homeSeat={homeSeat}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+                canControl={canControl}
+                viewPlayer={viewPlayer}
+                setViewPlayer={setViewPlayer}
+                zone={zone}
+                setZone={setZone}
+                revealed={revealed}
+                setRevealed={setRevealed}
+                online={!!online.id}
+                openingDecision={game.opening && canControl(act)}
+              />
+              <section
+                className={`${styles.decision} ${game.opening ? styles.openingDecision : ""}`}
+                aria-live="polite"
+              >
+                {(canControl(act) || game.winner !== null) && !online.busy ? (
                   <>
                     {" "}
                     <Decisions
                       key={`${game.turn}-${game.step}-${act}-${game.opening}-${game.commanderChoices[0]?.card ?? ""}`}
                       game={game}
                       es={es}
+                      onInspect={setSelectedId}
                       dispatch={(action) => {
                         setMode((previous) =>
                           previous === "opponents" ? previous : "off",
@@ -587,258 +744,9 @@ export default function PlayTable() {
                       ? es
                         ? "Enviando acción…"
                         : "Sending action…"
-                      : `${es ? "Esperando a" : "Waiting for"} ${game.players[act].name}.`}
-                  </p>
-                )}
-              </section>
-              <div className={styles.board}>
-                {game.players.map((p, i) => (
-                  <section
-                    className={`${styles.playerBoard} ${game.active === i ? styles.activeBoard : ""} ${p.lost ? styles.lost : ""}`}
-                    key={i}
-                    aria-label={`${p.name} ${es ? "campo de batalla" : "battlefield"}`}
-                  >
-                    <div className={styles.playerTop}>
-                      <div>
-                        <span className={styles.eyebrow}>
-                          {p.computer ? <Bot size={13} /> : <Users size={13} />}
-                          0{i + 1} ·{" "}
-                          {p.lost
-                            ? es
-                              ? "ELIMINADO"
-                              : "ELIMINATED"
-                            : i === act
-                              ? es
-                                ? "DECIDE AHORA"
-                                : "ACTING NOW"
-                              : es
-                                ? "EN MESA"
-                                : "AT THE TABLE"}
-                        </span>
-                        <h2>{p.name}</h2>
-                      </div>
-                      <div className={styles.life}>
-                        <strong>{p.life}</strong>
-                        <small>
-                          {es ? "vidas" : "life"}
-                          {p.poison > 0
-                            ? ` · ${p.poison} ${es ? "veneno" : "poison"}`
-                            : ""}
-                        </small>
-                      </div>
-                    </div>
-                    <div className={styles.zoneCounts}>
-                      {(
-                        ["library", "hand", "graveyard", "exile"] as Zone[]
-                      ).map((z) => (
-                        <button
-                          key={z}
-                          onClick={() => {
-                            setViewPlayer(i);
-                            setZone(z);
-                            setRevealed(false);
-                          }}
-                        >
-                          {ZONE_LABELS[z][es ? 1 : 0]}{" "}
-                          <b>{inZone(game, i, z).length}</b>
-                        </button>
-                      ))}
-                    </div>
-                    <div className={styles.commandZone}>
-                      <span>
-                        <Crown size={14} />
-                        {es ? "Zona de mando" : "Command zone"}
-                      </span>
-                      <div className={styles.cardRow}>
-                        {inZone(game, i, "command").map((c) => (
-                          <CardTile
-                            key={c.id}
-                            {...{ g: game, c, es }}
-                            selected={selectedId === c.id}
-                            onClick={() => setSelectedId(c.id)}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                    <div className={styles.permanents}>
-                      {inZone(game, i, "battlefield").length === 0 ? (
-                        <p className={styles.emptyBoard}>
-                          {es
-                            ? "El campo está listo para tu primera carta."
-                            : "The battlefield is waiting for your first card."}
-                        </p>
-                      ) : (
-                        <>
-                          {[true, false].map((isCreature) => (
-                            <div
-                              className={styles.cardRow}
-                              key={String(isCreature)}
-                            >
-                              {inZone(game, i, "battlefield")
-                                .filter((c) => creature(game, c) === isCreature)
-                                .map((c) => (
-                                  <CardTile
-                                    key={c.id}
-                                    {...{ g: game, c, es }}
-                                    selected={selectedId === c.id}
-                                    onClick={() => setSelectedId(c.id)}
-                                  />
-                                ))}
-                            </div>
-                          ))}
-                        </>
-                      )}
-                    </div>
-                    <div className={styles.playerBottom}>
-                      <span>
-                        {es ? "Maná" : "Mana"}:{" "}
-                        {Object.entries(p.mana)
-                          .filter(([, v]) => v > 0)
-                          .map(([k, v]) => `${k} ${v}`)
-                          .join(" · ") || "—"}
-                      </span>
-                      {Object.keys(p.commanderDamage).length > 0 && (
-                        <details>
-                          <summary>
-                            {es ? "Daño de comandante" : "Commander damage"}
-                          </summary>
-                          {Object.entries(p.commanderDamage).map(([id, n]) => (
-                            <p key={id}>
-                              {game.cards.find((c) => c.id === id)
-                                ? definition(
-                                    game,
-                                    game.cards.find((c) => c.id === id)!,
-                                  ).name
-                                : id}
-                              : {n}/21
-                            </p>
-                          ))}
-                        </details>
-                      )}
-                      <button
-                        disabled={!canControl(i)}
-                        onClick={() => {
-                          setViewPlayer(i);
-                          setZone("hand");
-                          setRevealed(true);
-                        }}
-                      >
-                        {es ? "Ver mano" : "View hand"}
-                      </button>
-                    </div>
-                  </section>
-                ))}
-              </div>
-              <section className={styles.handPanel}>
-                <div className={styles.toolbar}>
-                  <h3>{ZONE_LABELS[zone][es ? 1 : 0]}</h3>
-                  <select
-                    aria-label={es ? "Ver zona de jugador" : "View player zone"}
-                    value={viewPlayer}
-                    onChange={(e) => {
-                      setViewPlayer(Number(e.target.value));
-                      setRevealed(false);
-                    }}
-                  >
-                    {game.players.map((p, i) => (
-                      <option value={i} key={i}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    aria-label={es ? "Zona a consultar" : "Zone to view"}
-                    value={zone}
-                    onChange={(e) => {
-                      setZone(e.target.value as Zone);
-                      setRevealed(false);
-                    }}
-                  >
-                    {Object.entries(ZONE_LABELS)
-                      .filter(([z]) => z !== "stack")
-                      .map(([z, labels]) => (
-                        <option key={z} value={z}>
-                          {labels[es ? 1 : 0]}
-                        </option>
-                      ))}
-                  </select>
-                  {["hand", "library"].includes(zone) &&
-                    (!online.id ||
-                      (zone === "hand" && canControl(viewPlayer))) && (
-                      <button onClick={() => setRevealed(!revealed)}>
-                        {revealed
-                          ? es
-                            ? "Ocultar cartas"
-                            : "Hide cards"
-                          : es
-                            ? "Mostrar cartas a la mesa"
-                            : "Reveal cards to the table"}
-                      </button>
-                    )}
-                </div>
-                {["hand", "library"].includes(zone) &&
-                (!revealed ||
-                  (!!online.id &&
-                    (zone === "library" || !canControl(viewPlayer)))) ? (
-                  <p>
-                    {inZone(game, viewPlayer, zone).length}{" "}
-                    {es
-                      ? "cartas ocultas. Esta es una mesa compartida: revela la zona solo cuando corresponda."
-                      : "hidden cards. This is a shared table: reveal this zone only when appropriate."}
-                  </p>
-                ) : (
-                  <div className={styles.handCards}>
-                    {inZone(game, viewPlayer, zone).map((c) => (
-                      <CardTile
-                        key={c.id}
-                        {...{ g: game, c, es }}
-                        selected={selectedId === c.id}
-                        onClick={() => setSelectedId(c.id)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </section>
-              <section className={styles.stack}>
-                <h3>
-                  <Layers size={17} />
-                  {es ? "Pila" : "Stack"}
-                  <span>{game.stack.length}</span>
-                </h3>
-                {game.stack.length ? (
-                  <ol>
-                    {[...game.stack].reverse().map((s, i) => (
-                      <li key={s.id}>
-                        <button onClick={() => setSelectedId(s.card)}>
-                          <b>{i === 0 ? (es ? "Siguiente" : "Next") : i + 1}</b>
-                          {game.cards.find((c) => c.id === s.card)
-                            ? definition(
-                                game,
-                                game.cards.find((c) => c.id === s.card)!,
-                              ).name
-                            : es
-                              ? "Habilidad"
-                              : "Ability"}
-                          {s.ability
-                            ? es
-                              ? " · habilidad"
-                              : " · ability"
-                            : ""}
-                          <small>
-                            {game.players[s.controller].name}
-                            {s.target
-                              ? ` → ${"player" in s.target ? game.players[s.target.player]?.name : "card" in s.target ? game.cards.find((c) => c.id === (s.target as { card: string }).card)?.id : s.target.spell}`
-                              : ""}
-                          </small>
-                        </button>
-                      </li>
-                    ))}
-                  </ol>
-                ) : (
-                  <p>
-                    {es
-                      ? "La pila está vacía. Todos los jugadores deben pasar para avanzar al siguiente paso."
-                      : "The stack is empty. Every player must pass to advance to the next step."}
+                      : actingComputer
+                        ? `${game.players[act].name} · ${mode === "off" ? (es ? "IA en pausa" : "AI paused") : es ? "La IA está jugando…" : "AI is playing…"}`
+                        : `${es ? "Esperando a" : "Waiting for"} ${game.players[act].name}.`}
                   </p>
                 )}
               </section>
@@ -949,65 +857,5 @@ export default function PlayTable() {
         <Link href="/developers">{es ? "Desarrolladores" : "Developers"}</Link>
       </footer>
     </main>
-  );
-}
-function CardTile({
-  g,
-  c,
-  es,
-  selected,
-  onClick,
-}: {
-  g: Game;
-  c: Card;
-  es: boolean;
-  selected: boolean;
-  onClick: () => void;
-}) {
-  const d = definition(g, c);
-  const combat = g.attacks.find((a) => a.card === c.id);
-  const blocked = g.attacks.some((a) => a.blockers.includes(c.id));
-  return (
-    <button
-      className={`${styles.cardTile} ${c.tapped ? styles.tapped : ""} ${selected ? styles.selected : ""}`}
-      onClick={onClick}
-      title={`${d.name} · ${c.id}`}
-      aria-pressed={selected}
-    >
-      {d.imageUrl && /^https:\/\/cards\.scryfall\.io\//.test(d.imageUrl) && (
-        <img src={d.imageUrl} alt="" loading="lazy" />
-      )}
-      <span>
-        <strong>
-          {c.commander && <Crown size={11} />} {d.name}
-        </strong>
-        <small>
-          {d.manaCost}
-          {creature(g, c)
-            ? ` · ${stats(g, c).power}/${stats(g, c).toughness}`
-            : ""}
-        </small>
-        <small>
-          {c.tapped
-            ? es
-              ? "Girada"
-              : "Tapped"
-            : c.zone === "battlefield" && summoningSick(g, c)
-              ? es
-                ? "Mareo de invocación"
-                : "Summoning sick"
-              : ""}
-          {c.damage ? ` · ${c.damage} ${es ? "daño" : "damage"}` : ""}
-          {c.counters ? ` · ${c.counters} +1/+1` : ""}
-          {combat
-            ? ` → ${g.players[combat.defender].name}`
-            : blocked
-              ? es
-                ? " · Bloqueando"
-                : " · Blocking"
-              : ""}
-        </small>
-      </span>
-    </button>
   );
 }
