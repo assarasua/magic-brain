@@ -41,6 +41,7 @@ const spanish: Record<string, string> = {
   "Resources": "Recursos",
   "Account": "Cuenta",
   "Latest Set Watch": "Seguimiento de última edición",
+  "Play": "Jugar",
   "Developers": "Desarrolladores",
   "Predict": "Predecir",
   "Add holding": "Añadir cartas",

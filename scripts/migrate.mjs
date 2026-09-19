@@ -64,6 +64,7 @@ try {
   "033_privacy_consents.sql",
   "034_mcp_call_insights.sql",
   "035_card_rules.sql",
+  "036_commander_rooms.sql",
 ];
   let applied = 0;
   for (const filename of filenames) {

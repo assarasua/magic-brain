@@ -1,4 +1,5 @@
 export const webMcpDestinations = [
+  { id: "play", label: "Play Commander", path: "/play", description: "Open the Commander table with local practice and private online rooms for 2–4 players. Game actions are controlled in the page, not through MCP." },
   { id: "overview", label: "Overview", path: "/", description: "Open the Magic Brain overview dashboard." },
   { id: "market", label: "Market", path: "/market", description: "Browse market movements and pricing activity." },
   { id: "market_movers", label: "Public Market Movers", path: "/market-movers", description: "Open the public daily ranking of the top 50 Magic card gainers and losers." },
