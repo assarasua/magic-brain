@@ -12,6 +12,12 @@ export type RuleResult = {
   source: { effectiveDate: string; freshnessNotice: string };
 };
 
+export function ruleServiceFetch(binding: {
+  fetch(request: Request): Promise<Response>;
+}): typeof fetch {
+  return (input, init) => binding.fetch(new Request(input, init));
+}
+
 // Only this read-only tool can be called. Browser cookies and credentials are
 // never forwarded to the remote MCP service.
 export async function fetchRuleReference(
