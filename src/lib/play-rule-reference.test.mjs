@@ -38,6 +38,7 @@ test("production rules use the MCP service binding with the same read-only reque
           "https://magic-brain-mcp.assarasua.workers.dev/mcp",
         );
         assert.equal(request.method, "POST");
+        assert.equal(request.redirect, "manual");
         assert.equal(request.headers.get("authorization"), null);
         assert.equal(request.headers.get("cookie"), null);
         assert.equal((await request.json()).params.name, "search_rules");
@@ -52,7 +53,7 @@ test("rule lookup accepts MCP streams and only forwards a bounded read-only quer
     " commander tax ",
     async (url, options) => {
       assert.equal(url, "https://magic-brain-mcp.assarasua.workers.dev/mcp");
-      assert.equal(options.redirect, "error");
+      assert.equal(options.redirect, "manual");
       assert.equal(options.headers.Cookie, undefined);
       const body = JSON.parse(options.body);
       assert.equal(body.params.name, "search_rules");
@@ -67,6 +68,26 @@ test("rule lookup accepts MCP streams and only forwards a bounded read-only quer
     },
   );
   assert.deepEqual(value, rules);
+});
+test("rule lookup rejects redirects instead of following them through the service binding", async () => {
+  let requests = 0;
+  await assert.rejects(
+    fetchRuleReference(
+      "903.8",
+      ruleServiceFetch({
+        fetch: async (request) => {
+          requests += 1;
+          assert.equal(request.redirect, "manual");
+          return new Response(null, {
+            status: 302,
+            headers: { Location: "https://example.com/unexpected" },
+          });
+        },
+      }),
+    ),
+    /unavailable/,
+  );
+  assert.equal(requests, 1);
 });
 test("rule lookup supports JSON text results and rejects invalid, oversized, rate-limited and error responses", async () => {
   assert.deepEqual(

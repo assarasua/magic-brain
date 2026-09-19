@@ -29,7 +29,8 @@ export async function fetchRuleReference(
     "https://magic-brain-mcp.assarasua.workers.dev/mcp",
     {
       method: "POST",
-      redirect: "error",
+      // Workers supports manual redirects; non-success responses are rejected below.
+      redirect: "manual",
       signal: AbortSignal.timeout(12000),
       headers: {
         "Content-Type": "application/json",
