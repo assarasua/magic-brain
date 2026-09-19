@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fetchRuleReference } from "./play/rule-reference.ts";
+import { fetchRuleReference, ruleServiceFetch } from "./play/rule-reference.ts";
+import { readFileSync } from "node:fs";
 
 const rules = {
   results: [
@@ -16,6 +17,36 @@ const rules = {
   ],
   source: { effectiveDate: "2026-08-07", freshnessNotice: "Snapshot" },
 };
+
+test("production rules use the MCP service binding with the same read-only request", async () => {
+  const config = JSON.parse(
+    readFileSync(new URL("../../wrangler.jsonc", import.meta.url), "utf8"),
+  );
+  assert.ok(
+    config.services.some(
+      (service) =>
+        service.binding === "MAGIC_BRAIN_MCP" &&
+        service.service === "magic-brain-mcp",
+    ),
+  );
+  const result = await fetchRuleReference(
+    "903.8",
+    ruleServiceFetch({
+      fetch: async (request) => {
+        assert.equal(
+          request.url,
+          "https://magic-brain-mcp.assarasua.workers.dev/mcp",
+        );
+        assert.equal(request.method, "POST");
+        assert.equal(request.headers.get("authorization"), null);
+        assert.equal(request.headers.get("cookie"), null);
+        assert.equal((await request.json()).params.name, "search_rules");
+        return Response.json({ result: { structuredContent: rules } });
+      },
+    }),
+  );
+  assert.deepEqual(result, rules);
+});
 test("rule lookup accepts MCP streams and only forwards a bounded read-only query", async () => {
   const value = await fetchRuleReference(
     " commander tax ",
@@ -46,7 +77,7 @@ test("rule lookup supports JSON text results and rejects invalid, oversized, rat
     ),
     rules,
   );
-  for (const query of [" ", "a".repeat(201)])
+  for (const query of [" ", "a", "a".repeat(201)])
     await assert.rejects(
       fetchRuleReference(query, async () => assert.fail("No request expected")),
       /query/,

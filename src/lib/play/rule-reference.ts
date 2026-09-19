@@ -12,13 +12,19 @@ export type RuleResult = {
   source: { effectiveDate: string; freshnessNotice: string };
 };
 
+export function ruleServiceFetch(binding: {
+  fetch(request: Request): Promise<Response>;
+}): typeof fetch {
+  return (input, init) => binding.fetch(new Request(input, init));
+}
+
 // Only this read-only tool can be called. Browser cookies and credentials are
 // never forwarded to the remote MCP service.
 export async function fetchRuleReference(
   query: string,
   request: typeof fetch = fetch,
 ): Promise<RuleResult> {
-  if (!query.trim() || query.length > 200) throw new Error("query");
+  if (query.trim().length < 2 || query.length > 200) throw new Error("query");
   const response = await request(
     "https://magic-brain-mcp.assarasua.workers.dev/mcp",
     {

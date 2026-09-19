@@ -71,6 +71,8 @@ The rulebook panel uses a same-origin, rate-limited read-only endpoint at
 `/api/play/rules`. It forwards only a bounded `search_rules` query to the public MCP
 service, without browser cookies or credentials, so browser cross-origin restrictions
 do not prevent rule lookups. It preserves the edition, citations and freshness notice.
+On Cloudflare the web worker calls the existing MCP worker through its
+`MAGIC_BRAIN_MCP` service binding; local development uses the public MCP URL.
 Replacement effects, arbitrary triggered abilities, layers, characteristic-defining
 abilities, legend checks, protection, planeswalker/battle attacks, complex costs,
 and many format exceptions need manual resolution. Unimplemented creature stats
