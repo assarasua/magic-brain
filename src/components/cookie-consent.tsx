@@ -40,7 +40,7 @@ export function CookieConsent() {
   if (!visible) return null;
   return (
     <aside className="cookie-consent" role="dialog" aria-live="polite" aria-label={es ? "Preferencias de cookies" : "Cookie preferences"}>
-      <div><strong>{es ? "Tú decides sobre las cookies" : "You decide about cookies"}</strong><p>{es ? "Usamos almacenamiento necesario para iniciar sesión, guardar el idioma y recordar el tour. Solo con tu permiso guardamos la atribución de referidos; no usamos cookies publicitarias ni analíticas." : "We use necessary storage for sign-in, language, and tour preferences. Only with your permission do we store referral attribution; we do not use advertising or analytics cookies."}</p><Link href="/cookies">{es ? "Ver política de cookies" : "Read cookie policy"}</Link></div>
+      <div><strong>{es ? "Tú decides sobre las cookies" : "You decide about cookies"}</strong><p>{es ? "Usamos almacenamiento necesario para iniciar sesión, guardar el idioma, recordar el tour y conservar tus mazos y partidas locales. Solo con tu permiso guardamos la atribución de referidos; no usamos cookies publicitarias ni analíticas." : "We use necessary storage for sign-in, language, tour preferences, and your local decks and games. Only with your permission do we store referral attribution; we do not use advertising or analytics cookies."}</p><Link href="/cookies">{es ? "Ver política de cookies" : "Read cookie policy"}</Link></div>
       <div className="cookie-actions"><button className="secondary" onClick={() => choose("necessary")}>{es ? "Solo necesarias" : "Necessary only"}</button><button onClick={() => choose("all")}>{es ? "Permitir referidos" : "Allow referral"}</button></div>
     </aside>
   );

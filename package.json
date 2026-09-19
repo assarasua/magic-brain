@@ -34,7 +34,7 @@
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "node --test test/*.test.mjs src/lib/*.test.mjs",
-    "test:browser": "node --test test/browser/*.test.mjs",
+    "test:browser": "node --test --test-concurrency=1 test/browser/*.test.mjs",
     "ocr:sync-models": "node scripts/sync-ocr-models.mjs",
     "ocr:train": "node --env-file-if-exists=.env.local scripts/train-card-title-corrector.mjs",
     "ocr:benchmark": "node scripts/benchmark-card-ocr.mjs",

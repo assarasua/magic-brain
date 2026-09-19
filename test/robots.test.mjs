@@ -11,8 +11,8 @@ test("robots permits public market data while protecting private product areas",
   assert.deepEqual(policy, {
     rules: {
       userAgent: "*",
-      allow: ["/llms.txt", "/login", "/developers", "/mcp", "/webmcp", "/market-movers", "/privacy", "/cookies", "/terms", "/api/market/movers", "/api/v1/news/latest", "/_next/static/", "/_next/image"],
-      disallow: ["/api/account", "/api/portfolio", "/api/watchlist", "/api/referrals", "/api/oauth", "/oauth", "/shared", "/settings", "/portfolio", "/watchlist", "/referrals"],
+      allow: ["/play", "/llms.txt", "/login", "/developers", "/mcp", "/webmcp", "/market-movers", "/privacy", "/cookies", "/terms", "/api/market/movers", "/api/v1/news/latest", "/_next/static/", "/_next/image"],
+      disallow: ["/api/play", "/api/account", "/api/portfolio", "/api/watchlist", "/api/referrals", "/api/oauth", "/oauth", "/shared", "/settings", "/portfolio", "/watchlist", "/referrals"],
     },
     host: "https://magicbrain.es",
     sitemap: "https://magicbrain.es/sitemap.xml",
