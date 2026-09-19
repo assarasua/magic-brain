@@ -67,10 +67,14 @@ export default function LoginPage() {
 
   return (
     <main className="login-page">
-      <header>
+      <header className="landing-header">
         <Link href="/" className="inventory-brand">
           <MagicBrainLogo />
         </Link>
+        <nav className="landing-guide-nav" aria-label={es ? "Guías de integración" : "Integration guides"}>
+          <Link href="/mcp">{es ? "Guía MCP" : "MCP guide"}</Link>
+          <Link href="/webmcp">{es ? "Guía WebMCP" : "WebMCP guide"}</Link>
+        </nav>
         <div className="landing-header-actions">
           <Link href="/market-movers" className="landing-movers-link"><TrendingDown size={15} />{es ? "Top cartas hoy" : "Today’s top cards"}</Link>
           <LanguageToggle />
@@ -167,13 +171,18 @@ export default function LoginPage() {
           <span className="eyebrow">MAGIC BRAIN FOR DEVELOPERS</span>
           <h2 id="landing-developers-heading">{es ? "Construye nuevas experiencias sobre el universo de Magic." : "Build new experiences on top of the Magic universe."}</h2>
           <p>{es ? "Conecta datos de cartas, precios, colecciones y señales de mercado a tus propias herramientas. Usa la API, integra nuestro MCP o permite que agentes naveguen Magic Brain con WebMCP." : "Connect card data, prices, collections, and market signals to your own tools. Use the API, integrate our MCP, or let agents navigate Magic Brain through WebMCP."}</p>
-          <div className="landing-developer-tags"><span>REST API</span><span>MCP</span><span>WebMCP</span><span>OAuth 2.1</span></div>
+          <div className="landing-developer-tags"><span>REST API</span><Link href="/mcp">{es ? "Guía MCP" : "MCP guide"} ↗</Link><Link href="/webmcp">{es ? "Guía WebMCP" : "WebMCP guide"} ↗</Link><span>OAuth 2.1</span></div>
         </div>
         <Link href="/developers" className="landing-developers-cta">{es ? "Explorar para developers" : "Explore for developers"}<ArrowRight size={16} /></Link>
         <Braces className="landing-developers-braces" size={160} aria-hidden="true" />
       </section>
       <LandingContact />
       <footer className="creator-credit">
+        <nav className="landing-footer-guides" aria-label={es ? "Recursos" : "Resources"}>
+          <Link href="/developers">{es ? "Desarrolladores" : "Developers"}</Link>
+          <Link href="/mcp">{es ? "Guía MCP" : "MCP guide"}</Link>
+          <Link href="/webmcp">{es ? "Guía WebMCP" : "WebMCP guide"}</Link>
+        </nav>
         {es ? "Creado por " : "Created by "}
         <a href="https://bizkardolab.eu" target="_blank" rel="noreferrer">
           Asier Sarasua · BizkardoLab

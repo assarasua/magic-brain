@@ -1,6 +1,9 @@
 # Install the Magic Brain MCP connector
 
-Connect a supported MCP client to Magic Brain's live, read-only remote server:
+Read the [complete public MCP guide](https://magicbrain.es/mcp) for setup, all
+32 tools, card rules, example workflows, permissions and troubleshooting.
+
+Connect a supported MCP client to Magic Brain's live remote server:
 
 ```text
 https://magic-brain-mcp.assarasua.workers.dev/mcp
@@ -8,7 +11,7 @@ https://magic-brain-mcp.assarasua.workers.dev/mcp
 
 The transport is **Streamable HTTP**. Public research works anonymously.
 Supported clients can optionally use Magic Brain OAuth to unlock personal
-read tools after Google sign-in and explicit consent. Never paste a Magic Brain
+read and confirmed write tools after Google sign-in and explicit consent. Never paste a Magic Brain
 API key into a hosted connector.
 
 The server advertises RFC 9728 protected-resource metadata and RFC 8414
@@ -198,10 +201,11 @@ configuration health; it does not call the upstream Magic Brain API.
 - `shares:manage` — owned share-link creation and revocation
 - `profile:read` — preference-derived personalization
 
-The hosted MCP currently exposes personal reads only. It does not expose
-account mutations even when a token carries a write scope. Future mutation
-tools must additionally require an idempotency key and explicit
-`confirm: true`.
+The hosted MCP exposes five personal reads and six account actions. Each action
+requires its named OAuth scopes and explicit `confirm: true`; the server supplies
+an idempotency key to the API for that request. A fresh tool call is a new request,
+so inspect account state before retrying an uncertain write. See the full
+[public MCP guide](https://magicbrain.es/mcp#permissions) and tool reference.
 
 For contributor diagnostics, use the separate
 [`magic-brain-dev-mcp`](../integrations/magic-brain-dev-mcp/README.md). It is

@@ -9,6 +9,8 @@ Magic Brain is unofficial and is not affiliated with, endorsed by, sponsored by,
 - [Landing page](https://magicbrain.es/login): Product overview and account access.
 - [Daily market movers](https://magicbrain.es/market-movers): Public ranking of the 50 largest observed Magic card price increases and decreases over seven days.
 - [Developer hub](https://magicbrain.es/developers): REST API, MCP, WebMCP, OAuth, and integration documentation.
+- [MCP guide](https://magicbrain.es/mcp): Connection setup, all 32 tools, Oracle text and rulings, permissions, examples, and troubleshooting. This is a documentation page, not the protocol endpoint.
+- [WebMCP guide](https://magicbrain.es/webmcp): Browser compatibility, navigation destinations, public research tools, and the distinction from remote MCP account access.
 - [Privacy policy](https://magicbrain.es/privacy): Personal-data processing and user rights.
 - [Cookie policy](https://magicbrain.es/cookies): Cookies and browser storage.
 - [Terms of service](https://magicbrain.es/terms): Rules for using Magic Brain.
