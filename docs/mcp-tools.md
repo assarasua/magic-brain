@@ -1,6 +1,6 @@
 # Magic Brain MCP tool reference
 
-This is the canonical reference for the 29 tools currently registered
+This is the canonical reference for the 32 tools currently registered
 by the Magic Brain MCP server. For installation and client configuration, see
 the [MCP installation guide](mcp-installation.md). The live endpoint is:
 
@@ -29,6 +29,13 @@ tools and composes the final answer.
   section, PDF page, and official source URL. The retrieved excerpts are the
   authority; `ask_rules.explanatorySynthesis` is explicitly
   `non-authoritative`, is not a judge ruling, and must not be presented as one.
+- Card rules tools read an imported Scryfall Oracle/rulings snapshot.
+  `get_card_rules` preserves complete card faces and labelled, dated rulings;
+  `search_card_effects` retrieves verbatim Oracle paragraphs; and
+  `explain_card_interaction` combines these with candidate Comprehensive Rules
+  citations. The host interprets this evidence, states assumptions about the
+  supplied game state and asks for any missing facts that affect the answer.
+  Oracle, rulings and Comprehensive Rules have independent snapshot dates.
 - Product tools perform deterministic lexical retrieval and do not call
   another model. The host may synthesize only from returned statements, must
   cite their URLs, and must retain each statement's epistemic status:
@@ -422,6 +429,133 @@ Requires `lists:read`, `portfolio:read`, and `profile:read`. Accepts one
 `list_id` UUID and returns that owned list's holdings and intelligence. A list
 owned by another user is indistinguishable from a missing list.
 
+## Card effects and in-game interactions
+
+These tools require an activated card-rules dataset in Magic Brain's database.
+They do not fetch Scryfall directly during tool calls. Import and refresh steps
+are documented in [Card rules data](card-rules.md).
+
+### `get_card_rules`
+
+**Purpose.** Retrieve an exact card's complete Oracle text, faces, effect
+paragraphs and dated card rulings.
+
+**Inputs**
+
+- `card` — required trimmed string, 1–200 characters: an exact full card name,
+  exact face name, Oracle UUID or known Scryfall printing UUID. Name resolution
+  is case-insensitive but does not choose a fuzzy match.
+
+**Meaningful output.** `card` contains `oracleId`, `scryfallId`, `name`,
+`layout`, `typeLine`, nullable `oracleText` and `manaCost`, `keywords`, `faces`,
+`effects`, `rulings`, `rulingsTruncated` and `sourceUrl`. Every face preserves
+its index, name, text, type, cost and applicable power/toughness/loyalty/defense.
+Every effect has `faceIndex`, `effectIndex` and verbatim `text`.
+
+Rulings retain `source` (`wotc` or `scryfall`), `publishedAt` and `comment`.
+`wotc` identifies a Wizards ruling supplied through Scryfall; `scryfall`
+identifies Scryfall commentary. Do not present those as the same authority.
+`source` provides the dataset ID/import time, card/effect/ruling counts and
+separate Oracle/rulings provider URLs, updated/fetched timestamps and SHA-256
+checksums. When supplied, `format` identifies JSON, JSONL or gzipped JSONL;
+`checksumScope: downloaded-bytes` means the checksum covers the downloaded
+file, including compression. `attribution` identifies the Magic Brain API request.
+
+**Example user question.** “Show both faces of Delver of Secrets and its dated
+rulings.”
+
+**Caveats and errors.** Effects are paragraphs of Oracle rules text, not parsed
+or independently executable abilities. A paragraph can contain several
+instructions; use the full card and face context. A missing exact card returns
+HTTP 404, ambiguity returns 409 with up to 10 candidate Oracle IDs and names,
+and a missing active dataset returns 503 as a tool error with next steps.
+For ambiguity, choose the intended Oracle ID; duplicate names can refer to
+different Oracle objects. `rulingsTruncated` means the API returned only its
+bounded first page of rulings; never assume this is complete. Malformed evidence
+fails rather than filling in missing text. Snapshot freshness is explicit and
+is not a guarantee that the sources are current today.
+
+### `search_card_effects`
+
+**Purpose.** Find cards by the text of their Oracle effect paragraphs.
+
+**Inputs**
+
+- `query` — required trimmed string, 2–200 characters.
+- `limit` — optional integer, 1–50; default `20`.
+- `cursor` — optional opaque string, at most 2048 characters. Reuse only the
+  cursor returned by the previous page for the same search.
+
+**Meaningful output.** `results` contains card `oracleId` and `name`,
+`faceIndex`, `effectIndex`, paragraph `text` and `sourceUrl`. `pagination`
+provides `limit` and nullable `nextCursor`. `source`, `attribution`,
+`freshnessNotice` and `interpretationNotice` have the same meaning as above.
+
+**Example user question.** “Find effects that say ‘exile target creature’.”
+
+**Caveats and errors.** This is text retrieval, not a semantic ability database
+or a game simulator. Use `get_card_rules` to inspect the full card before
+interpreting a match. Empty results mean no matching imported paragraphs.
+Invalid cursors, unavailable datasets and oversized responses fail explicitly.
+
+### `explain_card_interaction`
+
+**Purpose.** Assemble the evidence a host assistant needs to explain an
+interaction, while keeping Oracle text, card rulings, official rule excerpts
+and the assistant's interpretation distinct.
+
+**Inputs**
+
+- `cards` — required array of 1–5 unique exact names or identifiers accepted by
+  `get_card_rules`.
+- `question` — required trimmed string, 5–2000 characters. The full question is
+  retained and searched in bounded segments, including its final clause.
+- `game_state` — optional object, at most 8000 serialized characters. Supports
+  `active_player`, `phase`, `priority_player` (strings up to 120 characters),
+  `battlefield`, `stack`, `targets`, `choices`, `relevant_effects` (arrays of up
+  to 20 strings, each at most 500 characters), and `additional_context` (up to
+  2000 characters). List the stack in order and say what resolves next. Empty
+  arrays explicitly mean there are no entries for that field.
+
+**Meaningful output.** Each item in `cards` has its `requested` identifier and
+`status`: `found`, `not_found`, `ambiguous`, `unavailable` or `failed`. Found
+items contain the complete card evidence and its dataset/source metadata;
+failed items contain an error and never invented card text. `officialRules`
+contains up to 10 deduplicated candidate excerpts with official citations.
+`rules` reports retrieval availability, pinned-source metadata and the actual
+bounded queries used. Search combines the question, bounded supplied game-state
+details, card keywords and effect text using at most 24 lexical queries. General
+mechanic hints reserve space for exact rules verified against the pinned rules
+edition, then lexical candidates fill the remaining slots. Hints remain retrieval
+guidance, and their matches and source-version checks are reported. Interaction
+retrieval currently excludes glossary entries.
+
+`evidenceStatus` is `retrieved`, `partial` or `unavailable`.
+`retrieved` only means the requested evidence was retrieved; it does
+not guarantee every applicable rule was found or that a conclusion is valid.
+Missing cards, unavailable/no-match rules, truncated rulings or mixed card
+snapshots prevent that status. `gameState` preserves the supplied details,
+always marks them unverified, and `contextNeeded` lists absent facts. The host
+should ask only questions that could change this interaction's outcome.
+
+`interpretationAuthority` is always `non-authoritative`. `answerInstructions`
+require the host to cite the separate sources, read applicable rules and
+exceptions, state assumptions, disclose missing evidence and snapshot dates,
+and avoid drawing an outcome from lexical relevance alone. The tool does not
+call another LLM or generate a definitive answer.
+
+**Example user question.** “Can this creature block Insectile Aberration after
+this effect resolves? It is my opponent's declare blockers step.”
+
+**Caveats and errors.** Some lookups can succeed while others fail; inspect
+every card status before answering. The configured Comprehensive Rules are a
+pinned local snapshot, whose effective date and checksum are returned, and
+may be older than the card snapshot. No live freshness check is made during a
+tool request. If the complete combined output exceeds `maxToolChars`, the
+tool fails with `RESPONSE_TOO_LARGE` instead of silently clipping Oracle text;
+request fewer cards or use the individual retrieval tools. Tournament disputes
+remain subject to the event judge.
+
 ## Comprehensive Rules
 
 ### `search_rules`
@@ -650,11 +784,17 @@ public API errors.
 
 ### Rules question
 
-1. Call `ask_rules` with the complete interaction.
-2. If a rule number or term needs more context, call `search_rules` for that
+1. For a card interaction, call `explain_card_interaction` with exact cards,
+   the full question and known game state. For a general rules question, call
+   `ask_rules`.
+2. Inspect missing/ambiguous cards, source dates and `contextNeeded`. Resolve
+   any missing facts that could change the answer; use `get_card_rules` to
+   retrieve complete card text separately when helpful.
+3. If a rule number or term needs more context, call `search_rules` for that
    exact reference with glossary results enabled.
-3. Explain from `officialRules`, cite rule numbers and official source pages,
-   and label the explanation non-authoritative.
+4. Explain from the full card text, labelled card rulings and `officialRules`,
+   cite each source and its date, state assumptions, and label the explanation
+   non-authoritative. A lexical match alone does not establish the outcome.
 
 ### Product diligence
 

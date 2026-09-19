@@ -9,9 +9,10 @@ import {
 import type { MagicBrainMcpConfig } from "./config.js";
 import { createDelegation } from "./oauth.js";
 import { registerProductKnowledgeTools } from "./product/tools.js";
-import type { RulesKnowledgeBaseOptions } from "./rules/knowledge-base.js";
-import { registerRulesTools } from "./rules/tools.js";
 import { requestSummaryInput } from "./request-summary.js";
+import { RulesKnowledgeBase, type RulesKnowledgeBaseOptions } from "./rules/knowledge-base.js";
+import { registerRulesTools } from "./rules/tools.js";
+import { registerCardRulesTools } from "./cards/tools.js";
 
 const date = z
   .string()
@@ -734,13 +735,13 @@ export function createMagicBrainMcpServer(
     ),
   );
 
-  registerRulesTools(server, {
-    ...(rulesOptions ?? {
-      indexPath:
-        process.env.MAGIC_BRAIN_RULES_INDEX_PATH ??
-        fileURLToPath(new URL("../rules-data/rules-index.json", import.meta.url)),
-    }),
-  });
+  const resolvedRulesOptions = rulesOptions ?? {
+    indexPath:
+      process.env.MAGIC_BRAIN_RULES_INDEX_PATH ??
+      fileURLToPath(new URL("../rules-data/rules-index.json", import.meta.url)),
+  };
+  registerRulesTools(server, resolvedRulesOptions);
+  registerCardRulesTools(server, api, config, new RulesKnowledgeBase(resolvedRulesOptions));
   registerProductKnowledgeTools(server);
 
   return server;

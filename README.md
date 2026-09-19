@@ -43,11 +43,15 @@ product requirements, exact configuration, and troubleshooting. Local
 self-hosting is documented separately in the
 [MCP package guide](integrations/magic-brain-mcp/PACKAGE.md#run-locally).
 The canonical [MCP tool reference](docs/mcp-tools.md) documents exact inputs,
-outputs, scopes, limits, examples, evidence handling, and errors for all 28
+outputs, scopes, limits, examples, evidence handling, and errors for all 32
 tools.
 The connector can also retrieve source-cited, epistemically labelled product
 and business diligence evidence. Its canonical public source is the
 [product strategy and FAQ](docs/product-strategy-faq.md).
+
+The [card effects and rules module](docs/card-rules.md) combines a versioned
+Oracle-text and card-rulings database with cited Comprehensive Rules to help
+MCP clients explain in-game interactions.
 
 Contributors can also use the [Magic Brain CLI](tools/magic-brain-cli/README.md)
 and the separate

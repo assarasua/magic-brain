@@ -120,6 +120,52 @@ export function searchRules(
     });
 }
 
+/** Keep every part of a question in bounded queries, including its final clause. */
+export function splitRulesQuery(value: string): string[] {
+  let remaining = value.trim();
+  const queries: string[] = [];
+  while (remaining.length > 300) {
+    const boundary = remaining.lastIndexOf(" ", 300);
+    const end = boundary > 150 ? boundary : 300;
+    queries.push(remaining.slice(0, end));
+    remaining = remaining.slice(end).trimStart();
+  }
+  if (remaining.length >= 2) queries.push(remaining);
+  else if (remaining && queries.length) {
+    // A final single character can still matter (for example X or a rule suffix).
+    const previous = queries.pop()!;
+    queries.push(previous.slice(0, -2), `${previous.slice(-2)} ${remaining}`);
+  }
+  return queries;
+}
+
+/** Reciprocal-rank fusion gives focused queries a voice without summing raw BM25 scores. */
+export function searchRuleQueries(
+  index: RulesIndex,
+  queries: string[],
+  options: Parameters<typeof searchRules>[2] = {},
+): RulesSearchHit[] {
+  if (queries.length === 0 || queries.length > 24) {
+    throw new Error("Provide 1-24 bounded rules queries");
+  }
+  const hits = new Map<string, { hit: RulesSearchHit; rank: number }>();
+  for (const query of [...new Set(queries)]) {
+    searchRules(index, query, options).forEach((hit, position) => {
+      const key = JSON.stringify(hit.citation);
+      const existing = hits.get(key);
+      hits.set(key, {
+        hit: existing && existing.hit.score >= hit.score ? existing.hit : hit,
+        rank: (existing?.rank ?? 0) + 1 / (60 + position + 1),
+      });
+    });
+  }
+  return [...hits.entries()]
+    .sort(([leftKey, left], [rightKey, right]) =>
+      right.rank - left.rank || leftKey.localeCompare(rightKey))
+    .slice(0, options.limit ?? 5)
+    .map(([, { hit }]) => hit);
+}
+
 export function validateRulesIndex(index: RulesIndex): void {
   if (index.schemaVersion !== RULES_INDEX_SCHEMA_VERSION) {
     throw new Error(

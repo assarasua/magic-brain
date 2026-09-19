@@ -44,3 +44,6 @@ service-account*.json
 # Local agent tooling
 /.agents/
 /skills-lock.json
+
+# Generated Oracle text and ruling snapshots
+/data/card-rules/
