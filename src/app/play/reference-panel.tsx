@@ -176,7 +176,7 @@ export default function ReferencePanel({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             minLength={2}
-            maxLength={300}
+            maxLength={200}
             required
           />
           <button aria-label={es ? "Buscar" : "Search"} disabled={searching}>

@@ -122,64 +122,12 @@ export async function collectionDeck(id: string) {
     names.set(c.name, (names.get(c.name) ?? 0) + c.quantity);
   return [...names].map(([name, quantity]) => `${quantity} ${name}`).join("\n");
 }
-export type RuleResult = {
-  results: {
-    excerpt: string;
-    citation: {
-      ruleNumber?: string;
-      glossaryTerm?: string;
-      section: string;
-      page: number;
-      sourceUrl: string;
-    };
-  }[];
-  source: { effectiveDate: string; freshnessNotice: string };
-};
+export type { RuleResult } from "./rule-reference";
+import type { RuleResult } from "./rule-reference";
 export async function searchRulebook(query: string): Promise<RuleResult> {
-  const response = await fetch(
-    "https://magic-brain-mcp.assarasua.workers.dev/mcp",
-    {
-      method: "POST",
-      signal: AbortSignal.timeout(20000),
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json, text/event-stream",
-        "MCP-Protocol-Version": "2025-06-18",
-      },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: crypto.randomUUID(),
-        method: "tools/call",
-        params: {
-          name: "search_rules",
-          arguments: { query, limit: 5, max_excerpt_chars: 600 },
-        },
-      }),
-    },
-  );
-  if (!response.ok)
-    throw new ReferenceError(
-      response.status === 429 ? "rateLimit" : "unavailable",
-    );
-  const raw = await response.text();
-  const data = raw.trim().startsWith("{")
-    ? JSON.parse(raw)
-    : JSON.parse(
-        raw
-          .split("\n")
-          .filter((l) => l.startsWith("data:"))
-          .at(-1)
-          ?.slice(5) ?? "{}",
-      );
-  if (data.error || data.result?.isError)
-    throw new ReferenceError("unavailable");
-  const result =
-    data.result?.structuredContent ??
-    JSON.parse(
-      data.result?.content?.find((c: { type: string }) => c.type === "text")
-        ?.text ?? "{}",
-    );
-  if (!Array.isArray(result.results) || !result.source)
-    throw new ReferenceError("unavailable");
-  return result;
+  return (
+    await readJson<{ data: RuleResult }>(
+      `/api/play/rules?q=${encodeURIComponent(query)}`,
+    )
+  ).data;
 }

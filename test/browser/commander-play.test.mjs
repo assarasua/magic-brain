@@ -115,6 +115,27 @@ test(
               body: JSON.stringify(data),
             });
           if (url.pathname === "/api/auth/session") return json(null);
+          if (url.pathname === "/api/play/rules")
+            return json({
+              data: {
+                results: [
+                  {
+                    excerpt:
+                      "A commander costs an additional {2} for each previous cast from the command zone.",
+                    citation: {
+                      ruleNumber: "903.8",
+                      section: "Commander",
+                      page: 251,
+                      sourceUrl: "https://magic.wizards.com/en/rules",
+                    },
+                  },
+                ],
+                source: {
+                  effectiveDate: "2026-08-07",
+                  freshnessNotice: "Test rules snapshot",
+                },
+              },
+            });
           if (url.pathname === "/api/account")
             return json({ error: "Authentication required" }, 401);
           if (
@@ -197,6 +218,96 @@ test(
         });
         return page;
       }
+      const local = await userPage("local");
+      await local.goto(`${origin}/play`);
+      assert.equal(
+        await local
+          .getByLabel("Player control 1", { exact: true })
+          .inputValue(),
+        "human",
+      );
+      assert.equal(
+        await local
+          .getByLabel("Player control 2", { exact: true })
+          .inputValue(),
+        "computer",
+      );
+      await local
+        .getByRole("button", { name: "Start game", exact: true })
+        .click();
+      await local
+        .getByRole("button", { name: "Pause AI", exact: true })
+        .click();
+      const visualCard = await local
+        .locator("[data-home-seat] [data-card-id]")
+        .first()
+        .boundingBox();
+      assert.ok(
+        visualCard.height > visualCard.width * 1.3,
+        "Cards use portrait proportions",
+      );
+      await local
+        .getByRole("button", { name: "Keep hand", exact: true })
+        .click();
+      await local.getByText("Player 2 · AI paused", { exact: true }).waitFor();
+      assert.equal(
+        await local
+          .getByRole("button", { name: "Keep hand", exact: true })
+          .count(),
+        0,
+      );
+      await local
+        .getByRole("region", { name: "Player 2 battlefield", exact: true })
+        .getByRole("button", { name: "Hand 7", exact: true })
+        .click();
+      await local.getByText("Cards hidden", { exact: true }).waitFor();
+      await local.getByText("Table controls", { exact: true }).click();
+      await local
+        .getByRole("button", { name: "Control all seats", exact: true })
+        .click();
+      await local
+        .getByRole("heading", { name: "Player 2 · Opening hand", exact: true })
+        .waitFor();
+      await local.getByRole("button", { name: "Search", exact: true }).click();
+      await local
+        .getByText(
+          "A commander costs an additional {2} for each previous cast from the command zone.",
+          { exact: true },
+        )
+        .waitFor();
+      await local.setViewportSize({ width: 390, height: 844 });
+      assert.ok(
+        await local.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth + 1,
+        ),
+      );
+      await local.close();
+      const shared = await userPage("shared");
+      await shared.goto(`${origin}/play`);
+      await shared
+        .getByRole("button", { name: "Pass & play", exact: true })
+        .click();
+      await shared.waitForFunction(
+        () =>
+          document.querySelector('[aria-label="Player control 2"]').value ===
+          "human",
+      );
+      await shared
+        .getByRole("button", { name: "Start game", exact: true })
+        .click();
+      await shared
+        .getByRole("button", { name: "Keep hand", exact: true })
+        .click();
+      await shared
+        .getByRole("heading", { name: "Player 2 · Opening hand", exact: true })
+        .waitFor();
+      assert.ok(
+        await shared
+          .locator("[data-home-seat]")
+          .getByRole("heading", { name: "Player 2", exact: true })
+          .isVisible(),
+      );
+      await shared.close();
       const host = await userPage("host");
       await host.goto(`${origin}/play`);
       await host
