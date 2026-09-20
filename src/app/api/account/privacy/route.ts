@@ -14,6 +14,7 @@ export async function GET() {
   if (!id) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   const client = await db.connect();
   try {
+    // Retain export/deletion rights for data saved before Play was retired.
     const [account, lists, items, watchlist, referrals, playRooms] = await Promise.all([
       client.query(`select id, locale, email, display_name, avatar_url, authenticated_at, subscription_status, preferences, created_at, updated_at from app_users where id = $1`, [id]),
       client.query(`select id, name, position, is_default, created_at, updated_at from app_portfolio_lists where user_id = $1 order by position`, [id]),

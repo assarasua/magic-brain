@@ -5,7 +5,6 @@ import {
   Crown,
   Eye,
   Heart,
-  Gamepad2,
   LayoutDashboard,
   LibraryBig,
   MessageCircleQuestion,
@@ -54,7 +53,6 @@ export const navigationGroups = [
   {
     label: "Resources",
     links: [
-      { href: "/play", label: "Play", icon: Gamepad2 },
       { href: "/developers", label: "Developers", icon: Code2 },
       { href: "/donate", label: "Support", icon: CircleDollarSign },
       { href: "/referrals", label: "Referrals", icon: Trophy },

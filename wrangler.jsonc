@@ -23,12 +23,6 @@
 	"observability": {
 		"enabled": true
 	},
-	"services": [
-		{
-			"binding": "MAGIC_BRAIN_MCP",
-			"service": "magic-brain-mcp"
-		}
-	],
 	"hyperdrive": [
 		{
 			"binding": "HYPERDRIVE",
