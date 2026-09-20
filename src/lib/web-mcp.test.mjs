@@ -14,6 +14,7 @@ test("WebMCP destinations resolve only allowlisted route IDs", () => {
   assert.equal(getWebMcpDestination("market")?.path, "/market");
   assert.equal(getWebMcpDestination("https://example.com"), null);
   assert.equal(getWebMcpDestination("../settings"), null);
+  assert.equal(getWebMcpDestination("play"), null);
 });
 
 test("WebMCP destinations have unique IDs and internal paths", () => {

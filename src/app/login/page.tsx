@@ -77,7 +77,6 @@ export default function LoginPage() {
         <nav className="landing-guide-nav" aria-label={es ? "Guías de integración" : "Integration guides"}>
           <Link href="/mcp">{es ? "Guía MCP" : "MCP guide"}</Link>
           <Link href="/webmcp">{es ? "Guía WebMCP" : "WebMCP guide"}</Link>
-          <Link href="/play">{es ? "Jugar" : "Play"}</Link>
           <Link href="/market-movers">{es ? "Top cartas hoy" : "Today’s top cards"}</Link>
         </nav>
         <div className="landing-header-actions">

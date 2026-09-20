@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [{ source: "/play/:path*", destination: "/", permanent: true }];
+  },
   outputFileTracingIncludes: {
     "/*": ["./node_modules/pg-cloudflare/**/*"],
   },
