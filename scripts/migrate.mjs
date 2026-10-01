@@ -66,6 +66,7 @@ try {
   "035_card_rules.sql",
   "036_commander_rooms.sql",
   "036_price_retention.sql",
+  "037_price_retention_backfill.sql",
 ];
   let applied = 0;
   for (const filename of filenames) {

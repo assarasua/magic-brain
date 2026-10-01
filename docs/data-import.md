@@ -68,10 +68,13 @@ monthly history contract, and refuses to archive otherwise. It checks
 `PRICE_HISTORY_PUBLIC_URL` to their live app URL. At completion it verifies
 that no daily rows remain before the retention cutoff.
 
-Compaction atomically moves one old observation date at a time into
+Compaction atomically moves up to one old calendar month at a time into
 `monthly_card_prices`, preserving sums and counts for all supported currencies
 and finishes, then deletes the corresponding daily rows. It can be resumed
-after interruption. `app_monthly_prices` combines the archive with retained
+after interruption. Migration `037_price_retention_backfill.sql` groups daily
+observations before expanding finishes, avoiding repeated monthly writes during
+the initial backfill. Normal daily maintenance only processes newly expired dates.
+`app_monthly_prices` combines the archive with retained
 daily observations before dividing by the total count, so partial months do
 not become averages of averages. The latest known quotation and current
 derived 1/7/30-day changes are separate snapshots and survive retention.

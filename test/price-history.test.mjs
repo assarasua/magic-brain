@@ -35,6 +35,7 @@ describe("price history database contract", {
     const latestMigration = await readFile(new URL("../db/011_public_api.sql", import.meta.url), "utf8");
     await client.query(latestMigration.split("create index if not exists idx_cards_public_cursor")[0]);
     await client.query(await readFile(new URL("../db/036_price_retention.sql", import.meta.url), "utf8"));
+    await client.query(await readFile(new URL("../db/037_price_retention_backfill.sql", import.meta.url), "utf8"));
   });
 
   beforeEach(async () => {
