@@ -176,7 +176,28 @@ export async function getPublicPriceHistory(options: {
   from: string;
   to: string;
   finish: "all" | "nonfoil" | "foil";
+  interval?: "daily" | "monthly";
 }) {
+  if (options.interval === "monthly") {
+    const { rows } = await query<{
+      month: string; period_end: string; source: string; finish: "nonfoil" | "foil";
+      average_price: string; observation_count: number; last_observed_at: string;
+    }>(`
+      select month::text, (month + interval '1 month - 1 day')::date::text as period_end,
+        source, finish, average_price::text, observation_count, last_observed_at::text
+      from app_monthly_prices
+      where scryfall_id = $1 and source = 'mtgjson' and currency = 'EUR'
+        and finish in ('nonfoil', 'foil') and ($4 = 'all' or finish = $4)
+        and month between date_trunc('month', $2::date)::date and date_trunc('month', $3::date)::date
+      order by month, finish
+    `, [options.cardId, options.from, options.to, options.finish]);
+    return rows.map((row) => ({
+      amount: Number(row.average_price), currency: "EUR", finish: row.finish,
+      source: row.source, observedAt: row.last_observed_at,
+      aggregation: "monthly_average", periodStart: row.month,
+      periodEnd: row.period_end, observations: row.observation_count,
+    }));
+  }
   const result = await query<{
     date: string;
     source: string;
@@ -188,7 +209,7 @@ export async function getPublicPriceHistory(options: {
       from prices
       where scryfall_id = $1
         and source = 'mtgjson'
-        and date between $2::date and $3::date
+        and date between greatest($2::date, current_date - 29) and least($3::date, current_date)
       order by date, source
     `,
     [options.cardId, options.from, options.to],

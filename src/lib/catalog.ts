@@ -81,7 +81,7 @@ export async function getCatalogCard(cardId: string) {
   const { rows } = await query<CatalogRow>(
     `
       with dates as (
-        select max(date) as latest_date from prices where source = 'mtgjson'
+        select max(price_date) as latest_date from latest_card_prices where source = 'mtgjson'
       )
       select
         c.scryfall_id::text as id,
@@ -95,21 +95,17 @@ export async function getCatalogCard(cardId: string) {
         c.cardmarket_id,
         current_price.eur as price,
         current_price.eur_foil as foil_price,
-        current_price.date::text as price_date,
-        case
-          when previous_price.eur > 0 and current_price.eur is not null
-          then ((current_price.eur - previous_price.eur) / previous_price.eur) * 100
-          else null
-        end as change_7d
+        current_price.price_date::text as price_date,
+        previous_price.return_percent as change_7d
       from cards c
       cross join dates
-      left join prices current_price
+      left join latest_card_prices current_price
         on current_price.scryfall_id = c.scryfall_id
-        and current_price.date = dates.latest_date
+        and current_price.price_date = dates.latest_date
         and current_price.source = 'mtgjson'
-      left join prices previous_price
+      left join app_current_price_changes previous_price
         on previous_price.scryfall_id = c.scryfall_id
-        and previous_price.date = dates.latest_date - interval '7 days'
+        and previous_price.price_date = dates.latest_date and previous_price.days = 7
         and previous_price.source = 'mtgjson'
       where c.scryfall_id = $1
       limit 1
@@ -213,7 +209,7 @@ export async function getCatalog(filters: CatalogFilters) {
 
   const dataSql = `
     with dates as (
-      select max(date) as latest_date from prices where source = 'mtgjson'
+      select max(price_date) as latest_date from latest_card_prices where source = 'mtgjson'
     )
     select
       c.scryfall_id::text as id,
@@ -227,21 +223,17 @@ export async function getCatalog(filters: CatalogFilters) {
       c.cardmarket_id,
       current_price.eur as price,
       current_price.eur_foil as foil_price,
-      current_price.date::text as price_date,
-      case
-        when previous_price.eur > 0 and current_price.eur is not null
-        then ((current_price.eur - previous_price.eur) / previous_price.eur) * 100
-        else null
-      end as change_7d
+      current_price.price_date::text as price_date,
+      previous_price.return_percent as change_7d
     from cards c
     cross join dates
-    left join prices current_price
+    left join latest_card_prices current_price
       on current_price.scryfall_id = c.scryfall_id
-      and current_price.date = dates.latest_date
+      and current_price.price_date = dates.latest_date
       and current_price.source = 'mtgjson'
-    left join prices previous_price
+    left join app_current_price_changes previous_price
       on previous_price.scryfall_id = c.scryfall_id
-      and previous_price.date = dates.latest_date - interval '7 days'
+      and previous_price.price_date = dates.latest_date and previous_price.days = 7
       and previous_price.source = 'mtgjson'
     ${where}
     order by ${searchOrder} ${orderBy}
@@ -255,14 +247,14 @@ export async function getCatalog(filters: CatalogFilters) {
   const countSql = needsPriceJoin
     ? `
       with dates as (
-        select max(date) as latest_date from prices where source = 'mtgjson'
+        select max(price_date) as latest_date from latest_card_prices where source = 'mtgjson'
       )
       select count(*)::int as count
       from cards c
       cross join dates
-      left join prices current_price
+      left join latest_card_prices current_price
         on current_price.scryfall_id = c.scryfall_id
-        and current_price.date = dates.latest_date
+        and current_price.price_date = dates.latest_date
         and current_price.source = 'mtgjson'
       ${where}
     `
@@ -297,7 +289,7 @@ export async function searchCatalog(
   const { rows } = await query<CatalogRow>(
     `
       with dates as (
-        select max(date) as latest_date from prices where source = 'mtgjson'
+        select max(price_date) as latest_date from latest_card_prices where source = 'mtgjson'
       )
       select
         c.scryfall_id::text as id,
@@ -311,14 +303,14 @@ export async function searchCatalog(
         c.cardmarket_id,
         latest.eur as price,
         latest.eur_foil as foil_price,
-        latest.date::text as price_date,
+        latest.price_date::text as price_date,
         null::numeric as change_7d
       from cards c
       cross join dates
-      left join prices latest
+      left join latest_card_prices latest
         on latest.scryfall_id = c.scryfall_id
         and latest.source = 'mtgjson'
-        and latest.date = dates.latest_date
+        and latest.price_date = dates.latest_date
       where
         (
           lower(c.name) like $2
@@ -361,7 +353,7 @@ export async function identifyCatalogCard(
   >(
     `
       with dates as (
-        select max(date) as latest_date from prices where source = 'mtgjson'
+        select max(price_date) as latest_date from latest_card_prices where source = 'mtgjson'
       ),
       candidates as (
         select
@@ -376,7 +368,7 @@ export async function identifyCatalogCard(
           c.cardmarket_id,
           latest.eur as price,
           latest.eur_foil as foil_price,
-          latest.date::text as price_date,
+          latest.price_date::text as price_date,
           null::numeric as change_7d,
           (
             case when c.lang = $2 then 0.12 else 0 end +
@@ -407,10 +399,10 @@ export async function identifyCatalogCard(
           end as match_reason
         from cards c
         cross join dates
-        left join prices latest
+        left join latest_card_prices latest
           on latest.scryfall_id = c.scryfall_id
           and latest.source = 'mtgjson'
-          and latest.date = dates.latest_date
+          and latest.price_date = dates.latest_date
         where
           (
             ($3::text is not null and $4::text is not null
@@ -455,26 +447,7 @@ export async function getMarketMovers(
   const { rows } = await query<CatalogRow>(
     `
       with dates as (
-        select
-          max(date) as latest_date,
-          (
-            select max(previous.date)
-            from prices previous
-            where previous.source = 'mtgjson'
-              and previous.date <= (
-                select max(current.date) from prices current where current.source = 'mtgjson'
-              ) - $2::integer
-          ) as previous_date,
-          (
-            select max(previous.date)
-            from prices previous
-            where previous.source = 'mtgjson'
-              and previous.date <= (
-                select max(current.date) from prices current where current.source = 'mtgjson'
-              ) - 30
-          ) as month_date
-        from prices
-        where source = 'mtgjson'
+        select max(price_date) as latest_date from latest_card_prices where source = 'mtgjson'
       ),
       movers as (
         select
@@ -489,26 +462,24 @@ export async function getMarketMovers(
           c.cardmarket_id,
           current_price.eur as price,
           current_price.eur_foil as foil_price,
-          current_price.date::text as price_date,
-          ((current_price.eur - previous_price.eur) / previous_price.eur) * 100 as change_7d,
-          case when month_price.eur > 0
-            then ((current_price.eur - month_price.eur) / month_price.eur) * 100
-            else null end as change_30d
+          current_price.price_date::text as price_date,
+          previous_price.return_percent as change_7d,
+          month_price.return_percent as change_30d
         from dates
-        join prices current_price
-          on current_price.date = dates.latest_date
+        join latest_card_prices current_price
+          on current_price.price_date = dates.latest_date
           and current_price.source = 'mtgjson'
-        join prices previous_price
+        join app_current_price_changes previous_price
           on previous_price.scryfall_id = current_price.scryfall_id
-          and previous_price.date = dates.previous_date
+          and previous_price.days = $2::integer and previous_price.price_date = dates.latest_date
           and previous_price.source = 'mtgjson'
-        left join prices month_price
+        left join app_current_price_changes month_price
           on month_price.scryfall_id = current_price.scryfall_id
-          and month_price.date = dates.month_date
+          and month_price.days = 30 and month_price.price_date = dates.latest_date
           and month_price.source = 'mtgjson'
         join cards c on c.scryfall_id = current_price.scryfall_id
         where current_price.eur between 2 and 5000
-          and previous_price.eur >= 2
+          and previous_price.comparison_above_floor
           and ($3::text is null or lower(c.set_code) = $3)
       )
       select
@@ -539,35 +510,17 @@ export async function getMarketAnalytics(days = 7) {
       strong_losers: string;
     }>(
       `
-        with dates as (
-          select
-            max(date) as latest_date,
-            (
-              select max(previous.date)
-              from prices previous
-              where previous.source = 'mtgjson'
-                and previous.date <= (
-                  select max(current.date)
-                  from prices current
-                  where current.source = 'mtgjson'
-                ) - $1::integer
-            ) as previous_date
-          from prices
-          where source = 'mtgjson'
-        ),
-        returns as (
-          select
-            ((current_price.eur - previous_price.eur) / previous_price.eur) * 100 as return_percent
-          from dates
-          join prices current_price
-            on current_price.date = dates.latest_date
-            and current_price.source = 'mtgjson'
-          join prices previous_price
+        with returns as (
+          select previous_price.return_percent
+          from latest_card_prices current_price
+          join app_current_price_changes previous_price
             on previous_price.scryfall_id = current_price.scryfall_id
-            and previous_price.date = dates.previous_date
-            and previous_price.source = 'mtgjson'
-          where current_price.eur between 2 and 5000
-            and previous_price.eur >= 2
+            and previous_price.source = current_price.source
+            and previous_price.days = $1::integer
+          where current_price.source = 'mtgjson'
+            and current_price.price_date = (select max(price_date) from latest_card_prices where source='mtgjson')
+            and current_price.eur between 2 and 5000
+            and previous_price.comparison_above_floor
         )
         select
           count(*)::text as tracked_cards,
@@ -624,28 +577,4 @@ export async function getMarketAnalytics(days = 7) {
       value: baseline > 0 ? (point.value / baseline) * 100 : 100,
     })),
   };
-}
-
-export async function getPriceHistory(cardId: string, days: number) {
-  const { rows } = await query<{
-    date: string;
-    eur: string | null;
-    eur_foil: string | null;
-  }>(
-    `
-      select date::text, eur, eur_foil
-      from prices
-      where scryfall_id = $1
-        and source = 'mtgjson'
-        and date >= current_date - $2::integer
-      order by date asc
-    `,
-    [cardId, days],
-  );
-
-  return rows.map((row) => ({
-    date: row.date,
-    eur: row.eur === null ? null : Number(row.eur),
-    eurFoil: row.eur_foil === null ? null : Number(row.eur_foil),
-  }));
 }

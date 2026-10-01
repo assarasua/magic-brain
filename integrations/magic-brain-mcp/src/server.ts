@@ -174,7 +174,7 @@ export function createMagicBrainMcpServer(
     {
       title: "Get Card Price History",
       description:
-        "Get bounded public historical price observations for one card and date range. Use daily or weekly intervals; the maximum range is 366 days. Results are market observations, not investment guarantees.",
+        "Get daily prices from the retained 30-day window or calendar-month average prices for one card. Monthly records include observation counts and the full month boundaries; incomplete months remain partial. The maximum inclusive date range is 366 days. Monthly averages are not daily observations or investment guarantees.",
       inputSchema: z
         .object({
           ...requestSummaryInput,
@@ -182,6 +182,7 @@ export function createMagicBrainMcpServer(
           start_date: date,
           end_date: date,
           finish: z.enum(["all", "nonfoil", "foil"]).default("all"),
+          interval: z.enum(["daily", "monthly"]).default("daily"),
         })
         .superRefine(({ start_date, end_date }, context) => {
           const start = Date.parse(`${start_date}T00:00:00Z`);
@@ -192,7 +193,7 @@ export function createMagicBrainMcpServer(
               path: ["end_date"],
               message: "end_date must be on or after start_date",
             });
-          } else if ((end - start) / 86_400_000 > 366) {
+          } else if ((end - start) / 86_400_000 > 365) {
             context.addIssue({
               code: "custom",
               path: ["end_date"],
@@ -208,6 +209,7 @@ export function createMagicBrainMcpServer(
       start_date,
       end_date,
       finish: requestedFinish,
+      interval,
     }) =>
       callTool(config, () =>
         api.request(`cards/${encodeURIComponent(card_id)}/prices`, {
@@ -215,6 +217,7 @@ export function createMagicBrainMcpServer(
             from: start_date,
             to: end_date,
             finish: requestedFinish,
+            interval,
           },
         }),
       ),

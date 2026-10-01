@@ -1,0 +1,31 @@
+name: Compact price history
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 8 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: price-history-retention
+  cancel-in-progress: false
+
+jobs:
+  compact:
+    if: vars.PRICE_RETENTION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.22.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run db:compact-prices -- --apply
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PRICE_HISTORY_PUBLIC_URL: ${{ vars.PRICE_HISTORY_PUBLIC_URL || 'https://magicbrain.es' }}

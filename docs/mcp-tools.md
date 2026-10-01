@@ -208,23 +208,27 @@ foil versus nonfoil history over a defined period.
 - `end_date` — required real calendar date string in `YYYY-MM-DD` format and
   not before `start_date`.
 - `finish` — optional enum `all`, `nonfoil`, or `foil`; default `all`.
+- `interval` — optional enum `daily` or `monthly`; default `daily`.
 
-The MCP validator permits no more than 366 days between the date endpoints. The
-public API enforces a maximum inclusive window of 366 calendar dates (a
-365-day difference), so use that stricter bound.
+Both the MCP validator and public API enforce a maximum inclusive window of
+366 calendar dates (a 365-day difference).
 
 **Meaningful output.** `data.data` contains `cardId`, normalized `from` and `to`
 dates, and `prices`. Each observation has `amount`, EUR `currency`, `finish`,
-`source`, and `observedAt`.
+`source`, and `observedAt`. Monthly records also include
+`aggregation: monthly_average`, `periodStart`, `periodEnd`, and `observations`.
+The monthly `observedAt` is the last actual contributing observation date.
 
 **Example user question.** “Show the weekly trend you can infer from daily
 nonfoil observations for this printing from 2026-01-01 through 2026-03-31.”
 
-**Caveats and errors.** The tool returns stored daily observations; it does not
-provide an interval input or guarantee one row per day. Missing dates remain
-gaps. Invalid dates, reversed or oversized ranges, unsupported finishes,
-non-UUID IDs, and unknown cards are errors. Any aggregation or weekly summary
-is the host model's synthesis and should retain source and date caveats.
+**Caveats and errors.** Daily observations are retained for the latest 30
+calendar dates. Monthly mode returns one arithmetic average per calendar month
+and finish, excluding missing prices. Requests cover full months touched by the
+date range, and observation counts identify partial coverage. Do not interpret
+monthly averages as daily volatility or executable prices. Missing dates remain
+gaps. Invalid dates, reversed or oversized ranges, unsupported intervals or
+finishes, non-UUID IDs, and unknown cards are errors.
 
 ## Sets & opportunities
 

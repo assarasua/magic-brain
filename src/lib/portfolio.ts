@@ -283,46 +283,30 @@ export async function getPortfolio(
           then ((latest.eur - i.purchase_price_eur) / i.purchase_price_eur) * 100
           else null
         end as gain_percent,
-        case when week_price.eur > 0 and latest.eur is not null
-          then ((latest.eur - week_price.eur) / week_price.eur) * 100
-          else null
-        end as change_7d,
-        case when month_price.eur > 0 and latest.eur is not null
-          then ((latest.eur - month_price.eur) / month_price.eur) * 100
-          else null
-        end as change_30d,
-        week_price.date::text as comparison_7d_date,
-        month_price.date::text as comparison_30d_date,
+        week_price.return_percent as change_7d,
+        month_price.return_percent as change_30d,
+        week_price.comparison_date::text as comparison_7d_date,
+        month_price.comparison_date::text as comparison_30d_date,
         i.condition,
         i.language,
         i.acquired_at::text
       from app_portfolio_items i
       join cards c on c.scryfall_id = i.scryfall_id
       left join lateral (
-        select eur, date
-        from prices
+        select eur, price_date as date
+        from latest_card_prices
         where scryfall_id = c.scryfall_id and source = 'mtgjson'
-        order by date desc
+        order by price_date desc
         limit 1
       ) latest on true
-      left join lateral (
-        select eur, date
-        from prices
-        where scryfall_id = c.scryfall_id
-          and source = 'mtgjson'
-          and date <= latest.date - interval '7 days'
-        order by date desc
-        limit 1
-      ) week_price on true
-      left join lateral (
-        select eur, date
-        from prices
-        where scryfall_id = c.scryfall_id
-          and source = 'mtgjson'
-          and date <= latest.date - interval '30 days'
-        order by date desc
-        limit 1
-      ) month_price on true
+      left join app_current_price_changes week_price
+        on week_price.scryfall_id = c.scryfall_id
+        and week_price.source = 'mtgjson' and week_price.days = 7
+        and week_price.price_date = latest.date
+      left join app_current_price_changes month_price
+        on month_price.scryfall_id = c.scryfall_id
+        and month_price.source = 'mtgjson' and month_price.days = 30
+        and month_price.price_date = latest.date
       where i.user_id = $1 and ($2::uuid is null or i.list_id = $2)
       order by current_value desc nulls last, i.created_at desc
     `,

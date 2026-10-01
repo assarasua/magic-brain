@@ -237,10 +237,12 @@ export const publicApiOpenApi = {
       get: {
         operationId: "getCardPrices",
         summary: "Get card price history",
+        description: "Daily observations are retained for the last 30 calendar days. Monthly mode returns full calendar-month averages, including partial months, for each month touched by the requested range. Monthly records include aggregation, periodStart, periodEnd and observations; observedAt is the last actual observation contributing to the average. Missing prices are excluded.",
         parameters: [
           { $ref: "#/components/parameters/CardId" },
           { name: "from", in: "query", schema: { type: "string", format: "date" } },
           { name: "to", in: "query", schema: { type: "string", format: "date" } },
+          { name: "interval", in: "query", schema: { type: "string", enum: ["daily", "monthly"], default: "daily" } },
           {
             name: "finish",
             in: "query",

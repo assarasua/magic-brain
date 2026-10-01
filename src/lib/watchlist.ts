@@ -29,9 +29,9 @@ export async function getWatchlist(userId: string, evaluateAlerts = true) {
     `
       with latest as (
         select distinct on (scryfall_id) scryfall_id, eur
-        from prices
+        from latest_card_prices
         where source = 'mtgjson'
-        order by scryfall_id, date desc
+        order by scryfall_id, price_date desc
       )
       update app_watchlist_items w
       set
@@ -56,7 +56,7 @@ export async function getWatchlist(userId: string, evaluateAlerts = true) {
   const { rows } = await query<WatchlistRow>(
     `
       with dates as (
-        select max(date) as latest_date from prices where source = 'mtgjson'
+        select max(price_date) as latest_date from latest_card_prices where source = 'mtgjson'
       )
       select
         c.scryfall_id::text as id, c.name, c.set_code, c.set_name,
@@ -64,7 +64,7 @@ export async function getWatchlist(userId: string, evaluateAlerts = true) {
         coalesce(c.image_url, c.image_uris->>'normal') as image_url,
         c.cardmarket_id, current_price.eur as price,
         current_price.eur_foil as foil_price,
-        current_price.date::text as price_date,
+        current_price.price_date::text as price_date,
         w.target_price_eur as target_price,
         w.alert_below_enabled,
         w.alert_above_price_eur as alert_above_price,
@@ -73,20 +73,17 @@ export async function getWatchlist(userId: string, evaluateAlerts = true) {
         w.below_read_at::text,
         w.above_triggered_at::text,
         w.above_read_at::text,
-        case when previous_price.eur > 0
-          then ((current_price.eur - previous_price.eur) / previous_price.eur) * 100
-          else null
-        end as change_7d
+        previous_price.return_percent as change_7d
       from app_watchlist_items w
       join cards c on c.scryfall_id = w.scryfall_id
       cross join dates
-      left join prices current_price
+      left join latest_card_prices current_price
         on current_price.scryfall_id = c.scryfall_id
-        and current_price.date = dates.latest_date
+        and current_price.price_date = dates.latest_date
         and current_price.source = 'mtgjson'
-      left join prices previous_price
+      left join app_current_price_changes previous_price
         on previous_price.scryfall_id = c.scryfall_id
-        and previous_price.date = dates.latest_date - interval '7 days'
+        and previous_price.price_date = dates.latest_date and previous_price.days = 7
         and previous_price.source = 'mtgjson'
       where w.user_id = $1
       order by w.created_at desc

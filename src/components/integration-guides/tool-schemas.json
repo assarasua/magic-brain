@@ -313,6 +313,14 @@
           "nonfoil",
           "foil"
         ]
+      },
+      "interval": {
+        "default": "daily",
+        "type": "string",
+        "enum": [
+          "daily",
+          "monthly"
+        ]
       }
     },
     "required": [
