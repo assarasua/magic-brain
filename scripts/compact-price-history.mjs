@@ -8,7 +8,7 @@ const client = new pg.Client({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
   connectionTimeoutMillis: 10_000,
-  statement_timeout: 300_000,
+  statement_timeout: 900_000,
   lock_timeout: 10_000,
 });
 try {
