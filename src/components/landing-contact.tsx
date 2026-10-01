@@ -36,7 +36,7 @@ export function NewsletterSignup({ compact = false }: { compact?: boolean }) {
 
   return (
     <form className={compact ? "hero-newsletter-form" : undefined} onSubmit={subscribe}>
-      <label htmlFor={id}>{compact ? (es ? "O recibe el brief diario" : "Or get the daily brief") : (es ? "Tu email" : "Your email")}</label>
+      <label htmlFor={id}>{compact ? (es ? "O recibe el resumen semanal" : "Or get the weekly brief") : (es ? "Tu email" : "Your email")}</label>
       <div>
         <input id={id} name="email" type="email" autoComplete="email" required maxLength={254} placeholder="you@example.com" />
         <button type="submit" disabled={state === "sending" || state === "success"}>
@@ -45,7 +45,7 @@ export function NewsletterSignup({ compact = false }: { compact?: boolean }) {
         </button>
       </div>
       <input className="form-honeypot" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" />
-      <small>{es ? "Noticias y movimientos de cartas cada mañana." : "Card news and market moves every morning."}</small>
+      <small>{es ? "Noticias y movimientos de cartas cada lunes." : "Card news and market moves every Monday."}</small>
       {state === "error" && <p className="form-error" role="alert">{es ? "No hemos podido completar la suscripción." : "We could not complete the subscription."}</p>}
     </form>
   );

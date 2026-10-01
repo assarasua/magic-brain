@@ -138,37 +138,52 @@ export function newsletterDeliveryConfigured() {
   return Boolean(process.env.RESEND_API_KEY && process.env.RESEND_AUDIENCE_ID);
 }
 
-export function renderDailyBriefEmail(brief: DailyBrief) {
+export function renderWeeklyBriefEmail(brief: DailyBrief) {
   const renderCards = (items: DailyBriefCard[]) => items.length
     ? items.map((item) => {
       const cardUrl = `https://magicbrain.es/market?card=${encodeURIComponent(item.cardId)}`;
       return `<tr><td style="padding:12px 0;border-bottom:1px solid #1b2a39"><a href="${cardUrl}" style="color:#eaf5ff;text-decoration:none;font-weight:700">${escapeHtml(item.name)}</a><br><span style="color:#8294a8;font-size:12px">${escapeHtml(item.setCode.toUpperCase())}</span></td><td style="padding:12px 0;border-bottom:1px solid #1b2a39;text-align:right;color:#eaf5ff">€${item.currentPrice.toFixed(2)}<br><span style="color:${(item.change7d ?? 0) >= 0 ? "#58d6aa" : "#ff8791"};font-size:12px">${item.change7d === null ? "—" : `${item.change7d > 0 ? "+" : ""}${item.change7d.toFixed(1)}% 7D`}</span></td></tr>`;
     }).join("")
-    : `<tr><td style="padding:14px 0;color:#8294a8">No cards met this signal today.</td></tr>`;
+    : `<tr><td style="padding:14px 0;color:#8294a8">No cards met this signal in this snapshot.</td></tr>`;
   const section = (label: string, title: string, color: string, items: DailyBriefCard[]) => `<div style="margin:30px 0"><p style="margin:0;color:${color};font-size:11px;font-weight:800;letter-spacing:.12em">${label}</p><h2 style="margin:7px 0 10px;font-size:20px;color:#f2f8ff">${title}</h2><table role="presentation" style="width:100%;border-collapse:collapse">${renderCards(items)}</table></div>`;
   const newsUrl = `https://magicbrain.es/news/${brief.marketDataDate}`;
   return {
-    subject: `Magic Brain daily market brief · ${brief.marketDataDate}`,
-    html: `<div style="margin:0;background:#050b12;padding:36px 16px;font-family:Inter,Arial,sans-serif;color:#eaf5ff"><div style="max-width:620px;margin:auto"><div style="padding:28px;border:1px solid #1c3043;border-radius:18px;background:linear-gradient(145deg,#0d1927,#08111c)"><a href="https://magicbrain.es" style="color:#f2f8ff;text-decoration:none;font-size:20px;font-weight:800">MAGIC<span style="color:#55baff">BRAIN</span></a><p style="margin:24px 0 0;color:#9b8cff;font-size:11px;font-weight:800;letter-spacing:.14em">DAILY MARKET INTELLIGENCE · ${escapeHtml(brief.marketDataDate)}</p><h1 style="font-size:34px;line-height:1.05;margin:10px 0 14px;letter-spacing:-.04em">Know what moved<br><span style="color:#55baff">in Magic cards.</span></h1><p style="color:#9aabbd;line-height:1.65">${brief.content.coverage.currentCards.toLocaleString("en-US")} cards observed today. ${brief.content.breadth.advancers} advanced and ${brief.content.breadth.decliners} declined${brief.content.breadth.advancePercent === null ? "." : `, for ${brief.content.breadth.advancePercent.toFixed(1)}% positive breadth.`}</p></div>${section("STRONG GROWTH", "Momentum leaders", "#58d6aa", brief.content.categories.strongGrowth)}${section("RECOVERY", "Cards finding support", "#67baff", brief.content.categories.recoveryOpportunities)}${section("LOST MOMENTUM", "Signals to review", "#ff9a86", brief.content.categories.lostMomentum)}${section("MAJOR REPRICING", "The largest moves", "#b39aff", brief.content.categories.majorRepricing)}<div style="margin:34px 0;padding:26px;border-radius:14px;text-align:center;background:#0c1825"><h2 style="margin:0 0 8px">See the evidence behind every signal.</h2><p style="margin:0 0 20px;color:#8294a8">Open the full brief for methodology, comparisons, and complete market context.</p><a href="${newsUrl}" style="display:inline-block;padding:14px 20px;border-radius:9px;background:linear-gradient(110deg,#713cf0,#2f8bff);color:white;text-decoration:none;font-weight:700">Open today’s Magic Brain</a></div><p style="color:#607286;font-size:11px;line-height:1.7;text-align:center">Magic Brain is unofficial Magic: The Gathering market intelligence. Price-derived information only, not financial advice.<br><a href="https://magicbrain.es" style="color:#7bbdf0">magicbrain.es</a> · <a href="{{{RESEND_UNSUBSCRIBE_URL}}}" style="color:#7bbdf0">Unsubscribe</a></p></div></div>`,
+    subject: `Magic Brain weekly market brief · data as of ${brief.marketDataDate}`,
+    html: `<div style="margin:0;background:#050b12;padding:36px 16px;font-family:Inter,Arial,sans-serif;color:#eaf5ff"><div style="max-width:620px;margin:auto"><div style="padding:28px;border:1px solid #1c3043;border-radius:18px;background:linear-gradient(145deg,#0d1927,#08111c)"><a href="https://magicbrain.es" style="color:#f2f8ff;text-decoration:none;font-size:20px;font-weight:800">MAGIC<span style="color:#55baff">BRAIN</span></a><p style="margin:24px 0 0;color:#9b8cff;font-size:11px;font-weight:800;letter-spacing:.14em">WEEKLY MARKET UPDATE · DATA AS OF ${escapeHtml(brief.marketDataDate)}</p><h1 style="font-size:34px;line-height:1.05;margin:10px 0 14px;letter-spacing:-.04em">Know what moved<br><span style="color:#55baff">in Magic cards.</span></h1><p style="color:#9aabbd;line-height:1.65">${brief.content.coverage.currentCards.toLocaleString("en-US")} cards observed on ${escapeHtml(brief.marketDataDate)}. ${brief.content.breadth.advancers} advanced and ${brief.content.breadth.decliners} declined${brief.content.breadth.advancePercent === null ? "." : `, for ${brief.content.breadth.advancePercent.toFixed(1)}% positive breadth.`}</p></div>${section("STRONG GROWTH", "Momentum leaders", "#58d6aa", brief.content.categories.strongGrowth)}${section("RECOVERY", "Cards finding support", "#67baff", brief.content.categories.recoveryOpportunities)}${section("LOST MOMENTUM", "Signals to review", "#ff9a86", brief.content.categories.lostMomentum)}${section("MAJOR REPRICING", "The largest moves", "#b39aff", brief.content.categories.majorRepricing)}<div style="margin:34px 0;padding:26px;border-radius:14px;text-align:center;background:#0c1825"><h2 style="margin:0 0 8px">See the evidence behind every signal.</h2><p style="margin:0 0 20px;color:#8294a8">Open the full brief for methodology, comparisons, and complete market context.</p><a href="${newsUrl}" style="display:inline-block;padding:14px 20px;border-radius:9px;background:linear-gradient(110deg,#713cf0,#2f8bff);color:white;text-decoration:none;font-weight:700">Open the market brief</a></div><p style="color:#607286;font-size:11px;line-height:1.7;text-align:center">Magic Brain is unofficial Magic: The Gathering market intelligence. Price-derived information only, not financial advice.<br><a href="https://magicbrain.es" style="color:#7bbdf0">magicbrain.es</a> · <a href="{{{RESEND_UNSUBSCRIBE_URL}}}" style="color:#7bbdf0">Unsubscribe</a></p></div></div>`,
   };
 }
 
-export async function sendDailyBriefNewsletter(brief: DailyBrief) {
+/** The scheduled job can run late or be retried, but email is only due on Mondays. */
+export function weeklyNewsletterDeliveryDate(now = new Date()): string | null {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Madrid",
+    weekday: "short", year: "numeric", month: "2-digit",
+    day: "2-digit", hour: "2-digit", hourCycle: "h23",
+  }).formatToParts(now);
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value;
+  if (part("weekday") !== "Mon" || Number(part("hour")) < 8) return null;
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
+export async function sendWeeklyBriefNewsletter(brief: DailyBrief, now = new Date()) {
+  if (!newsletterDeliveryConfigured()) return { status: "not_configured" } as const;
+  const deliveryDate = weeklyNewsletterDeliveryDate(now);
+  if (!deliveryDate) return { status: "scheduled_weekly" } as const;
   const { from } = resendConfig();
   const audienceId = process.env.RESEND_AUDIENCE_ID;
   if (!audienceId) throw new Error("RESEND_AUDIENCE_ID is not configured");
-  const email = renderDailyBriefEmail(brief);
+  const email = renderWeeklyBriefEmail(brief);
   const created = await resend("/broadcasts", {
     audience_id: audienceId,
     from,
     subject: email.subject,
     html: email.html,
-  }, `magic-brain-daily-${brief.marketDataDate}`);
+  }, `magic-brain-weekly-${deliveryDate}`);
   if (!created.id) throw new Error("Resend did not return a broadcast ID");
   await resend(
     `/broadcasts/${encodeURIComponent(created.id)}/send`,
     {},
-    `magic-brain-daily-send-${brief.marketDataDate}`,
+    `magic-brain-weekly-send-${deliveryDate}`,
   );
-  return created.id;
+  return { status: "sent", broadcastId: created.id, marketDataDate: brief.marketDataDate, deliveryDate } as const;
 }

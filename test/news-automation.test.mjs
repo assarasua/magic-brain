@@ -7,6 +7,7 @@ test("daily news job is authenticated and invokes bounded backfill", async () =>
   assert.match(route, /NEWS_CRON_SECRET/);
   assert.match(route, /timingSafeEqual/);
   assert.match(route, /materializeMissingMarketBriefs\(366\)/);
+  assert.match(route, /await sendWeeklyBriefNewsletter\(latest\)/);
 });
 
 test("backfill starts after the last published brief instead of all history", async () => {
