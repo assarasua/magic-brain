@@ -19,8 +19,8 @@ type WatchRow = {
   price: string;
   foil_price: string | null;
   price_date: string;
-  price_7d: string | null;
-  price_30d: string | null;
+  change_7d: string | null;
+  change_30d: string | null;
   average_30d: string | null;
   low_30d: string | null;
   high_30d: string | null;
@@ -55,9 +55,6 @@ export type LatestSetWatchResult = {
     entryRange: string;
   };
 };
-
-const percentChange = (current: number, previous: number | null) =>
-  previous && previous > 0 ? ((current - previous) / previous) * 100 : null;
 
 const round = (value: number | null, digits = 2) =>
   value === null ? null : Number(value.toFixed(digits));
@@ -167,8 +164,8 @@ export async function getLatestSetWatch(
   const { rows } = await query<WatchRow>(
     `
       with latest_date as (
-        select max(date) as value
-        from prices
+        select max(price_date) as value
+        from latest_card_prices
         where source = 'mtgjson'
       ),
       set_cards as (
@@ -188,9 +185,9 @@ export async function getLatestSetWatch(
         c.cardmarket_id,
         current_price.eur::text as price,
         current_price.eur_foil::text as foil_price,
-        current_price.date::text as price_date,
-        previous_7d.eur::text as price_7d,
-        previous_30d.eur::text as price_30d,
+        current_price.price_date::text as price_date,
+        previous_7d.return_percent::text as change_7d,
+        previous_30d.return_percent::text as change_30d,
         stats.average_price::text as average_30d,
         stats.low_price::text as low_30d,
         stats.high_price::text as high_30d,
@@ -205,31 +202,19 @@ export async function getLatestSetWatch(
         stats.history_days
       from set_cards c
       cross join latest_date
-      join prices current_price
+      join latest_card_prices current_price
         on current_price.scryfall_id = c.scryfall_id
         and current_price.source = 'mtgjson'
-        and current_price.date = latest_date.value
+        and current_price.price_date = latest_date.value
         and current_price.eur between 2 and 5000
-      left join lateral (
-        select eur
-        from prices
-        where scryfall_id = c.scryfall_id
-          and source = 'mtgjson'
-          and date <= latest_date.value - 7
-          and eur > 0
-        order by date desc
-        limit 1
-      ) previous_7d on true
-      left join lateral (
-        select eur
-        from prices
-        where scryfall_id = c.scryfall_id
-          and source = 'mtgjson'
-          and date <= latest_date.value - 30
-          and eur > 0
-        order by date desc
-        limit 1
-      ) previous_30d on true
+      left join app_current_price_changes previous_7d
+        on previous_7d.scryfall_id = c.scryfall_id
+          and previous_7d.source = 'mtgjson' and previous_7d.days = 7
+          and previous_7d.price_date = latest_date.value
+      left join app_current_price_changes previous_30d
+        on previous_30d.scryfall_id = c.scryfall_id
+          and previous_30d.source = 'mtgjson' and previous_30d.days = 30
+          and previous_30d.price_date = latest_date.value
       join lateral (
         select
           avg(eur) as average_price,
@@ -253,8 +238,8 @@ export async function getLatestSetWatch(
   const picks = rows
     .map((row): LatestSetWatchPick => {
       const price = Number(row.price);
-      const momentum7d = round(percentChange(price, row.price_7d === null ? null : Number(row.price_7d)));
-      const momentum30d = round(percentChange(price, row.price_30d === null ? null : Number(row.price_30d)));
+      const momentum7d = round(row.change_7d === null ? null : Number(row.change_7d));
+      const momentum30d = round(row.change_30d === null ? null : Number(row.change_30d));
       const high30d = row.high_30d === null ? null : Number(row.high_30d);
       const drawdownPercent = round(
         high30d && high30d > 0 ? ((price - high30d) / high30d) * 100 : null,

@@ -90,6 +90,7 @@ export async function answerPriceQuestion(
         on p.scryfall_id = c.scryfall_id
         and p.source = 'mtgjson'
         and p.eur is not null
+        and p.date between current_date - 29 and current_date
       where ${conditions}
       group by c.scryfall_id, c.name, c.set_code, c.set_name,
         c.collector_number, c.image_url, c.image_uris, c.released_at
@@ -122,6 +123,7 @@ export async function answerPriceQuestion(
       select date::text, eur::text
       from prices
       where scryfall_id = $1 and source = 'mtgjson' and eur is not null
+        and date between current_date - 29 and current_date
       order by date
     `,
     [selected.id],
@@ -174,8 +176,8 @@ export async function answerPriceQuestion(
 
   const answer =
     locale === "es"
-      ? `He analizado ${selected.name} (${selected.set_code.toUpperCase()}, #${selected.collector_number}). Su mayor tramo de subida fue del ${bestRise.percent.toFixed(1)}%, desde ${money(bestRise.start.price, locale)} el ${dateLabel(bestRise.start.date, locale)} hasta ${money(bestRise.end.price, locale)} el ${dateLabel(bestRise.end.date, locale)}: tardó ${riseDays} días. El mayor cambio diario ocurrió el ${dateLabel(biggestChange.end.date, locale)}: ${direction ? "subió" : "bajó"} un ${Math.abs(biggestChange.percent).toFixed(1)}%, de ${money(biggestChange.start.price, locale)} a ${money(biggestChange.end.price, locale)}. En todo el historial disponible, el cambio es ${totalReturn >= 0 ? "+" : ""}${totalReturn.toFixed(1)}%.`
-      : `I analysed ${selected.name} (${selected.set_code.toUpperCase()}, #${selected.collector_number}). Its strongest rise was ${bestRise.percent.toFixed(1)}%, from ${money(bestRise.start.price, locale)} on ${dateLabel(bestRise.start.date, locale)} to ${money(bestRise.end.price, locale)} on ${dateLabel(bestRise.end.date, locale)}, taking ${riseDays} days. The largest daily move was on ${dateLabel(biggestChange.end.date, locale)}: it ${direction ? "rose" : "fell"} ${Math.abs(biggestChange.percent).toFixed(1)}%, from ${money(biggestChange.start.price, locale)} to ${money(biggestChange.end.price, locale)}. Across all available history, the change is ${totalReturn >= 0 ? "+" : ""}${totalReturn.toFixed(1)}%.`;
+      ? `He analizado ${selected.name} (${selected.set_code.toUpperCase()}, #${selected.collector_number}). Su mayor tramo de subida fue del ${bestRise.percent.toFixed(1)}%, desde ${money(bestRise.start.price, locale)} el ${dateLabel(bestRise.start.date, locale)} hasta ${money(bestRise.end.price, locale)} el ${dateLabel(bestRise.end.date, locale)}: tardó ${riseDays} días. El mayor cambio diario ocurrió el ${dateLabel(biggestChange.end.date, locale)}: ${direction ? "subió" : "bajó"} un ${Math.abs(biggestChange.percent).toFixed(1)}%, de ${money(biggestChange.start.price, locale)} a ${money(biggestChange.end.price, locale)}. En el historial diario disponible de los últimos 30 días, el cambio es ${totalReturn >= 0 ? "+" : ""}${totalReturn.toFixed(1)}%.`
+      : `I analysed ${selected.name} (${selected.set_code.toUpperCase()}, #${selected.collector_number}). Its strongest rise was ${bestRise.percent.toFixed(1)}%, from ${money(bestRise.start.price, locale)} on ${dateLabel(bestRise.start.date, locale)} to ${money(bestRise.end.price, locale)} on ${dateLabel(bestRise.end.date, locale)}, taking ${riseDays} days. The largest daily move was on ${dateLabel(biggestChange.end.date, locale)}: it ${direction ? "rose" : "fell"} ${Math.abs(biggestChange.percent).toFixed(1)}%, from ${money(biggestChange.start.price, locale)} to ${money(biggestChange.end.price, locale)}. Across available daily history within the last 30 days, the change is ${totalReturn >= 0 ? "+" : ""}${totalReturn.toFixed(1)}%.`;
 
   return {
     answer,

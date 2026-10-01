@@ -90,12 +90,12 @@ export async function getSetPrediction(
         from cards c
         join selected_set s on lower(c.set_code) = s.code
         left join lateral (
-          select date, eur
-          from prices
+          select price_date as date, eur
+          from latest_card_prices
           where scryfall_id = c.scryfall_id
             and source = 'mtgjson'
             and eur > 0
-          order by date desc
+          order by price_date desc
           limit 1
         ) latest on true
         left join lateral (

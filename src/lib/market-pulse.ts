@@ -24,20 +24,11 @@ async function loadMarketPulse(
   const { rows } = await query<MarketPulseRow>(
     `
       with dates as (
-        select
-          max(date) as latest_date,
-          (
-            select max(historical.date)
-            from prices historical
-            where historical.source = 'mtgjson'
-              and historical.date <= (
-                select max(current.date)
-                from prices current
-                where current.source = 'mtgjson'
-              ) - $1::integer
-          ) as comparison_date
-        from prices
-        where source = 'mtgjson'
+        select max(price_date) as latest_date,
+          max(comparison_date) as comparison_date
+        from app_current_price_changes
+        where source = 'mtgjson' and days = $1::integer
+          and price_date = (select max(price_date) from latest_card_prices where source='mtgjson')
       ),
       card_inventory as (
         select lower(set_code) as set_code, count(*)::integer as card_count
@@ -49,20 +40,20 @@ async function loadMarketPulse(
           lower(c.set_code) as set_code,
           c.scryfall_id::text as card_id,
           c.name as card_name,
-          ((current_price.eur - historical_price.eur) / historical_price.eur) * 100
+          historical_price.return_percent
             as return_percent
         from dates
-        join prices current_price
+        join latest_card_prices current_price
           on current_price.source = 'mtgjson'
-          and current_price.date = dates.latest_date
-        join prices historical_price
+          and current_price.price_date = dates.latest_date
+        join app_current_price_changes historical_price
           on historical_price.scryfall_id = current_price.scryfall_id
           and historical_price.source = 'mtgjson'
-          and historical_price.date = dates.comparison_date
+          and historical_price.days = $1::integer and historical_price.price_date = dates.latest_date
         join cards c on c.scryfall_id = current_price.scryfall_id
         where current_price.eur between 2 and 5000
-          and historical_price.eur >= 2
-          and ((current_price.eur - historical_price.eur) / historical_price.eur) * 100
+          and historical_price.comparison_above_floor
+          and historical_price.return_percent
             between -80 and 200
       ),
       ranked_returns as (

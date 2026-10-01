@@ -27,11 +27,15 @@ export async function GET(
       throw new ApiError(400, "invalid_card_id", "Card ID must be a UUID");
     }
     const params = request.nextUrl.searchParams;
-    assertOnlyParameters(params, ["from", "to", "finish"]);
+    assertOnlyParameters(params, ["from", "to", "finish", "interval"]);
+    const interval = params.get("interval") ?? "daily";
+    if (interval !== "daily" && interval !== "monthly") {
+      throw new ApiError(400, "invalid_parameter", "interval must be daily or monthly");
+    }
     const requestedTo = optionalDate(params.get("to"), "to");
     const to = requestedTo ?? isoDate(new Date());
     const defaultFrom = new Date(`${to}T00:00:00Z`);
-    defaultFrom.setUTCDate(defaultFrom.getUTCDate() - 89);
+    defaultFrom.setUTCDate(defaultFrom.getUTCDate() - (interval === "daily" ? 29 : 364));
     const from = optionalDate(params.get("from"), "from") ?? isoDate(defaultFrom);
     assertDateRange(from, to);
     const finish = params.get("finish") ?? "all";
@@ -50,8 +54,9 @@ export async function GET(
       from,
       to,
       finish: finish as "all" | "nonfoil" | "foil",
+      interval,
     });
-    return { data: { cardId: id, from, to, prices } };
+    return { data: { cardId: id, from, to, interval, prices } };
   });
 }
 

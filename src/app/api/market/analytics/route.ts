@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   const requestedDays = Number(request.nextUrl.searchParams.get("days") ?? 30);
-  const days = [1, 7, 30, 90].includes(requestedDays) ? requestedDays : 30;
+  const days = [1, 7, 30].includes(requestedDays) ? requestedDays : 30;
 
   try {
     const { newToken } = await getOrCreateUser(request);

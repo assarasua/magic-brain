@@ -30,8 +30,7 @@ import {
   movingAverage,
 } from "@/lib/financial-analytics";
 import { useLanguage } from "@/components/language-provider";
-
-type PricePoint = { date: string; eur: number | null; eurFoil: number | null };
+import type { PriceHistoryPoint, PriceInterval } from "@/lib/price-history-core";
 
 type CardDetailContextValue = {
   openCard: (card: CatalogCard | string) => void;
@@ -46,59 +45,76 @@ type CardDetailContextValue = {
 
 const CardDetailContext = createContext<CardDetailContextValue | null>(null);
 
-function PriceHistoryChart({
+export function PriceHistoryChart({
   history,
   locale,
+  interval,
 }: {
-  history: PricePoint[];
+  history: PriceHistoryPoint[];
   locale: "en" | "es";
+  interval: PriceInterval;
 }) {
+  const [asOf] = useState(() => new Date().toISOString().slice(0, 10));
   const [view, setView] = useState<"price" | "return">("price");
   const [showAverage, setShowAverage] = useState(true);
   const [hovered, setHovered] = useState<number | null>(null);
   const values = history.filter((point) => point.eur !== null) as Array<
-    PricePoint & { eur: number }
+    PriceHistoryPoint & { eur: number }
   >;
-  if (values.length < 2) {
-    return <div className="history-empty">No historical prices available.</div>;
+  if (values.length === 0) {
+    return <div className="history-empty">{locale === "es" ? "No hay precios disponibles para este periodo." : "No prices available for this period."}</div>;
   }
-  const metrics = calculateSeriesMetrics(
+  const monthly = interval === "monthly";
+  const metrics = values.every((point) => point.eur > 0) ? calculateSeriesMetrics(
     values.map((point) => ({ date: point.date, value: point.eur })),
-  );
+  ) : null;
   const average = movingAverage(
     values.map((point) => ({ date: point.date, value: point.eur })),
     Math.min(30, Math.max(7, Math.round(values.length / 6))),
   );
   const start = values[0].eur;
+  const plotReturn = view === "return" && start > 0;
   const plotted = values.map((point) =>
-    view === "price" ? point.eur : ((point.eur - start) / start) * 100,
+    plotReturn ? ((point.eur - start) / start) * 100 : point.eur,
   );
   const averagePlotted = average.map((point) =>
-    view === "price" ? point.value : ((point.value - start) / start) * 100,
+    plotReturn ? ((point.value - start) / start) * 100 : point.value,
   );
   const width = 720;
   const height = 230;
   const min = Math.min(...plotted);
   const max = Math.max(...plotted);
-  const y = (value: number) =>
+  const y = (value: number) => max === min ? height / 2 :
     height - ((value - min) / Math.max(max - min, 0.01)) * (height - 20) - 10;
+  const datePosition = (date: string) => monthly
+    ? Number(date.slice(0, 4)) * 12 + Number(date.slice(5, 7))
+    : Date.parse(`${date}T00:00:00Z`);
+  const windowEnd = monthly ? values.at(-1)!.date : asOf;
+  const windowStart = monthly ? values[0].date
+    : new Date(Date.parse(`${asOf}T00:00:00Z`) - 29 * 86_400_000).toISOString().slice(0, 10);
+  const firstPosition = datePosition(windowStart);
+  const positionRange = datePosition(windowEnd) - firstPosition;
+  const x = (index: number) => positionRange === 0
+    ? width / 2
+    : ((datePosition(values[index].date) - firstPosition) / positionRange) * width;
   const points = plotted
-    .map((point, index) => {
-      const x = (index / (values.length - 1)) * width;
-      return `${x},${y(point)}`;
-    })
+    .map((point, index) => `${x(index)},${y(point)}`)
     .join(" ");
   const averagePoints = averagePlotted
-    .map((point, index) => `${(index / (values.length - 1)) * width},${y(point)}`)
+    .map((point, index) => `${x(index)},${y(point)}`)
     .join(" ");
-  const activeIndex = hovered ?? values.length - 1;
+  const activeIndex = Math.min(hovered ?? values.length - 1, values.length - 1);
   const active = values[activeIndex];
   const activeValue = plotted[activeIndex];
-  const activeX = (activeIndex / (values.length - 1)) * width;
+  const activeX = x(activeIndex);
   const activeY = y(activeValue);
   const positive = (metrics?.returnPercent ?? 0) >= 0;
   const formatAxis = (value: number) =>
-    view === "price" ? formatCurrency(value) : `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
+    plotReturn ? `${value >= 0 ? "+" : ""}${value.toFixed(1)}%` : formatCurrency(value);
+  const formatDate = (date: string) => new Intl.DateTimeFormat(locale, {
+    ...(monthly ? {} : { day: "numeric" as const }),
+    month: "short", year: "numeric", timeZone: "UTC",
+  }).format(new Date(`${date}T00:00:00Z`));
 
   return (
     <div className="investment-history">
@@ -112,8 +128,8 @@ function PriceHistoryChart({
         </div>
         <div>
           <button className={view === "price" ? "active" : ""} onClick={() => setView("price")}>{locale === "es" ? "Precio" : "Price"}</button>
-          <button className={view === "return" ? "active" : ""} onClick={() => setView("return")}>{locale === "es" ? "Rentabilidad" : "Return"}</button>
-          <button className={showAverage ? "active" : ""} aria-pressed={showAverage} onClick={() => setShowAverage((current) => !current)}>MA</button>
+          <button className={view === "return" ? "active" : ""} disabled={start <= 0 || values.length < 2} onClick={() => setView("return")}>{monthly ? (locale === "es" ? "Variación" : "Change") : (locale === "es" ? "Rentabilidad" : "Return")}</button>
+          {!monthly && <button className={showAverage ? "active" : ""} aria-label={locale === "es" ? "Media móvil" : "Moving average"} aria-pressed={showAverage} onClick={() => setShowAverage((current) => !current)}>MA</button>}
         </div>
       </div>
       <div
@@ -121,34 +137,40 @@ function PriceHistoryChart({
         onMouseMove={(event) => {
           const bounds = event.currentTarget.getBoundingClientRect();
           const ratio = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
-          setHovered(Math.round(ratio * (values.length - 1)));
+          const target = ratio * width;
+          setHovered(values.reduce((nearest, _, index) =>
+            Math.abs(x(index) - target) < Math.abs(x(nearest) - target) ? index : nearest, 0));
         }}
         onMouseLeave={() => setHovered(null)}
       >
         <div className="history-scale"><span>{formatAxis(max)}</span><span>{formatAxis((max + min) / 2)}</span><span>{formatAxis(min)}</span></div>
-        <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+        <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img" aria-label={monthly ? (locale === "es" ? "Precio medio por mes" : "Average price by month") : (locale === "es" ? "Precios de los últimos 30 días" : "Prices for the last 30 days")}>
           <defs><linearGradient id="sharedHistoryFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#8b5cf6" stopOpacity=".32" /><stop offset="1" stopColor="#8b5cf6" stopOpacity="0" /></linearGradient></defs>
           {[0.25, 0.5, 0.75].map((position) => <line key={position} x1="0" x2={width} y1={height * position} y2={height * position} className="chart-grid-line" />)}
-          <polygon points={`0,${height} ${points} ${width},${height}`} fill="url(#sharedHistoryFill)" />
-          {showAverage && <polyline points={averagePoints} className="history-average-line" vectorEffect="non-scaling-stroke" />}
+          {values.length > 1 && <polygon points={`${x(0)},${height} ${points} ${x(values.length - 1)},${height}`} fill="url(#sharedHistoryFill)" />}
+          {!monthly && showAverage && <polyline points={averagePoints} className="history-average-line" vectorEffect="non-scaling-stroke" />}
           <polyline points={points} className="history-price-line" vectorEffect="non-scaling-stroke" />
+          {values.map((point, index) => <circle key={point.date} cx={x(index)} cy={y(plotted[index])} r="4" className="chart-point" />)}
           <line x1={activeX} x2={activeX} y1="0" y2={height} className="chart-cursor" vectorEffect="non-scaling-stroke" />
           <circle cx={activeX} cy={activeY} r="5" className="chart-point" vectorEffect="non-scaling-stroke" />
         </svg>
         {hovered !== null && (
-          <div className="history-tooltip" style={{ left: `${(activeIndex / (values.length - 1)) * 100}%` }}>
+          <div className="history-tooltip" style={{ left: `${(activeX / width) * 100}%` }}>
             <strong>{formatCurrency(active.eur)}</strong>
-            <span>{new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(new Date(active.date))}</span>
+            <span>{formatDate(active.date)}</span>
+            {monthly && <span>{active.observations}/{active.expectedDays} {locale === "es" ? "días con precio" : "days with prices"}</span>}
           </div>
         )}
-        <div className="history-dates"><span>{values[0].date}</span><span>{values.at(-1)?.date}</span></div>
+        <div className="history-dates"><span>{formatDate(windowStart)}</span><span>{windowStart !== windowEnd ? formatDate(windowEnd) : ""}</span></div>
       </div>
+      {!monthly && <p className="history-caption">{values.length}/30 {locale === "es" ? "días con precio · Los días sin datos quedan vacíos" : "days with prices · Days without data are left blank"}</p>}
+      {monthly && <p className="history-caption">{locale === "es" ? "Media mensual" : "Monthly average"} · {formatDate(active.date)} · {active.observations}/{active.expectedDays} {locale === "es" ? "días con precio" : "days with prices"}{active.observations < active.expectedDays ? (locale === "es" ? " · Mes parcial" : " · Partial month") : ""}</p>}
       {metrics && (
         <div className="investment-metrics">
-          <div><TrendingUp size={14} /><span>{locale === "es" ? "Rentabilidad" : "Period return"}</span><strong className={positive ? "up" : "down"}>{metrics.returnPercent >= 0 ? "+" : ""}{metrics.returnPercent.toFixed(2)}%</strong></div>
-          <div><Activity size={14} /><span>{locale === "es" ? "Volatilidad anual" : "Annualised volatility"}</span><strong>{metrics.annualizedVolatilityPercent.toFixed(1)}%</strong></div>
-          <div><TrendingDown size={14} /><span>Max drawdown</span><strong className="down">{metrics.maxDrawdownPercent.toFixed(1)}%</strong></div>
-          <div><BarChart3 size={14} /><span>{locale === "es" ? "Rango" : "Price range"}</span><strong>{formatCurrency(metrics.low)}–{formatCurrency(metrics.high)}</strong></div>
+          <div><TrendingUp size={14} /><span>{monthly ? (locale === "es" ? "Variación de medias" : "Change in averages") : (locale === "es" ? "Rentabilidad" : "Period return")}</span><strong className={positive ? "up" : "down"}>{metrics.returnPercent >= 0 ? "+" : ""}{metrics.returnPercent.toFixed(2)}%</strong></div>
+          {!monthly && <div><Activity size={14} /><span>{locale === "es" ? "Volatilidad anual" : "Annualised volatility"}</span><strong>{metrics.annualizedVolatilityPercent.toFixed(1)}%</strong></div>}
+          {!monthly && <div><TrendingDown size={14} /><span>Max drawdown</span><strong className="down">{metrics.maxDrawdownPercent.toFixed(1)}%</strong></div>}
+          <div><BarChart3 size={14} /><span>{monthly ? (locale === "es" ? "Rango de medias" : "Average range") : (locale === "es" ? "Rango" : "Price range")}</span><strong>{formatCurrency(metrics.low)}–{formatCurrency(metrics.high)}</strong></div>
         </div>
       )}
     </div>
@@ -159,8 +181,10 @@ export function CardDetailProvider({ children }: { children: ReactNode }) {
   const { locale, t } = useLanguage();
   const [card, setCard] = useState<CatalogCard | null>(null);
   const [cardId, setCardId] = useState("");
-  const [history, setHistory] = useState<PricePoint[]>([]);
-  const [historyDays, setHistoryDays] = useState(90);
+  const [history, setHistory] = useState<PriceHistoryPoint[]>([]);
+  const [historyInterval, setHistoryInterval] = useState<PriceInterval>("daily");
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
   const closeButton = useRef<HTMLButtonElement>(null);
@@ -172,7 +196,9 @@ export function CardDetailProvider({ children }: { children: ReactNode }) {
     setCardId(typeof next === "string" ? next : next.id);
     setLoading(typeof next === "string");
     setHistory([]);
-    setHistoryDays(90);
+    setHistoryInterval("daily");
+    setHistoryLoading(true);
+    setHistoryError(false);
   }, []);
 
   const cardSurfaceProps = useCallback(
@@ -218,14 +244,24 @@ export function CardDetailProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!cardId) return;
     const controller = new AbortController();
-    fetch(`/api/cards/${cardId}/history?days=${historyDays}`, {
+    fetch(`/api/cards/${cardId}/history?interval=${historyInterval}`, {
       signal: controller.signal,
     })
-      .then((response) => response.json())
-      .then((result: { history?: PricePoint[] }) => setHistory(result.history ?? []))
-      .catch(() => setHistory([]));
+      .then((response) => {
+        if (!response.ok) throw new Error("History unavailable");
+        return response.json() as Promise<{ history: PriceHistoryPoint[] }>;
+      })
+      .then((result) => {
+        if (!controller.signal.aborted) setHistory(result.history);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setHistoryError(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setHistoryLoading(false);
+      });
     return () => controller.abort();
-  }, [cardId, historyDays]);
+  }, [cardId, historyInterval]);
 
   useEffect(() => {
     if (!cardId) return;
@@ -302,8 +338,16 @@ export function CardDetailProvider({ children }: { children: ReactNode }) {
                     <div><dt>{t("7-day movement")}</dt><dd className={card.change7d !== null && card.change7d >= 0 ? "up" : "down"}>{card.change7d === null ? "Unavailable" : `${card.change7d >= 0 ? "+" : ""}${card.change7d.toFixed(2)}%`}</dd></div>
                     <div><dt>{t("Printing")}</dt><dd>{card.setCode.toUpperCase()} #{card.collectorNumber}</dd></div>
                   </dl>
-                  <div className="history-head"><strong>{t("Daily price history")}</strong><div>{[30, 90, 180, 365].map((days) => <button key={days} className={historyDays === days ? "active" : ""} onClick={() => setHistoryDays(days)}>{days === 365 ? "1Y" : `${days}D`}</button>)}</div></div>
-                  <PriceHistoryChart history={history} locale={locale} />
+                  <div className="history-head"><strong>{locale === "es" ? "Historial de precios" : "Price history"}</strong><div role="group" aria-label={locale === "es" ? "Intervalo del gráfico" : "Chart interval"}>{(["daily", "monthly"] as const).map((interval) => <button key={interval} className={historyInterval === interval ? "active" : ""} aria-pressed={historyInterval === interval} onClick={() => {
+                    if (interval === historyInterval) return;
+                    setHistoryInterval(interval);
+                    setHistory([]);
+                    setHistoryLoading(true);
+                    setHistoryError(false);
+                  }}>{interval === "daily" ? (locale === "es" ? "Diario · 30 días" : "Daily · 30 days") : (locale === "es" ? "Mensual" : "Monthly")}</button>)}</div></div>
+                  <p className="history-caption">{historyInterval === "daily" ? (locale === "es" ? "Precios registrados en los últimos 30 días." : "Recorded prices from the last 30 days.") : (locale === "es" ? "Una media por mes · Todo el historial disponible · Se excluyen los precios ausentes." : "One average per month · All available history · Missing prices excluded.")}</p>
+                  {card.priceDate && <p className="history-caption">{locale === "es" ? "Último precio" : "Latest price"}: {card.priceDate} · MTGJSON · EUR</p>}
+                  {historyLoading ? <div className="history-empty" role="status">{locale === "es" ? "Cargando precios…" : "Loading prices…"}</div> : historyError ? <div className="history-empty" role="alert">{locale === "es" ? "No se pudo cargar el historial." : "Unable to load price history."}</div> : <PriceHistoryChart key={`${cardId}-${historyInterval}`} history={history} locale={locale} interval={historyInterval} />}
                   <div className="detail-actions">
                     <Link href={`/portfolio?cardId=${card.id}`} onClick={() => setCardId("")}><Plus size={14} /> {t("Add holding")}</Link>
                     <button onClick={addToWatchlist}>{t("Watchlist")}</button>

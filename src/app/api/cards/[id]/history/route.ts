@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPriceHistory } from "@/lib/catalog";
+import { getPriceHistory } from "@/lib/price-history";
 import { calculateSeriesMetrics } from "@/lib/financial-analytics";
 
 export const runtime = "nodejs";
@@ -16,17 +16,22 @@ export async function GET(
     return NextResponse.json({ error: "Invalid card ID" }, { status: 400 });
   }
 
-  const requestedDays = Number(request.nextUrl.searchParams.get("days") ?? 90);
-  const days = [30, 90, 180, 365].includes(requestedDays) ? requestedDays : 90;
+  const interval = request.nextUrl.searchParams.get("interval") ?? "daily";
+  if (interval !== "daily" && interval !== "monthly") {
+    return NextResponse.json(
+      { error: "Interval must be daily or monthly" },
+      { status: 400 },
+    );
+  }
 
   try {
-    const history = await getPriceHistory(id, days);
-    const metrics = calculateSeriesMetrics(
+    const history = await getPriceHistory(id, interval);
+    const metrics = interval === "daily" ? calculateSeriesMetrics(
       history.flatMap((point) =>
         point.eur === null ? [] : [{ date: point.date, value: point.eur }],
       ),
-    );
-    return NextResponse.json({ history, metrics });
+    ) : null;
+    return NextResponse.json({ history, metrics, interval, source: "mtgjson" });
   } catch {
     return NextResponse.json(
       { error: "Unable to load price history" },

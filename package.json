@@ -52,6 +52,7 @@
     "db:sync-reserved": "node --env-file=.env.local scripts/sync-reserved-list.mjs",
     "db:sync-sets": "node --env-file=.env.local scripts/sync-sets.mjs",
     "db:sync-resend": "node --env-file=.env.local scripts/sync-resend-audience.mjs",
+    "db:compact-prices": "node --env-file-if-exists=.env.local scripts/compact-price-history.mjs",
     "db:sync-card-rules": "node --env-file-if-exists=.env.local scripts/sync-card-rules.mjs"
   },
   "keywords": [

@@ -438,6 +438,33 @@ describe("MCP contract", () => {
     await server.close();
   });
 
+  it("forwards monthly history requests and preserves aggregate evidence", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async (input) => {
+      const url = new URL(String(input));
+      expect(url.searchParams.get("interval")).toBe("monthly");
+      expect(url.searchParams.get("finish")).toBe("foil");
+      return new Response(JSON.stringify({ data: { interval: "monthly", prices: [{
+        amount: 15, currency: "EUR", finish: "foil", source: "mtgjson",
+        aggregation: "monthly_average", periodStart: "2026-08-01",
+        periodEnd: "2026-08-31", observations: 20, observedAt: "2026-08-30",
+      }] } }));
+    });
+    const server = createMagicBrainMcpServer(config, fetchMock);
+    const client = new Client({ name: "test-client", version: "1.0.0" });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+    await client.listTools();
+    const result = await client.callTool({ name: "get_price_history", arguments: {
+      card_id: "card-1", start_date: "2026-08-01", end_date: "2026-08-31",
+      interval: "monthly", finish: "foil",
+    } });
+    expect(result.isError).not.toBe(true);
+    expect(JSON.stringify(result.structuredContent)).toContain('"observations":20');
+    expect(JSON.stringify(result.structuredContent)).toContain('"aggregation":"monthly_average"');
+    await client.close();
+    await server.close();
+  });
+
   it("rejects invalid history ranges before calling the API", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     const server = createMagicBrainMcpServer(config, fetchMock);

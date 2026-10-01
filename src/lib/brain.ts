@@ -202,7 +202,7 @@ export async function generateBrainPortfolio(
   const { rows } = await query<CandidateRow>(
     `
       with dates as (
-        select max(date) as latest_date from prices where source = 'mtgjson'
+        select max(price_date) as latest_date from latest_card_prices where source = 'mtgjson'
       ),
       priced as (
         select
@@ -221,23 +221,23 @@ export async function generateBrainPortfolio(
             where reserved.oracle_id = c.oracle_id
           ) as is_reserved,
           current_price.eur as price,
-          ((current_price.eur - price_7d.eur) / price_7d.eur) * 100 as return_7d,
-          ((current_price.eur - price_30d.eur) / price_30d.eur) * 100 as return_30d
+          price_7d.return_percent as return_7d,
+          price_30d.return_percent as return_30d
         from cards c
         cross join dates
-        join prices current_price
+        join latest_card_prices current_price
           on current_price.scryfall_id = c.scryfall_id
-          and current_price.date = dates.latest_date
+          and current_price.price_date = dates.latest_date
           and current_price.source = 'mtgjson'
-        join prices price_7d
+        join app_current_price_changes price_7d
           on price_7d.scryfall_id = c.scryfall_id
-          and price_7d.date = dates.latest_date - interval '7 days'
+          and price_7d.days = 7 and price_7d.price_date = dates.latest_date
           and price_7d.source = 'mtgjson'
-        join prices price_30d
+        join app_current_price_changes price_30d
           on price_30d.scryfall_id = c.scryfall_id
-          and price_30d.date = dates.latest_date - interval '30 days'
+          and price_30d.days = 30 and price_30d.price_date = dates.latest_date
           and price_30d.source = 'mtgjson'
-        where price_7d.eur > 0 and price_30d.eur > 0
+        where price_7d.return_percent is not null and price_30d.return_percent is not null
       )
       select id, name, set_code, set_name, image_url, rarity, type_line,
              price, return_7d, return_30d, released_at, is_reserved

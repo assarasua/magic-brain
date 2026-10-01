@@ -137,7 +137,7 @@ export default function AnalystPage() {
           <span className="analyst-icon"><MessageCircleQuestion size={28} /></span>
           <ProBadge />
           <h1>{locale === "es" ? "Pregunta a tus datos." : "Ask your market data."}</h1>
-          <p>{locale === "es" ? "Consulta subidas, fechas clave y movimientos diarios usando todo el historial de precios." : "Ask about rises, key dates, and daily movements using the complete price history."}</p>
+          <p>{locale === "es" ? "Consulta subidas, fechas clave y movimientos diarios usando el historial diario de los últimos 30 días." : "Ask about rises, key dates, and daily movements using daily prices from the last 30 days."}</p>
           <form onSubmit={ask}>
             <Sparkles size={18} />
             <input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder={locale === "es" ? "Ej. ¿Cuándo tuvo The One Ring su mayor subida?" : "E.g. When did The One Ring have its largest rise?"} />

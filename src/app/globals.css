@@ -4742,6 +4742,13 @@ footer {
   background: rgba(72, 185, 255, 0.11);
 }
 
+.history-caption {
+  margin: 5px 0 12px;
+  color: var(--text-muted, #8292a6);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .history-chart {
   position: relative;
   height: 126px;

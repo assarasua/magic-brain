@@ -114,7 +114,7 @@ function SignalsContent() {
   const es = locale === "es";
   const [signals, setSignals] = useState<Signal[]>([]);
   const [analytics, setAnalytics] = useState(emptyAnalytics);
-  const [days, setDays] = useState<7 | 30 | 90>(30);
+  const [days, setDays] = useState<1 | 7 | 30>(30);
   const [filter, setFilter] = useState<"all" | "up" | "down">("all");
   const [loading, setLoading] = useState(true);
   const [ranking, setRanking] = useState<MlRankingStatus>({
@@ -250,7 +250,7 @@ function SignalsContent() {
             ))}
           </div>
           <div className="signals-controls" aria-label={es ? "Periodo de análisis" : "Analysis period"}>
-            {([7, 30, 90] as const).map((value) => (
+            {([1, 7, 30] as const).map((value) => (
               <button
                 key={value}
                 className={days === value ? "active" : ""}
