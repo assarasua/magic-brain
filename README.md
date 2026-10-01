@@ -27,7 +27,13 @@ English and Spanish are available from the header language control.
 Daily market briefs are materialized from every unpublished Scryfall price date
 when the private news job runs. Configure the same `NEWS_CRON_SECRET` in the
 deployed worker and in GitHub Actions; `.github/workflows/daily-news.yml` calls
-the job every day at 09:15 Europe/Madrid during summer time. The job is
+the job every day at 08:00 Europe/Madrid, adjusting for summer and winter time.
+Website briefs remain daily. The shared newsletter is sent only on Mondays at
+08:00 Europe/Madrid (or later that Monday if the job is delayed), using the latest
+available brief and clearly labeling its market-data date. Manual runs on other
+days publish website briefs without emailing subscribers. Broadcast creation and
+sending use the Monday delivery date as their idempotency key, so same-day
+retries cannot produce another email even if new market data arrives. The job is
 idempotent and also backfills missed market-data dates.
 
 ## Magic Brain MCP connector

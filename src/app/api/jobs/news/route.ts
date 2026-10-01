@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { materializeLatestMarketBrief, materializeMissingMarketBriefs } from "@/lib/market-news";
-import { newsletterDeliveryConfigured, sendDailyBriefNewsletter } from "@/lib/resend";
+import { sendWeeklyBriefNewsletter } from "@/lib/resend";
 
 export const runtime = "nodejs";
 
@@ -21,9 +21,9 @@ export async function POST(request: NextRequest) {
   try {
     const briefs = await materializeMissingMarketBriefs(366);
     const latest = briefs.at(-1) ?? await materializeLatestMarketBrief();
-    const newsletter = latest && newsletterDeliveryConfigured()
-      ? { status: "sent", broadcastId: await sendDailyBriefNewsletter(latest), marketDataDate: latest.marketDataDate }
-      : { status: "not_configured" };
+    const newsletter = latest
+      ? await sendWeeklyBriefNewsletter(latest)
+      : { status: "no_brief" };
     return NextResponse.json({
       published: briefs.length,
       dates: briefs.map((brief) => brief.marketDataDate),
