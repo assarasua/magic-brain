@@ -64,8 +64,8 @@
   "dependencies": {
     "@opennextjs/cloudflare": "^1.20.6",
     "driver.js": "^1.8.0",
-    "lucide-react": "^1.45.0",
-    "next": "^16.3.5",
+    "lucide-react": "^1.48.0",
+    "next": "^16.3.6",
     "next-auth": "^5.0.0-beta.32",
     "pg": "^8.23.0",
     "pg-cloudflare": "^1.4.0",
@@ -76,15 +76,15 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
-    "@types/node": "^26.5.1",
+    "@types/node": "^26.6.3",
     "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "eslint": "^9.39.5",
-    "eslint-config-next": "^16.3.5",
-    "playwright-core": "^1.55.0",
+    "eslint-config-next": "^16.3.6",
+    "playwright-core": "^1.63.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
-    "wrangler": "^4.131.1"
+    "wrangler": "^4.143.0"
   }
 }
