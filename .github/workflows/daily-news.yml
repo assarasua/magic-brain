@@ -18,6 +18,8 @@ concurrency:
 
 jobs:
   publish:
+    # Product and outgoing market newsletters are paused.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
