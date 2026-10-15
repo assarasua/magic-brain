@@ -1,8 +1,13 @@
 import type { MetadataRoute } from "next";
+import { SITE_PAUSED } from "../lib/site-mode.ts";
 
 const host = "https://magicbrain.es";
 
 export default function sitemap(): MetadataRoute.Sitemap {
+  if (SITE_PAUSED) return [
+    { url: `${host}/`, changeFrequency: "monthly", priority: 1 },
+    ...["privacy", "cookies", "terms"].map((path) => ({ url: `${host}/${path}`, changeFrequency: "yearly" as const, priority: 0.3 })),
+  ];
   return [
     { url: `${host}/login`, changeFrequency: "weekly", priority: 1 },
     { url: `${host}/market-movers`, changeFrequency: "daily", priority: 0.9 },

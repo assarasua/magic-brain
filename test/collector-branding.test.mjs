@@ -7,7 +7,7 @@ const read = (path) =>
 
 test("primary product copy uses the collection mental model in both languages", () => {
   const language = read("src/components/language-provider.tsx");
-  const home = read("src/app/page.tsx");
+  const home = read("src/components/overview-page.tsx");
   const login = read("src/app/login/page.tsx");
 
   assert.match(language, /"Portfolio": "Colección"/);

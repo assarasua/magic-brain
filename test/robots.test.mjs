@@ -5,14 +5,14 @@ import robots from "../src/app/robots.ts";
 
 const root = new URL("../", import.meta.url);
 
-test("robots permits public market data while protecting private product areas", () => {
+test("robots advertises the pause landing and protects disabled product areas", () => {
   const policy = robots();
 
   assert.deepEqual(policy, {
     rules: {
       userAgent: "*",
-      allow: ["/llms.txt", "/login", "/developers", "/mcp", "/webmcp", "/market-movers", "/privacy", "/cookies", "/terms", "/api/market/movers", "/api/v1/news/latest", "/_next/static/", "/_next/image"],
-      disallow: ["/api/account", "/api/portfolio", "/api/watchlist", "/api/referrals", "/api/oauth", "/oauth", "/shared", "/settings", "/portfolio", "/watchlist", "/referrals"],
+      allow: ["/$", "/privacy", "/cookies", "/terms", "/previews/", "/_next/static/", "/_next/image"],
+      disallow: ["/api/", "/oauth/", "/shared/", "/login", "/developers", "/mcp", "/webmcp", "/market", "/portfolio", "/watchlist", "/settings"],
     },
     host: "https://magicbrain.es",
     sitemap: "https://magicbrain.es/sitemap.xml",

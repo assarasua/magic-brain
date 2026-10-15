@@ -4,12 +4,13 @@ import { createServer } from "node:net";
 import { spawn } from "node:child_process";
 import test from "node:test";
 import { chromium } from "playwright-core";
+import { SITE_PAUSED } from "../../src/lib/site-mode.ts";
 
 const root = new URL("../../", import.meta.url);
 
 test(
   "scanner uses mocked camera and sends only OCR text for multilingual upload",
-  { timeout: 120_000 },
+  { timeout: 120_000, skip: SITE_PAUSED ? "Scanner is intentionally disabled during the product pause" : false },
   async (context) => {
     const port = await availablePort();
     const origin = `http://localhost:${port}`;

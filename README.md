@@ -9,6 +9,28 @@ artwork, names, symbols, and provider data are third-party material and are not
 licensed by this repository; read [NOTICE](NOTICE.md) before importing or
 redistributing data.
 
+## Temporary product pause
+
+The hosted product is paused. `/` shows the bilingual waiting page and real
+public-page screenshots captured on 15 October 2026. Only legal pages, assets
+and the consent-based `POST /api/newsletter` remain available. Other pages
+redirect temporarily to `/`; APIs, sign-in, OAuth and jobs return uncached 503
+responses before their handlers run. Existing data is preserved.
+
+Paused signups require explicit consent and are saved in the existing Resend
+audience, independently of the application database. No new service or
+migration is required. Automated market emails, news, ML and
+price-retention workflows are disabled during the pause.
+
+Deploy both the web application and the MCP worker: its temporary
+`src/paused-worker.ts` entry point disables even locally served rules tools.
+Pausing only the web does not disable that separate service. The original
+worker and overview component remain in the repository for a future relaunch.
+
+For a deliberate relaunch, revert the pause changes together: routing and
+`SITE_PAUSED`, MCP entry point, schedules, sitemap/robots/llms, and landing copy.
+Do not enable scheduled mail until its destinations are available again.
+
 ## Product areas
 
 - `/` — collection overview and recent price context

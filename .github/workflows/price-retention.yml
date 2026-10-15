@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   compact:
-    if: vars.PRICE_RETENTION_ENABLED == 'true'
+    if: ${{ false }} # Product paused; preserve stored data.
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 60

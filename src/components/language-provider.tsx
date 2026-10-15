@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, ReactNode, useContext, useSyncExternalStore } from "react";
+import { createContext, ReactNode, useContext, useEffect, useSyncExternalStore } from "react";
 
 type Locale = "en" | "es";
 
@@ -116,7 +116,7 @@ const LanguageContext = createContext<LanguageContextValue>({
   t: (text) => text,
 });
 
-export function LanguageProvider({ children }: { children: ReactNode }) {
+export function LanguageProvider({ children, syncAccount = true, defaultLocale = "en" }: { children: ReactNode; syncAccount?: boolean; defaultLocale?: Locale }) {
   const locale = useSyncExternalStore<Locale>(
     (onStoreChange) => {
       window.addEventListener("magic-brain-locale", onStoreChange);
@@ -127,15 +127,17 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       };
     },
     () =>
-      window.localStorage.getItem("magic-brain-locale") === "es" ? "es" : "en",
-    () => "en",
+      (window.localStorage.getItem("magic-brain-locale") as Locale | null) === "es" ? "es" : window.localStorage.getItem("magic-brain-locale") === "en" ? "en" : defaultLocale,
+    () => defaultLocale,
   );
+
+  useEffect(() => { document.documentElement.lang = locale; }, [locale]);
 
   const setLocale = (nextLocale: Locale) => {
     window.localStorage.setItem("magic-brain-locale", nextLocale);
     window.dispatchEvent(new Event("magic-brain-locale"));
     document.documentElement.lang = nextLocale;
-    fetch("/api/account", {
+    if (syncAccount) fetch("/api/account", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ locale: nextLocale }),
